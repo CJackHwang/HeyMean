@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeyMean: AI Learning Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#333333",
+            "background-light": "#ffffff",
+            "background-dark": "#111111",
+            "heymean-l": "#F0F0F0",
+            "heymean-d": "#222222",
+            "primary-text-light": "#333333",
+            "primary-text-dark": "#ffffff",
+            "thinking-dark": "#1A2B21",
+            "thinking-text-dark": "#A6E0B3",
+          },
+          fontFamily: {
+            "display": ["Inter", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "2xl": "2rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    /* Styles for prose table from mockup */
+    .prose table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .prose th,
+    .prose td {
+      padding: 0.75rem;
+      border: 1px solid;
+      text-align: left;
+    }
+    .light .prose th, .light .prose td {
+      border-color: #e5e7eb;
+    }
+    .dark .prose th, .dark .prose td {
+      border-color: #374151;
+    }
+    .prose thead {
+      background-color: rgba(240, 240, 240, 0.5);
+    }
+    .dark .prose thead {
+      background-color: rgba(34, 34, 34, 0.5);
+    }
+    .prose thead th {
+      font-weight: 600;
+    }
+    .prose table {
+      border-radius: 1.5rem;
+      overflow: hidden;
+      border: none;
+    }
+    .prose th:first-child {
+      border-top-left-radius: 1.5rem;
+    }
+    .prose th:last-child {
+      border-top-right-radius: 1.5rem;
+    }
+    .prose tbody tr:last-child td:first-child {
+      border-bottom-left-radius: 1.5rem;
+    }
+    .prose tbody tr:last-child td:last-child {
+      border-bottom-right-radius: 1.5rem;
+    }
+
+    /* Generic Collapsible Checkbox */
+    input.collapsible-checkbox {
+      display: none;
+    }
+    .collapsible-content {
+      display: none;
+    }
+    input.collapsible-checkbox:checked ~ .collapsible-content {
+      display: block;
+    }
+    input.collapsible-checkbox:checked ~ label .collapsible-icon {
+      transform: rotate(180deg);
+    }
+    .collapsible-icon {
+      transition: transform 0.2s ease-in-out;
+    }
+
+    /* Notes Drawer Styles */
+    #notes-content {
+      transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    }
+    #notes-drawer:checked ~ #notes-content {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #notes-drawer:checked ~ div #notes-tab {
+      display: none;
+    }
+    #notes-tab .material-symbols-outlined {
+        transition: transform 0.3s ease-in-out;
+    }
+    #notes-drawer:checked ~ div #notes-tab .material-symbols-outlined {
+        transform: rotate(0deg);
+    }
+
+    /* Squircle Loader Animation */
+    @keyframes squircle-rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes squircle-morph {
+      0%, 100% { border-radius: 40% 60% 60% 40% / 70% 30% 70% 30%; }
+      50% { border-radius: 30% 70% 30% 70% / 60% 40% 60% 40%; }
+    }
+    .squircle-loader {
+      width: 28px;
+      height: 28px;
+      display: inline-block;
+      position: relative;
+      border: 3px solid #A6E0B3; /* thinking-text-dark */
+      animation: squircle-rotate 2s linear infinite, squircle-morph 2s ease-in-out infinite;
+    }
+    
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 6px;
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(255,255,255,0.2);
+    }
+
+
+    /* Global Transitions */
+    button, a, input, textarea, label[for] {
+        transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.26.0",
+    "dompurify": "https://aistudiocdn.com/dompurify@^3.3.0",
+    "marked": "https://aistudiocdn.com/marked@^16.4.1"
+  }
+}
+</script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+  <div id="root"></div>
+</body>
+</html>
