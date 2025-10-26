@@ -13,20 +13,23 @@ const messageToContent = (msg: Message) => {
     parts.push({ text: msg.text });
   }
 
-  if (msg.attachment) {
-    try {
-      // attachment.data is a data URL: "data:[<mediatype>];base64,<data>"
-      const base64Data = msg.attachment.data.split(',')[1];
-      if (base64Data) {
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: msg.attachment.type,
-          },
-        });
+  // FIX: Iterate over the `attachments` array instead of using a singular `attachment`.
+  if (msg.attachments) {
+    for (const attachment of msg.attachments) {
+      try {
+        // attachment.data is a data URL: "data:[<mediatype>];base64,<data>"
+        const base64Data = attachment.data.split(',')[1];
+        if (base64Data) {
+          parts.push({
+            inlineData: {
+              data: base64Data,
+              mimeType: attachment.type,
+            },
+          });
+        }
+      } catch (e) {
+        console.error("Error processing attachment data from message:", e);
       }
-    } catch (e) {
-      console.error("Error processing attachment data from message:", e);
     }
   }
 

@@ -58,5 +58,9 @@
   "modal.unsaved_content": "你有未保存的更改。你想在离开前保存它们吗？",
   "modal.unsaved_save": "保存",
   "modal.unsaved_discard": "不保存",
-  "modal.cancel": "取消"
+  "modal.cancel": "取消",
+  "file.size_error": "文件 “{0}” 超出 {1}MB 的大小限制。",
+  "file.type_unsupported": "不支持 “{0}” 的文件类型。",
+  "file.generic_name": "附件",
+  "file.pdf_not_supported_openai": "OpenAI 提供商不支持 PDF 文件分析。请切换到 Gemini 以使用此文件。"
 }

@@ -2,9 +2,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-// You may need to install the following packages:
-// npm install marked dompurify
-// npm install @types/marked @types/dompurify
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

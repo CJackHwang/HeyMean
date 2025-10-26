@@ -58,5 +58,9 @@
   "modal.unsaved_content": "You have unsaved changes. Would you like to save them before leaving?",
   "modal.unsaved_save": "Save",
   "modal.unsaved_discard": "Don't Save",
-  "modal.cancel": "Cancel"
+  "modal.cancel": "Cancel",
+  "file.size_error": "File \"{0}\" exceeds the {1}MB size limit.",
+  "file.type_unsupported": "File type for \"{0}\" is not supported.",
+  "file.generic_name": "Attached File",
+  "file.pdf_not_supported_openai": "PDF file analysis is not supported with the OpenAI provider. Please switch to Gemini to use this file."
 }

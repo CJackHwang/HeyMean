@@ -1,3 +1,4 @@
+
 import { Message, Note } from '../types';
 
 const DB_NAME = 'HeyMeanDB';
@@ -83,16 +84,22 @@ export const addMessage = async (message: Message): Promise<void> => {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(MESSAGES_STORE, 'readwrite');
         const store = transaction.objectStore(MESSAGES_STORE);
-        // Create a copy to avoid mutating the original object
+        
         const messageToStore = { ...message };
-        // Delete properties that shouldn't be stored in the DB
+        
         delete messageToStore.isLoading; 
         delete messageToStore.isThinkingComplete;
         delete messageToStore.thinkingStartTime;
         delete messageToStore.thinkingDuration;
-        if (messageToStore.attachment) {
-            delete messageToStore.attachment.preview;
+        
+        if (messageToStore.attachments) {
+            messageToStore.attachments = messageToStore.attachments.map(att => {
+                // Create a new object for each attachment without the 'preview' property
+                const { preview, ...rest } = att;
+                return rest;
+            });
         }
+        
         const request = store.put(messageToStore);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);

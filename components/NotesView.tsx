@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Note } from '../types';
 import { getNotes, addNote, updateNote, deleteNote } from '../services/db';
 import Modal from './Modal';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { useTranslation } from '../hooks/useTranslation';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface NotesViewProps {
     isDesktop?: boolean;
@@ -17,8 +17,6 @@ const NotePreview: React.FC<{
     onDeleteRequest: (id: number) => void;
 }> = ({ note, onEdit, onBack, onDeleteRequest }) => {
     const { t } = useTranslation();
-    const markedOptions = { gfm: true, breaks: true };
-    const rawMarkup = DOMPurify.sanitize(marked.parse(note.content, markedOptions) as string);
 
     return (
         <div className="flex flex-col h-full">
@@ -33,16 +31,17 @@ const NotePreview: React.FC<{
                     </button>
                     <button
                         onClick={onEdit}
-                        className="px-4 py-2 rounded-lg bg-primary text-white dark:bg-white dark:text-black font-semibold transition-colors"
+                        className="px-4 h-10 flex items-center justify-center rounded-lg bg-primary text-white dark:bg-white dark:text-black font-semibold transition-colors"
                     >
                         {t('notes.edit_button')}
                     </button>
                 </div>
             </div>
             <div 
-                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-none overflow-y-auto prose prose-sm dark:prose-invert max-w-none custom-scrollbar"
-                dangerouslySetInnerHTML={{ __html: rawMarkup }}
-            />
+                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-none overflow-y-auto custom-scrollbar"
+            >
+                <MarkdownRenderer content={note.content} />
+            </div>
         </div>
     );
 };
@@ -72,7 +71,7 @@ const NoteEditor: React.FC<{
                     <button
                         onClick={onSave}
                         disabled={saveStatus === 'saving'}
-                        className="px-4 py-2 rounded-lg bg-primary text-white dark:bg-white dark:text-black font-semibold disabled:opacity-50 transition-colors"
+                        className="px-4 h-10 flex items-center justify-center rounded-lg bg-primary text-white dark:bg-white dark:text-black font-semibold disabled:opacity-50 transition-colors"
                     >
                         {saveButtonText}
                     </button>
@@ -258,10 +257,10 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         <div className="flex flex-col h-full w-full">
             <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                 <h3 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold">{t('notes.header_title')}</h3>
-                <div>
-                  {!isDesktop && <label htmlFor="notes-drawer" className="cursor-pointer p-2"><span className="material-symbols-outlined text-primary-text-light dark:text-primary-text-dark">close</span></label>}
-                  <button onClick={handleNewNote} className="text-primary-text-light dark:text-primary-text-dark p-2 rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d">
-                        <span className="material-symbols-outlined">add_circle</span>
+                <div className="flex items-center">
+                  {!isDesktop && <label htmlFor="notes-drawer" className="flex items-center justify-center size-10 cursor-pointer text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d"><span className="material-symbols-outlined !text-2xl">close</span></label>}
+                  <button onClick={handleNewNote} className="flex items-center justify-center size-10 text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d">
+                        <span className="material-symbols-outlined !text-2xl">add_circle</span>
                     </button>
                 </div>
             </header>

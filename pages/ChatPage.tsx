@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Message, MessageSender, Attachment } from '../types';
@@ -96,15 +97,15 @@ const ChatPage: React.FC = () => {
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const isInitialLoad = useRef(true);
 
-    const handleSend = useCallback(async (text: string, attachment: Attachment | null) => {
-        if (!text.trim() && !attachment) return;
+    const handleSend = useCallback(async (text: string, attachments: Attachment[]) => {
+        if (!text.trim() && attachments.length === 0) return;
 
         const userMessage: Message = {
             id: Date.now().toString(),
             sender: MessageSender.USER,
             text,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            attachment: attachment || undefined,
+            attachments: attachments,
             isLoading: false,
         };
         
@@ -189,12 +190,19 @@ const ChatPage: React.FC = () => {
     ]);
     
     useEffect(() => {
+      // Redirect if the user lands here directly (e.g., refresh), not via navigation from home.
+      // A valid navigation from home will have `newChat` defined in the state.
+      if (!location.state || location.state.newChat === undefined) {
+        navigate('/', { replace: true });
+        return;
+      }
+
       const loadAndInitialize = async () => {
         if (!isInitialLoad.current) return;
         isInitialLoad.current = false;
         
         await initDB(); 
-        const { initialPrompt, initialAttachment, newChat } = location.state || {};
+        const { initialPrompt, initialAttachments, newChat } = location.state || {};
         
         if (newChat) {
             await clearMessages();
@@ -203,15 +211,22 @@ const ChatPage: React.FC = () => {
             // It's not a new chat, so load existing messages
             const history = await getMessages();
             const historyWithPreviews = history.map(m => {
-                if (m.attachment && m.attachment.data) {
-                    try {
-                        const blob = b64toBlob(m.attachment.data.split(',')[1], m.attachment.type);
-                        const previewUrl = URL.createObjectURL(blob);
-                        return { ...m, attachment: { ...m.attachment, preview: previewUrl } };
-                    } catch(e) {
-                        console.error("Error creating blob from base64 data", e);
-                        return m;
-                    }
+                if (m.attachments && m.attachments.length > 0) {
+                     const attachmentsWithPreviews = m.attachments.map(att => {
+                        // FIX: Only create object URL previews for images to avoid broken icons for other file types.
+                        if (att.data && att.type.startsWith('image/')) {
+                            try {
+                                const blob = b64toBlob(att.data.split(',')[1], att.type);
+                                const previewUrl = URL.createObjectURL(blob);
+                                return { ...att, preview: previewUrl };
+                            } catch(e) {
+                                console.error("Error creating blob from base64 data", e);
+                                return att;
+                            }
+                        }
+                        return att;
+                    });
+                    return { ...m, attachments: attachmentsWithPreviews };
                 }
                 return m;
             });
@@ -219,14 +234,14 @@ const ChatPage: React.FC = () => {
         }
         
         // If there's an initial prompt, send it. This happens for new chats.
-        if (initialPrompt || initialAttachment) {
-            handleSend(initialPrompt || '', initialAttachment || null);
+        if (initialPrompt || (initialAttachments && initialAttachments.length > 0)) {
+            handleSend(initialPrompt || '', initialAttachments || []);
             // Clear the location state to prevent re-sending on refresh
-            navigate(location.pathname, { replace: true, state: {} });
+            navigate(location.pathname, { replace: true, state: { newChat: newChat } });
         }
       };
       loadAndInitialize();
-    }, [location.state, navigate, handleSend]);
+    }, [location, navigate, handleSend]);
 
 
     useEffect(() => {

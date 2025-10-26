@@ -18,7 +18,7 @@ export interface Message {
   sender: MessageSender;
   text: string;
   timestamp: string;
-  attachment?: Attachment;
+  attachments?: Attachment[];
   isLoading?: boolean; // UI state, not stored in DB
   thinkingText?: string; // Real-time thinking process from AI, stored in DB
   isThinkingComplete?: boolean; // UI state, not stored in DB

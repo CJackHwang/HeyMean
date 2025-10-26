@@ -1,30 +1,61 @@
 import React from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import { Message, MessageSender } from '../types';
+import { Message, MessageSender, Attachment } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface MessageBubbleProps {
   message: Message;
 }
 
-const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
-    const { t } = useTranslation();
-    if (!message.attachment) return null;
+const AttachmentItem: React.FC<{ attachment: Attachment }> = ({ attachment }) => {
+    const getFileIcon = (mimeType: string) => {
+        if (mimeType.startsWith('image/')) return 'image';
+        if (mimeType === 'application/pdf') return 'picture_as_pdf';
+        if (mimeType === 'text/markdown') return 'article';
+        if (mimeType.startsWith('text/')) return 'description';
+        return 'attach_file';
+    };
+
+    const formatBytes = (bytes: number, decimals = 2) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    };
+
     return (
-        <div className="bg-primary text-white rounded-2xl w-full">
-            <div className="p-3 border-b border-white/20">
-                <div className="flex items-start gap-3">
-                    <div className="relative w-12 h-12 flex-shrink-0">
-                        <img alt={message.attachment.name} className="rounded-lg w-full h-full object-cover" src={message.attachment.preview} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{t('message.attachment')}</p>
-                        <p className="text-xs text-white/70">{(message.attachment.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </div>
-                </div>
+        <div className="bg-black/20 rounded-lg p-2 flex items-center gap-3">
+            <div className="size-10 bg-black/20 rounded-md flex items-center justify-center shrink-0">
+                {attachment.preview && attachment.type.startsWith('image/') ? (
+                     <img src={attachment.preview} alt={attachment.name} className="w-full h-full object-cover rounded-md"/>
+                ) : (
+                    <span className="material-symbols-outlined text-gray-300">{getFileIcon(attachment.type)}</span>
+                )}
             </div>
-            <p className="text-sm font-normal leading-normal px-4 py-3">{message.text}</p>
+            <div className="flex-1 min-w-0">
+                <p className="truncate font-medium text-sm text-white">{attachment.name}</p>
+                <p className="text-xs text-gray-300">{formatBytes(attachment.size)}</p>
+            </div>
+        </div>
+    );
+};
+
+
+const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
+    if (!message.attachments || message.attachments.length === 0) return null;
+
+    return (
+        <div className="bg-primary text-white dark:bg-heymean-d rounded-2xl w-full p-3 flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
+                {message.attachments.map((att, index) => (
+                    <AttachmentItem key={index} attachment={att} />
+                ))}
+            </div>
+            {message.text && (
+                <p className="text-sm font-normal leading-normal pt-2 break-words">{message.text}</p>
+            )}
         </div>
     );
 }
@@ -37,12 +68,8 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     // The thinking wrapper is shown if the message is loading, OR if it has completed with thinking steps.
     const showThinkingWrapper = message.isLoading || hasThinkingProcess;
 
-    const markedOptions = { gfm: true, breaks: true };
-    const rawMarkup = DOMPurify.sanitize(marked.parse(message.text, markedOptions) as string);
-    const thinkingMarkup = DOMPurify.sanitize(marked.parse(message.thinkingText || '', markedOptions) as string);
-
     return (
-        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark">
+        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden">
             {showThinkingWrapper ? (
                 // This is the complex bubble with a permanent thinking process section
                 <>
@@ -54,10 +81,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                         </label>
                         <div className="px-3 pb-3 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
                              {hasThinkingProcess ? (
-                                <div 
-                                    className="prose prose-sm dark:prose-invert max-w-none" 
-                                    dangerouslySetInnerHTML={{ __html: thinkingMarkup }} 
-                                />
+                                <MarkdownRenderer content={message.thinkingText || ''} />
                              ) : (
                                 // Show "Thinking..." placeholder when loading but no steps are available yet.
                                 <div className="flex items-start gap-2 p-2.5 rounded-lg text-primary-text-light dark:text-primary-text-dark">
@@ -71,7 +95,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                         </div>
                     </div>
                     <div className="p-4 min-h-[3.5rem]">
-                        <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: rawMarkup }} />
+                        <MarkdownRenderer content={message.text} />
                         {message.isLoading && !message.text && hasThinkingProcess && (
                              <div className="flex items-center gap-2.5 text-sm">
                                 <div className="w-2.5 h-2.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse"></div>
@@ -83,7 +107,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
             ) : (
                 // This is a simple bubble for messages without any thinking process
                 <div className="p-4">
-                    <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: rawMarkup }} />
+                    <MarkdownRenderer content={message.text} />
                 </div>
             )}
         </div>
@@ -97,16 +121,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   if (isUser) {
     return (
         <div className="flex w-full items-end gap-2.5 justify-end">
-            <div className="flex flex-col gap-1.5 items-end max-w-[80%] xl:max-w-1/2">
+            <div className="flex flex-col gap-1.5 items-end max-w-[80%] md:max-w-md lg:max-w-lg xl:max-w-xl min-w-0">
                 <p className="text-gray-500 dark:text-gray-400 text-xs font-medium leading-normal px-2">
                     {t('message.you')} • {message.timestamp}
                 </p>
-                {message.attachment ? (
+                {(message.attachments && message.attachments.length > 0) ? (
                      <AttachmentDisplay message={message} />
                 ) : (
-                    <p className="text-sm font-normal leading-normal flex rounded-2xl px-4 py-3 bg-primary text-white">
-                        {message.text}
-                    </p>
+                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d break-words">
+                        {message.text.split('\n').map((line, index) => (
+                          <React.Fragment key={index}>
+                            {line}
+                            {index < message.text.split('\n').length - 1 && <br />}
+                          </React.Fragment>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>
@@ -116,7 +145,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   // AI Message
   return (
     <div className="flex w-full items-start gap-2.5">
-       <div className="flex flex-col gap-1.5 w-full xl:w-3/4">
+       <div className="flex flex-col gap-1.5 w-full xl:w-3/4 min-w-0 overflow-hidden">
             <p className="text-gray-500 dark:text-gray-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp}</p>
             <AiMessage message={message} />
        </div>

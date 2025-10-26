@@ -1,29 +1,31 @@
+
 import { GoogleGenAI } from "@google/genai";
-import { Message, MessageSender, ApiProvider } from '../types';
+import { Message, MessageSender, ApiProvider, Attachment } from '../types';
 
 // Helper to convert messages to content format for Gemini and OpenAI
 const messageToContent = (msg: Message) => {
   const parts: any[] = [];
   
-  // Add text part only if there is text.
   if (msg.text && msg.text.trim() !== '') {
     parts.push({ text: msg.text });
   }
 
-  if (msg.attachment) {
-    try {
-      // attachment.data is a data URL: "data:[<mediatype>];base64,<data>"
-      const base64Data = msg.attachment.data.split(',')[1];
-      if (base64Data) {
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: msg.attachment.type,
-          },
-        });
-      }
-    } catch (e) {
-      console.error("Error processing attachment data from message:", e);
+  if (msg.attachments) {
+    for (const att of msg.attachments) {
+        try {
+          // attachment.data is a data URL: "data:[<mediatype>];base64,<data>"
+          const base64Data = att.data.split(',')[1];
+          if (base64Data) {
+            parts.push({
+              inlineData: {
+                data: base64Data,
+                mimeType: att.type,
+              },
+            });
+          }
+        } catch (e) {
+          console.error("Error processing attachment data from message:", e);
+        }
     }
   }
 
@@ -43,8 +45,28 @@ type OpenAITextContentPart = { type: 'text'; text: string; };
 type OpenAIImageContentPart = { type: 'image_url'; image_url: { url: string; }; };
 type OpenAIContentPart = OpenAITextContentPart | OpenAIImageContentPart;
 
+const getTextFromDataUrl = async (dataUrl: string): Promise<string> => {
+    try {
+        const response = await fetch(dataUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch data URL: ${response.statusText}`);
+        }
+        return response.text();
+    } catch (error) {
+        console.error("Error fetching text from data URL:", error);
+        // Fallback for environments where fetch might not support data URLs directly
+        try {
+            const base64 = dataUrl.split(',')[1];
+            return atob(base64);
+        } catch (decodeError) {
+             console.error("Error decoding base64 from data URL:", decodeError);
+             return ""; // Return empty string if all fails
+        }
+    }
+};
+
 // Converts internal message history to OpenAI chat message format
-const messagesToOpenAIChatFormat = (messages: Message[], systemInstruction: string) => {
+const messagesToOpenAIChatFormat = async (messages: Message[], systemInstruction: string) => {
   const openAIMessages: any[] = [];
 
   // System instruction always comes first
@@ -52,43 +74,43 @@ const messagesToOpenAIChatFormat = (messages: Message[], systemInstruction: stri
     openAIMessages.push({ role: 'system', content: systemInstruction });
   }
 
-  messages.forEach(msg => {
-    let content: string | OpenAIContentPart[]; // `content` can be string or array of parts
+  for (const msg of messages) {
     const role = msg.sender === MessageSender.USER ? 'user' : 'assistant';
 
-    // Handle attachments for user messages (OpenAI vision)
-    if (msg.attachment && msg.sender === MessageSender.USER) {
-      const parts: OpenAIContentPart[] = [];
-      
-      // Always add text part if available
-      if (msg.text && msg.text.trim() !== '') {
-        parts.push({ type: 'text', text: msg.text });
-      }
-
-      try {
-        const base64Data = msg.attachment.data; // Already data URL format
-        parts.push({
-          type: 'image_url',
-          image_url: { url: base64Data }
-        });
-        content = parts; // Assign the array of parts to content
-      } catch (e) {
-        console.error("Error processing attachment for OpenAI:", e);
-        // If image processing fails, fall back to just text
-        // or an empty string if no text either.
-        if (parts.length > 0 && parts[0].type === 'text' && parts.length === 1) {
-            content = parts[0].text; // Fallback to just text if image failed and only text part was present
-        } else {
-            content = msg.text || ''; // Fallback to original text, or empty string if no valid parts
-        }
-      }
-    } else {
-      // If no attachment or not a user message with attachment, content is just text
-      content = msg.text;
+    // Assistants don't have attachments, so their content is always text
+    if (role === 'assistant') {
+        openAIMessages.push({ role, content: msg.text || '' });
+        continue;
     }
 
-    openAIMessages.push({ role, content: content || '' });
-  });
+    // Handle user messages, which can have attachments
+    const contentParts: (OpenAITextContentPart | OpenAIImageContentPart)[] = [];
+    let fileTextContent = '';
+
+    if (msg.attachments && msg.attachments.length > 0) {
+        for (const att of msg.attachments) {
+            if (att.type.startsWith('image/')) {
+                contentParts.push({
+                    type: 'image_url',
+                    image_url: { url: att.data }
+                });
+            } else if (att.type.startsWith('text/')) {
+                const text = await getTextFromDataUrl(att.data);
+                fileTextContent += `\n\n--- Attachment: ${att.name} ---\n${text}`;
+            }
+            // PDFs are filtered out at the input level for OpenAI
+        }
+    }
+    
+    const finalUserText = (msg.text || '') + fileTextContent;
+    contentParts.unshift({ type: 'text', text: finalUserText });
+
+    // OpenAI API expects 'content' to be a string if there are no images.
+    const hasImages = contentParts.some(p => p.type === 'image_url');
+    const content = hasImages ? contentParts : finalUserText;
+
+    openAIMessages.push({ role, content });
+  }
 
   return openAIMessages;
 };
@@ -150,7 +172,7 @@ export const streamChatResponse = async (
     }
   } else if (selectedApiProvider === ApiProvider.OPENAI) {
     const openaiEndpoint = `${openAiBaseUrl || 'https://api.openai.com/v1'}/chat/completions`;
-    const messages = messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
+    const messages = await messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
     const model = openAiModel || 'gpt-4o'; // Use default if not set
 
     try {

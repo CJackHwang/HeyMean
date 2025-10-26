@@ -58,5 +58,9 @@
   "modal.unsaved_content": "未保存の変更があります。終了する前に保存しますか？",
   "modal.unsaved_save": "保存",
   "modal.unsaved_discard": "保存しない",
-  "modal.cancel": "キャンセル"
+  "modal.cancel": "キャンセル",
+  "file.size_error": "ファイル「{0}」が{1}MBのサイズ制限を超えています。",
+  "file.type_unsupported": "「{0}」のファイルタイプはサポートされていません。",
+  "file.generic_name": "添付ファイル",
+  "file.pdf_not_supported_openai": "OpenAIプロバイダーではPDFファイルの分析はサポートされていません。このファイルを使用するには、Geminiに切り替えてください。"
 }
