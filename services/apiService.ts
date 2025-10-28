@@ -130,12 +130,10 @@ export const streamChatResponse = async (
   // Check for API key based on selected provider
   const effectiveGeminiKey = geminiApiKey || process.env.API_KEY;
   if (selectedApiProvider === ApiProvider.GEMINI && !effectiveGeminiKey) {
-    console.error("Gemini API key not set in settings or environment.");
     onChunk("Error: Gemini API key is not configured. Please add it in settings.");
     return;
   }
   if (selectedApiProvider === ApiProvider.OPENAI && !openAiApiKey) {
-    console.error("OpenAI API key not set.");
     onChunk("Error: OpenAI API key is not configured in settings.");
     return;
   }

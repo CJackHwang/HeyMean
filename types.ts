@@ -15,6 +15,7 @@ export interface Attachment {
 
 export interface Message {
   id: string;
+  conversationId: string; // Added to associate message with a conversation
   sender: MessageSender;
   text: string;
   timestamp: string;
@@ -24,6 +25,13 @@ export interface Message {
   isThinkingComplete?: boolean; // UI state, not stored in DB
   thinkingStartTime?: number; // UI state, not stored in DB
   thinkingDuration?: number; // UI state, not stored in DB
+}
+
+export interface Conversation {
+    id: string;
+    title: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export enum Theme {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Attachment, ApiProvider } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useSettings } from '../hooks/useSettings';
+import { getLatestConversation } from '../services/db';
 
 
 const MAX_FILE_SIZE_MB = 5;
@@ -121,8 +122,15 @@ const HomePage: React.FC = () => {
         }
     };
 
-    const handleContinue = () => {
-        navigate('/chat', { state: { newChat: false } });
+    const handleContinue = async () => {
+        const latestConversation = await getLatestConversation();
+        if (latestConversation) {
+            navigate('/chat', { state: { conversationId: latestConversation.id } });
+        } else {
+            // If no history, treat as a new chat, but don't send a message.
+            // This just takes them to the empty chat screen.
+            navigate('/chat', { state: { newChat: true } });
+        }
     };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,9 +220,15 @@ const HomePage: React.FC = () => {
                                 <span className="material-symbols-outlined">send</span>
                             </button>
                         </div>
-                        <div className="flex px-4 py-3 w-full">
+                        <div className="flex px-4 py-3 w-full gap-3">
                             <button onClick={handleContinue} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 flex-1 bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-base font-bold leading-normal tracking-[0.015em]">
                                 <span className="truncate">{t('home.button_continue')}</span>
+                            </button>
+                             <button onClick={() => navigate('/history')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+                                <span className="material-symbols-outlined !text-xl">history</span>
+                            </button>
+                             <button onClick={() => navigate('/settings')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+                                <span className="material-symbols-outlined !text-xl">settings</span>
                             </button>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -27,30 +27,51 @@ const Modal: React.FC<ModalProps> = ({
   destructiveText,
   destructiveButtonClass,
 }) => {
+  const [shouldRender, setShouldRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+    } else {
+      // When closing, wait for animation to finish before un-rendering
+      const timer = setTimeout(() => setShouldRender(false), 200); // Must match transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleEsc);
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center"
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
     >
+      {/* Backdrop */}
       <div
-        className="relative w-full max-w-md p-6 m-4 bg-background-light dark:bg-heymean-d rounded-2xl shadow-xl transform transition-all"
+        className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-200 ease-out ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+        onClick={onClose}
+      ></div>
+
+      {/* Modal Panel */}
+      <div
+        className={`relative w-full max-w-md p-6 m-4 bg-background-light dark:bg-heymean-d rounded-2xl shadow-xl transform transition-all duration-200 ease-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold text-primary-text-light dark:text-primary-text-dark" id="modal-title">

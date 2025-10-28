@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from '../hooks/useTranslation';
 import { Theme, ApiProvider, Language } from '../types';
+import Modal from '../components/Modal';
+import { clearAllData } from '../services/db';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,12 +25,15 @@ const SettingsPage: React.FC = () => {
     openAiBaseUrl,
     setOpenAiBaseUrl,
     language,
-    setLanguage
+    setLanguage,
+    resetSettings
   } = useSettings();
 
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
+
 
   const handleFetchModels = async () => {
     if (!openAiApiKey) {
@@ -60,6 +65,20 @@ const SettingsPage: React.FC = () => {
       console.error("Failed to fetch models:", error);
     } finally {
       setIsFetchingModels(false);
+    }
+  };
+
+  const handleConfirmClearData = async () => {
+    try {
+      await clearAllData();
+      // Reset the application's in-memory state to defaults
+      resetSettings();
+      // Use the router's navigate function to safely return to the home page.
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error("Failed to clear data:", error);
+      alert(t('modal.clear_data_error'));
+      setIsClearDataModalOpen(false);
     }
   };
 
@@ -241,12 +260,28 @@ const SettingsPage: React.FC = () => {
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_account')}</h2>
            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
+            <div onClick={() => setIsClearDataModalOpen(true)} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-red-500/10">
+                <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate">{t('settings.account_clear_data')}</p>
+            </div>
             <div className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg">
               <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate cursor-pointer">{t('settings.account_delete')}</p>
             </div>
           </div>
         </section>
       </div>
+
+      <Modal
+          isOpen={isClearDataModalOpen}
+          onClose={() => setIsClearDataModalOpen(false)}
+          onConfirm={handleConfirmClearData}
+          title={t('modal.clear_data_title')}
+          confirmText={t('modal.clear_data_confirm')}
+          cancelText={t('modal.cancel')}
+          confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      >
+          <p>{t('modal.clear_data_content')}</p>
+      </Modal>
+
     </div>
   );
 };

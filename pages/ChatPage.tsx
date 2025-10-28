@@ -1,29 +1,14 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Message, MessageSender, Attachment } from '../types';
+import { Message, MessageSender, Attachment, Conversation } from '../types';
 import { streamChatResponse } from '../services/apiService'; // Changed import
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from '../hooks/useTranslation';
-import { getMessages, addMessage, initDB, clearMessages } from '../services/db';
+import { getMessages, addMessage, initDB, addConversation, updateConversationTimestamp } from '../services/db';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import { NotesView } from '../components/NotesView';
-
-const b64toBlob = (b64Data: string, contentType='', sliceSize=512) => {
-    const byteCharacters = atob(b64Data);
-    const byteArrays = [];
-    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-        const slice = byteCharacters.slice(offset, offset + sliceSize);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-            byteNumbers[i] = slice.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        byteArrays.push(byteArray);
-    }
-    return new Blob(byteArrays, {type: contentType});
-}
 
 const SUPPORTED_THINKING_TAGS = ['thinking', 'thought', 'scratchpad', 'tool_code', 'function_calls', 'tool_calls'];
 const thinkingStartTagRegex = new RegExp(`<(${SUPPORTED_THINKING_TAGS.join('|')})>`, 's');
@@ -83,6 +68,7 @@ const parseStreamedText = (text: string) => {
 const ChatPage: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isThinking, setIsThinking] = useState(false);
+    const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
     const { 
@@ -100,8 +86,27 @@ const ChatPage: React.FC = () => {
     const handleSend = useCallback(async (text: string, attachments: Attachment[]) => {
         if (!text.trim() && attachments.length === 0) return;
 
+        let conversationIdToUse = currentConversationId;
+        const isNewConversation = !conversationIdToUse;
+
+        if (isNewConversation) {
+            conversationIdToUse = Date.now().toString();
+            setCurrentConversationId(conversationIdToUse);
+            const title = text.substring(0, 50) || (attachments.length > 0 ? attachments[0].name : "New Conversation");
+            const newConversation: Conversation = {
+                id: conversationIdToUse,
+                title: title,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+            await addConversation(newConversation);
+            // Update location state to prevent re-creating the conversation on hot-reload/navigation
+            navigate(location.pathname, { replace: true, state: { conversationId: conversationIdToUse } });
+        }
+
         const userMessage: Message = {
             id: Date.now().toString(),
+            conversationId: conversationIdToUse!,
             sender: MessageSender.USER,
             text,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -109,8 +114,8 @@ const ChatPage: React.FC = () => {
             isLoading: false,
         };
         
-        // Capture the history BEFORE adding the new user message
-        const chatHistory = [...messages];
+        // Capture the history for the current conversation
+        const chatHistory = isNewConversation ? [] : [...messages];
 
         setMessages(prev => [...prev, userMessage]);
         await addMessage(userMessage);
@@ -121,6 +126,7 @@ const ChatPage: React.FC = () => {
 
         setMessages(prev => [...prev, {
             id: aiMessageId,
+            conversationId: conversationIdToUse!,
             sender: MessageSender.AI,
             text: '',
             thinkingText: '',
@@ -166,8 +172,9 @@ const ChatPage: React.FC = () => {
              setIsThinking(false);
              const { thinkingContent, finalContent } = parseStreamedText(streamedText);
              
-             const finalAiMessage = { 
+             const finalAiMessage: Message = { 
                  id: aiMessageId, 
+                 conversationId: conversationIdToUse!,
                  sender: MessageSender.AI, 
                  text: finalContent.trim(),
                  thinkingText: thinkingContent.trim(), 
@@ -178,70 +185,68 @@ const ChatPage: React.FC = () => {
              };
              setMessages(prev => prev.map(m => m.id === aiMessageId ? finalAiMessage : m));
              await addMessage(finalAiMessage);
+             await updateConversationTimestamp(conversationIdToUse!);
         });
     }, [
+      currentConversationId,
+      messages,
       effectiveSystemPrompt,
-      messages, 
       selectedApiProvider, 
       geminiApiKey,
       openAiApiKey, 
       openAiModel, 
-      openAiBaseUrl
+      openAiBaseUrl,
+      navigate,
+      location.pathname
     ]);
     
     useEffect(() => {
-      // Redirect if the user lands here directly (e.g., refresh), not via navigation from home.
-      // A valid navigation from home will have `newChat` defined in the state.
-      if (!location.state || location.state.newChat === undefined) {
-        navigate('/', { replace: true });
-        return;
-      }
+        const loadAndInitialize = async () => {
+            if (!isInitialLoad.current) return;
+            isInitialLoad.current = false;
+        
+            await initDB();
+            const { initialPrompt, initialAttachments, newChat, conversationId } = location.state || {};
 
-      const loadAndInitialize = async () => {
-        if (!isInitialLoad.current) return;
-        isInitialLoad.current = false;
-        
-        await initDB(); 
-        const { initialPrompt, initialAttachments, newChat } = location.state || {};
-        
-        if (newChat) {
-            await clearMessages();
-            setMessages([]); // Clear state as well
-        } else {
-            // It's not a new chat, so load existing messages
-            const history = await getMessages();
-            const historyWithPreviews = history.map(m => {
-                if (m.attachments && m.attachments.length > 0) {
-                     const attachmentsWithPreviews = m.attachments.map(att => {
-                        // FIX: Only create object URL previews for images to avoid broken icons for other file types.
-                        if (att.data && att.type.startsWith('image/')) {
-                            try {
-                                const blob = b64toBlob(att.data.split(',')[1], att.type);
-                                const previewUrl = URL.createObjectURL(blob);
-                                return { ...att, preview: previewUrl };
-                            } catch(e) {
-                                console.error("Error creating blob from base64 data", e);
-                                return att;
+            if (!newChat && !conversationId) {
+                navigate('/', { replace: true });
+                return;
+            }
+
+            if (conversationId) {
+                setCurrentConversationId(conversationId);
+                const history = await getMessages(conversationId);
+                const historyWithPreviews = await Promise.all(history.map(async (m) => {
+                    if (m.attachments && m.attachments.length > 0) {
+                        const attachmentsWithPreviews = await Promise.all(m.attachments.map(async (att) => {
+                            if (att.data && att.type.startsWith('image/')) {
+                                try {
+                                    const response = await fetch(att.data);
+                                    const blob = await response.blob();
+                                    const previewUrl = URL.createObjectURL(blob);
+                                    return { ...att, preview: previewUrl };
+                                } catch (e) {
+                                    console.error("Error creating blob from data URL:", e);
+                                    return att;
+                                }
                             }
-                        }
-                        return att;
-                    });
-                    return { ...m, attachments: attachmentsWithPreviews };
+                            return att;
+                        }));
+                        return { ...m, attachments: attachmentsWithPreviews };
+                    }
+                    return m;
+                }));
+                setMessages(historyWithPreviews);
+            } else if (newChat) {
+                setMessages([]);
+                setCurrentConversationId(null);
+                if (initialPrompt || (initialAttachments && initialAttachments.length > 0)) {
+                    handleSend(initialPrompt || '', initialAttachments || []);
                 }
-                return m;
-            });
-            setMessages(historyWithPreviews);
-        }
-        
-        // If there's an initial prompt, send it. This happens for new chats.
-        if (initialPrompt || (initialAttachments && initialAttachments.length > 0)) {
-            handleSend(initialPrompt || '', initialAttachments || []);
-            // Clear the location state to prevent re-sending on refresh
-            navigate(location.pathname, { replace: true, state: { newChat: newChat } });
-        }
-      };
-      loadAndInitialize();
-    }, [location, navigate, handleSend]);
+            }
+        };
+        loadAndInitialize();
+    }, [location.state, navigate, handleSend]);
 
 
     useEffect(() => {

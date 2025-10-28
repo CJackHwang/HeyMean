@@ -20,6 +20,7 @@ interface SettingsContextType {
   setOpenAiBaseUrl: (url: string) => void;
   language: Language;
   setLanguage: (language: Language) => void;
+  resetSettings: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -124,6 +125,17 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSetting('language', lang);
   };
 
+  const resetSettings = () => {
+    setTheme(Theme.LIGHT);
+    setSystemPrompt('');
+    setSelectedApiProvider(ApiProvider.GEMINI);
+    setGeminiApiKey('');
+    setOpenAiApiKey('');
+    setOpenAiModel('gpt-4o');
+    setOpenAiBaseUrl('https://api.openai.com/v1');
+    setLanguage(Language.EN);
+  };
+
   const effectiveSystemPrompt = useMemo(() => systemPrompt || defaultSystemPrompt, [systemPrompt, defaultSystemPrompt]);
 
   const value = useMemo(() => ({
@@ -143,7 +155,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     openAiBaseUrl,
     setOpenAiBaseUrl,
     language,
-    setLanguage
+    setLanguage,
+    resetSettings
   }), [
     theme, 
     systemPrompt,

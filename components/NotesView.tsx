@@ -1,10 +1,11 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '../types';
 import { getNotes, addNote, updateNote, deleteNote } from '../services/db';
 import Modal from './Modal';
 import { useTranslation } from '../hooks/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
+import ListItemMenu from './ListItemMenu';
+
 
 interface NotesViewProps {
     isDesktop?: boolean;
@@ -14,8 +15,7 @@ const NotePreview: React.FC<{
     note: Note;
     onEdit: () => void;
     onBack: () => void;
-    onDeleteRequest: (id: number) => void;
-}> = ({ note, onEdit, onBack, onDeleteRequest }) => {
+}> = ({ note, onEdit, onBack }) => {
     const { t } = useTranslation();
 
     return (
@@ -26,9 +26,6 @@ const NotePreview: React.FC<{
                     {t('notes.all_notes')}
                 </button>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => onDeleteRequest(note.id)} className="flex items-center justify-center size-10 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors" aria-label={t('notes.delete_button')}>
-                        <span className="material-symbols-outlined">delete</span>
-                    </button>
                     <button
                         onClick={onEdit}
                         className="px-4 h-10 flex items-center justify-center rounded-lg bg-primary text-white dark:bg-white dark:text-black font-semibold transition-colors"
@@ -51,9 +48,8 @@ const NoteEditor: React.FC<{
     setNote: (note: Note) => void;
     onSave: () => Promise<void>;
     onBack: () => void;
-    onDeleteRequest: (id: number) => void;
     saveStatus: 'idle' | 'saving' | 'saved';
-}> = ({ note, setNote, onSave, onBack, onDeleteRequest, saveStatus }) => {
+}> = ({ note, setNote, onSave, onBack, saveStatus }) => {
     const { t } = useTranslation();
     const saveButtonText = saveStatus === 'saving' ? t('notes.saving_button') : saveStatus === 'saved' ? t('notes.saved_button') : t('notes.save_button');
 
@@ -65,9 +61,6 @@ const NoteEditor: React.FC<{
                     {t('notes.all_notes')}
                 </button>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => onDeleteRequest(note.id)} className="flex items-center justify-center size-10 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors" aria-label={t('notes.delete_button')}>
-                        <span className="material-symbols-outlined">delete</span>
-                    </button>
                     <button
                         onClick={onSave}
                         disabled={saveStatus === 'saving'}
@@ -88,15 +81,50 @@ const NoteEditor: React.FC<{
 };
 
 
-const NoteList: React.FC<{ notes: Note[]; onSelect: (note: Note) => void; }> = ({ notes, onSelect }) => {
+const NoteList: React.FC<{ 
+    notes: Note[]; 
+    onSelect: (note: Note) => void; 
+    onNoteLongPress: (noteId: number, position: { x: number, y: number }) => void;
+}> = ({ notes, onSelect, onNoteLongPress }) => {
     const { t } = useTranslation();
+    // FIX: Use `ReturnType<typeof setTimeout>` which is environment-agnostic and resolves to `number` in the browser, instead of the Node.js-specific `NodeJS.Timeout`.
+    const longPressTimeout = useRef<ReturnType<typeof setTimeout>>();
+    const isLongPress = useRef(false);
+
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, noteId: number) => {
+        isLongPress.current = false;
+        longPressTimeout.current = setTimeout(() => {
+            isLongPress.current = true;
+            onNoteLongPress(noteId, { x: e.clientX, y: e.clientY });
+        }, 500);
+    };
+
+    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>, note: Note) => {
+        clearTimeout(longPressTimeout.current);
+        if (!isLongPress.current) {
+            onSelect(note);
+        }
+    };
+    
     return (
         <div className="space-y-2">
             {notes.length > 0 ? notes.map(note => (
-                <div key={note.id} onClick={() => onSelect(note)} className="p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700">
-                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark">{note.content.split('\n')[0] || t('notes.untitled')}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{note.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                <div 
+                    key={note.id} 
+                    className="p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
+                    onPointerDown={(e) => handlePointerDown(e, note.id)}
+                    onPointerUp={(e) => handlePointerUp(e, note)}
+                    onPointerLeave={() => clearTimeout(longPressTimeout.current)}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        isLongPress.current = true;
+                        clearTimeout(longPressTimeout.current);
+                        onNoteLongPress(note.id, { x: e.clientX, y: e.clientY });
+                    }}
+                >
+                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none">{note.content.split('\n')[0] || t('notes.untitled')}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1 pointer-events-none">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 pointer-events-none">{note.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
             )) : <p className="text-center text-gray-500 dark:text-gray-400 mt-8">{t('notes.empty_state')}</p>}
         </div>
@@ -111,7 +139,8 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const [isEditing, setIsEditing] = useState(false);
     const { t } = useTranslation();
     
-    // State for modals
+    // State for modals & context menu
+    const [menuState, setMenuState] = useState<{ isOpen: boolean; position: { x: number; y: number }; noteId: number | null }>({ isOpen: false, position: { x: 0, y: 0 }, noteId: null });
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [noteToDeleteId, setNoteToDeleteId] = useState<number | null>(null);
     const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
@@ -192,7 +221,8 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         }
     };
     
-    const handleDeleteRequest = (id: number) => {
+    const handleDeleteRequest = (id: number | null) => {
+        if (id === null) return;
         setNoteToDeleteId(id);
         setIsDeleteModalOpen(true);
     };
@@ -253,6 +283,19 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         setPendingAction(null);
     };
     
+    const handleNoteLongPress = (noteId: number, position: {x: number, y: number}) => {
+        setMenuState({ isOpen: true, noteId, position });
+    };
+
+    const menuActions = [
+        {
+            label: t('list.delete'),
+            icon: 'delete',
+            isDestructive: true,
+            onClick: () => handleDeleteRequest(menuState.noteId),
+        },
+    ];
+
     return (
         <div className="flex flex-col h-full w-full">
             <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
@@ -272,7 +315,6 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                             setNote={setActiveNote}
                             onSave={handleSaveNote}
                             onBack={handleBack}
-                            onDeleteRequest={handleDeleteRequest}
                             saveStatus={saveStatus}
                         />
                     ) : (
@@ -280,13 +322,18 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                             note={activeNote}
                             onEdit={() => setIsEditing(true)}
                             onBack={handleBack}
-                            onDeleteRequest={handleDeleteRequest}
                         />
                     )
                 ) : (
-                    <NoteList notes={notes} onSelect={handleSelectNote} />
+                    <NoteList notes={notes} onSelect={handleSelectNote} onNoteLongPress={handleNoteLongPress}/>
                 )}
             </main>
+            <ListItemMenu 
+                isOpen={menuState.isOpen}
+                onClose={() => setMenuState({ ...menuState, isOpen: false })}
+                position={menuState.position}
+                actions={menuActions}
+            />
              <Modal
                 isOpen={isDeleteModalOpen}
                 onClose={cancelDelete}
