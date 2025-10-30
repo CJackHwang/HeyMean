@@ -5,7 +5,7 @@ import { Message, MessageSender, Attachment, Conversation } from '../types';
 import { streamChatResponse } from '../services/apiService'; // Changed import
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from '../hooks/useTranslation';
-import { getMessages, addMessage, initDB, addConversation, updateConversationTimestamp } from '../services/db';
+import { getMessages, addMessage, initDB, addConversation, updateConversation } from '../services/db';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import { NotesView } from '../components/NotesView';
@@ -185,7 +185,7 @@ const ChatPage: React.FC = () => {
              };
              setMessages(prev => prev.map(m => m.id === aiMessageId ? finalAiMessage : m));
              await addMessage(finalAiMessage);
-             await updateConversationTimestamp(conversationIdToUse!);
+             await updateConversation(conversationIdToUse!, { updatedAt: new Date() });
         });
     }, [
       currentConversationId,

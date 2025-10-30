@@ -111,7 +111,7 @@ const NoteList: React.FC<{
             {notes.length > 0 ? notes.map(note => (
                 <div 
                     key={note.id} 
-                    className="p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
+                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
                     onPointerDown={(e) => handlePointerDown(e, note.id)}
                     onPointerUp={(e) => handlePointerUp(e, note)}
                     onPointerLeave={() => clearTimeout(longPressTimeout.current)}
@@ -122,7 +122,8 @@ const NoteList: React.FC<{
                         onNoteLongPress(note.id, { x: e.clientX, y: e.clientY });
                     }}
                 >
-                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none">{note.content.split('\n')[0] || t('notes.untitled')}</p>
+                    {note.isPinned && <span className="material-symbols-outlined !text-base text-gray-500 dark:text-gray-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
+                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{note.content.split('\n')[0] || t('notes.untitled')}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1 pointer-events-none">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 pointer-events-none">{note.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
@@ -146,6 +147,12 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
     const [pendingAction, setPendingAction] = useState<{ type: 'back' | 'select' | 'new', note?: Note } | null>(null);
     const [isNewNote, setIsNewNote] = useState(false);
+    
+    // New state for rename modal
+    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+    const [noteToRename, setNoteToRename] = useState<Note | null>(null);
+    const [newTitle, setNewTitle] = useState('');
+
 
     const hasUnsavedChanges = activeNote && isEditing ? activeNote.content !== originalNoteContent : false;
     const shouldPromptOnExit = hasUnsavedChanges || (isNewNote && isEditing);
@@ -210,12 +217,13 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         if (activeNote) {
             setSaveStatus('saving');
             await new Promise(res => setTimeout(res, 300));
-            const updated = await updateNote(activeNote);
-            setOriginalNoteContent(updated.content); // Update original content after save
+            await updateNote(activeNote.id, { content: activeNote.content });
+            const updated = { ...activeNote, updatedAt: new Date() };
+            setOriginalNoteContent(updated.content);
             setActiveNote(updated);
             await loadNotes();
             setSaveStatus('saved');
-            setIsEditing(false); // Return to preview mode after saving
+            setIsEditing(false);
             setIsNewNote(false);
             setTimeout(() => setSaveStatus('idle'), 2000);
         }
@@ -251,7 +259,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         } else {
             setActiveNote(null);
             setOriginalNoteContent(null);
-            setIsEditing(false); // Reset editing state
+            setIsEditing(false);
             setIsNewNote(false);
         }
     }
@@ -287,14 +295,59 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         setMenuState({ isOpen: true, noteId, position });
     };
 
-    const menuActions = [
+    const handleRenameRequest = (id: number | null) => {
+        if (id === null) return;
+        const note = notes.find(n => n.id === id);
+        if (note) {
+            setNoteToRename(note);
+            setNewTitle(note.content.split('\n')[0]);
+            setIsRenameModalOpen(true);
+        }
+    };
+
+    const handlePinToggleRequest = async (id: number | null) => {
+        if (id === null) return;
+        const note = notes.find(n => n.id === id);
+        if (note) {
+            await updateNote(id, { isPinned: !note.isPinned });
+            await loadNotes();
+        }
+    };
+    
+    const confirmRename = async () => {
+        if (noteToRename && newTitle.trim()) {
+            const contentParts = noteToRename.content.split('\n');
+            contentParts[0] = newTitle.trim();
+            const newContent = contentParts.join('\n');
+            await updateNote(noteToRename.id, { content: newContent });
+            setIsRenameModalOpen(false);
+            setNoteToRename(null);
+            setNewTitle('');
+            await loadNotes();
+        }
+    };
+
+    const activeNoteForMenu = notes.find(n => n.id === menuState.noteId);
+
+    const menuActions = activeNoteForMenu ? [
+        {
+            label: activeNoteForMenu.isPinned ? t('list.unpin') : t('list.pin'),
+            icon: 'push_pin',
+            onClick: () => handlePinToggleRequest(menuState.noteId),
+        },
+        {
+            label: t('list.rename'),
+            icon: 'edit',
+            onClick: () => handleRenameRequest(menuState.noteId),
+        },
         {
             label: t('list.delete'),
             icon: 'delete',
             isDestructive: true,
             onClick: () => handleDeleteRequest(menuState.noteId),
         },
-    ];
+    ] : [];
+
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -358,6 +411,25 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 destructiveButtonClass="text-red-500 hover:bg-red-500/10"
             >
                 <p>{t('modal.unsaved_content')}</p>
+            </Modal>
+             <Modal
+                isOpen={isRenameModalOpen}
+                onClose={() => setIsRenameModalOpen(false)}
+                onConfirm={confirmRename}
+                title={t('modal.rename_note_title')}
+                confirmText={t('modal.rename_save')}
+                cancelText={t('modal.cancel')}
+                confirmButtonClass="bg-primary hover:bg-primary/90 text-white dark:bg-white dark:text-black"
+            >
+                <p className="mb-2">{t('modal.rename_note_content')}</p>
+                <input
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-heymean-l dark:bg-background-dark/50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmRename(); } }}
+                    autoFocus
+                />
             </Modal>
         </div>
     );

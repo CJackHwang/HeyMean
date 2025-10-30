@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import { Conversation } from '../types';
-import { getConversations, deleteConversation } from '../services/db';
+import { getConversations, deleteConversation, updateConversation } from '../services/db';
 import ListItemMenu from '../components/ListItemMenu';
 import Modal from '../components/Modal';
 
@@ -36,7 +36,7 @@ const ConversationList: React.FC<{
             {conversations.length > 0 ? conversations.map(conv => (
                 <div 
                     key={conv.id} 
-                    className="p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
+                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
                     onPointerDown={(e) => handlePointerDown(e, conv.id)}
                     onPointerUp={(e) => handlePointerUp(e, conv)}
                     onPointerLeave={() => clearTimeout(longPressTimeout.current)}
@@ -47,7 +47,8 @@ const ConversationList: React.FC<{
                         onLongPress(conv.id, { x: e.clientX, y: e.clientY });
                     }}
                 >
-                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none">{conv.title}</p>
+                    {conv.isPinned && <span className="material-symbols-outlined !text-base text-gray-500 dark:text-gray-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
+                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{conv.title}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 pointer-events-none">{conv.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
             )) : <p className="text-center text-gray-500 dark:text-gray-400 mt-8">{t('history.empty_state')}</p>}
@@ -63,10 +64,16 @@ const HistoryPage: React.FC = () => {
   const [menuState, setMenuState] = useState<{ isOpen: boolean; position: { x: number; y: number }; conversationId: string | null }>({ isOpen: false, position: { x: 0, y: 0 }, conversationId: null });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [conversationToDeleteId, setConversationToDeleteId] = useState<string | null>(null);
+  
+  // State for rename modal
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null);
+  const [newTitle, setNewTitle] = useState('');
 
 
   const loadConversations = async () => {
     try {
+      setIsLoading(true);
       const convs = await getConversations();
       setConversations(convs);
     } catch (error) {
@@ -94,6 +101,25 @@ const HistoryPage: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
   
+  const handleRenameRequest = (id: string | null) => {
+    if (id === null) return;
+    const conversation = conversations.find(c => c.id === id);
+    if (conversation) {
+        setConversationToRename(conversation);
+        setNewTitle(conversation.title);
+        setIsRenameModalOpen(true);
+    }
+  };
+
+  const handlePinToggleRequest = async (id: string | null) => {
+    if (id === null) return;
+    const conversation = conversations.find(c => c.id === id);
+    if (conversation) {
+        await updateConversation(id, { isPinned: !conversation.isPinned });
+        await loadConversations();
+    }
+  };
+
   const confirmDelete = async () => {
     if (conversationToDeleteId) {
         await deleteConversation(conversationToDeleteId);
@@ -104,14 +130,36 @@ const HistoryPage: React.FC = () => {
     }
   };
 
-  const menuActions = [
+  const confirmRename = async () => {
+    if (conversationToRename && newTitle.trim()) {
+        await updateConversation(conversationToRename.id, { title: newTitle.trim(), updatedAt: new Date() });
+        setIsRenameModalOpen(false);
+        setConversationToRename(null);
+        setNewTitle('');
+        await loadConversations();
+    }
+  };
+  
+  const activeConversationForMenu = conversations.find(c => c.id === menuState.conversationId);
+
+  const menuActions = activeConversationForMenu ? [
+    {
+        label: activeConversationForMenu.isPinned ? t('list.unpin') : t('list.pin'),
+        icon: 'push_pin',
+        onClick: () => handlePinToggleRequest(menuState.conversationId),
+    },
+    {
+        label: t('list.rename'),
+        icon: 'edit',
+        onClick: () => handleRenameRequest(menuState.conversationId),
+    },
     {
         label: t('list.delete'),
         icon: 'delete',
         isDestructive: true,
         onClick: () => handleDeleteRequest(menuState.conversationId),
     },
-  ];
+  ] : [];
 
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
@@ -151,6 +199,26 @@ const HistoryPage: React.FC = () => {
       >
           <p>{t('modal.delete_conversation_content')}</p>
       </Modal>
+
+      <Modal
+            isOpen={isRenameModalOpen}
+            onClose={() => setIsRenameModalOpen(false)}
+            onConfirm={confirmRename}
+            title={t('modal.rename_conversation_title')}
+            confirmText={t('modal.rename_save')}
+            cancelText={t('modal.cancel')}
+            confirmButtonClass="bg-primary hover:bg-primary/90 text-white dark:bg-white dark:text-black"
+        >
+            <p className="mb-2">{t('modal.rename_conversation_content')}</p>
+            <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="w-full p-2 rounded-lg bg-heymean-l dark:bg-background-dark/50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmRename(); } }}
+                autoFocus
+            />
+        </Modal>
 
     </div>
   );

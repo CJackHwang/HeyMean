@@ -71,7 +71,10 @@ export const streamChatResponse = async (
         model: model,
         contents: contents as any, // Type assertion due to complexity of history/parts
         config: {
-            systemInstruction
+            systemInstruction,
+            // FIX: Add thinkingConfig to enable thinking process for better responses
+            // and to align with the parsing logic in ChatPage.tsx.
+            thinkingConfig: { thinkingBudget: 8192 }
         }
     });
 
