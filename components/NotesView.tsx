@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '../types';
 import { getNotes, addNote, updateNote, deleteNote } from '../services/db';
@@ -111,7 +112,7 @@ const NoteList: React.FC<{
             {notes.length > 0 ? notes.map(note => (
                 <div 
                     key={note.id} 
-                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
+                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
                     onPointerDown={(e) => handlePointerDown(e, note.id)}
                     onPointerUp={(e) => handlePointerUp(e, note)}
                     onPointerLeave={() => clearTimeout(longPressTimeout.current)}
@@ -122,12 +123,12 @@ const NoteList: React.FC<{
                         onNoteLongPress(note.id, { x: e.clientX, y: e.clientY });
                     }}
                 >
-                    {note.isPinned && <span className="material-symbols-outlined !text-base text-gray-500 dark:text-gray-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
+                    {note.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
                     <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{note.content.split('\n')[0] || t('notes.untitled')}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1 pointer-events-none">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 pointer-events-none">{note.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 pointer-events-none">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{note.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
-            )) : <p className="text-center text-gray-500 dark:text-gray-400 mt-8">{t('notes.empty_state')}</p>}
+            )) : <p className="text-center text-neutral-500 dark:text-neutral-400 mt-8">{t('notes.empty_state')}</p>}
         </div>
     );
 }
@@ -158,8 +159,12 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const shouldPromptOnExit = hasUnsavedChanges || (isNewNote && isEditing);
 
     const loadNotes = useCallback(async () => {
-        const notesFromDb = await getNotes();
-        setNotes(notesFromDb);
+        try {
+            const notesFromDb = await getNotes();
+            setNotes(notesFromDb);
+        } catch (error) {
+            console.error("Failed to load notes:", error);
+        }
     }, []);
 
     useEffect(() => {
@@ -184,12 +189,16 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     };
 
     const createNewNote = async () => {
-        const newNote = await addNote('New Note\n\n');
-        await loadNotes();
-        setActiveNote(newNote);
-        setOriginalNoteContent(newNote.content);
-        setIsEditing(true); // New notes go directly to edit mode
-        setIsNewNote(true);
+        try {
+            const newNote = await addNote('New Note\n\n');
+            await loadNotes();
+            setActiveNote(newNote);
+            setOriginalNoteContent(newNote.content);
+            setIsEditing(true); // New notes go directly to edit mode
+            setIsNewNote(true);
+        } catch (error) {
+            console.error("Failed to create new note:", error);
+        }
     };
 
     const handleNewNote = () => {
@@ -215,17 +224,22 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     const handleSaveNote = async () => {
         if (activeNote) {
-            setSaveStatus('saving');
-            await new Promise(res => setTimeout(res, 300));
-            await updateNote(activeNote.id, { content: activeNote.content });
-            const updated = { ...activeNote, updatedAt: new Date() };
-            setOriginalNoteContent(updated.content);
-            setActiveNote(updated);
-            await loadNotes();
-            setSaveStatus('saved');
-            setIsEditing(false);
-            setIsNewNote(false);
-            setTimeout(() => setSaveStatus('idle'), 2000);
+            try {
+                setSaveStatus('saving');
+                await new Promise(res => setTimeout(res, 300));
+                await updateNote(activeNote.id, { content: activeNote.content });
+                const updated = { ...activeNote, updatedAt: new Date() };
+                setOriginalNoteContent(updated.content);
+                setActiveNote(updated);
+                await loadNotes();
+                setSaveStatus('saved');
+                setIsEditing(false);
+                setIsNewNote(false);
+                setTimeout(() => setSaveStatus('idle'), 2000);
+            } catch (error) {
+                console.error("Failed to save note:", error);
+                setSaveStatus('idle'); // Reset status on error
+            }
         }
     };
     
@@ -237,13 +251,18 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     const confirmDeleteNote = async () => {
         if (noteToDeleteId !== null) {
-            await deleteNote(noteToDeleteId);
-            await loadNotes();
-            setActiveNote(null);
-            setOriginalNoteContent(null);
-            setIsDeleteModalOpen(false);
-            setNoteToDeleteId(null);
-            setIsNewNote(false);
+            try {
+                await deleteNote(noteToDeleteId);
+                await loadNotes();
+                setActiveNote(null);
+                setOriginalNoteContent(null);
+                setIsNewNote(false);
+            } catch (error) {
+                console.error("Failed to delete note:", error);
+            } finally {
+                setIsDeleteModalOpen(false);
+                setNoteToDeleteId(null);
+            }
         }
     };
     
@@ -279,8 +298,12 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         setPendingAction(null);
     
         if (isNewNote && activeNote) {
-            await deleteNote(activeNote.id);
-            await loadNotes();
+            try {
+                await deleteNote(activeNote.id);
+                await loadNotes();
+            } catch (error) {
+                console.error("Failed to discard new note:", error);
+            }
         }
         
         transitionTo(actionToPerform);
@@ -309,21 +332,30 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         if (id === null) return;
         const note = notes.find(n => n.id === id);
         if (note) {
-            await updateNote(id, { isPinned: !note.isPinned });
-            await loadNotes();
+            try {
+                await updateNote(id, { isPinned: !note.isPinned });
+                await loadNotes();
+            } catch (error) {
+                console.error("Failed to toggle pin status for note:", error);
+            }
         }
     };
     
     const confirmRename = async () => {
         if (noteToRename && newTitle.trim()) {
-            const contentParts = noteToRename.content.split('\n');
-            contentParts[0] = newTitle.trim();
-            const newContent = contentParts.join('\n');
-            await updateNote(noteToRename.id, { content: newContent });
-            setIsRenameModalOpen(false);
-            setNoteToRename(null);
-            setNewTitle('');
-            await loadNotes();
+            try {
+                const contentParts = noteToRename.content.split('\n');
+                contentParts[0] = newTitle.trim();
+                const newContent = contentParts.join('\n');
+                await updateNote(noteToRename.id, { content: newContent });
+                await loadNotes();
+            } catch(error) {
+                console.error("Failed to rename note:", error);
+            } finally {
+                setIsRenameModalOpen(false);
+                setNoteToRename(null);
+                setNewTitle('');
+            }
         }
     };
 
@@ -351,7 +383,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     return (
         <div className="flex flex-col h-full w-full">
-            <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
                 <h3 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold">{t('notes.header_title')}</h3>
                 <div className="flex items-center">
                   {!isDesktop && <label htmlFor="notes-drawer" className="flex items-center justify-center size-10 cursor-pointer text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d"><span className="material-symbols-outlined !text-2xl">close</span></label>}

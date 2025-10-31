@@ -1,10 +1,12 @@
-import React from 'react';
+
+import React, { useRef } from 'react';
 import { Message, MessageSender, Attachment } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
 
 interface MessageBubbleProps {
   message: Message;
+  onLongPress: (message: Message, position: { x: number; y: number }) => void;
 }
 
 const AttachmentItem: React.FC<{ attachment: Attachment }> = ({ attachment }) => {
@@ -31,12 +33,12 @@ const AttachmentItem: React.FC<{ attachment: Attachment }> = ({ attachment }) =>
                 {attachment.preview && attachment.type.startsWith('image/') ? (
                      <img src={attachment.preview} alt={attachment.name} className="w-full h-full object-cover rounded-md"/>
                 ) : (
-                    <span className="material-symbols-outlined text-gray-300">{getFileIcon(attachment.type)}</span>
+                    <span className="material-symbols-outlined text-neutral-400">{getFileIcon(attachment.type)}</span>
                 )}
             </div>
             <div className="flex-1 min-w-0">
                 <p className="truncate font-medium text-sm text-white">{attachment.name}</p>
-                <p className="text-xs text-gray-300">{formatBytes(attachment.size)}</p>
+                <p className="text-xs text-neutral-400">{formatBytes(attachment.size)}</p>
             </div>
         </div>
     );
@@ -47,7 +49,7 @@ const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
     if (!message.attachments || message.attachments.length === 0) return null;
 
     return (
-        <div className="bg-primary text-white dark:bg-heymean-d rounded-2xl w-full p-3 flex flex-col gap-2">
+        <div className="bg-primary text-white dark:bg-heymean-d rounded-2xl w-full p-3 flex flex-col gap-2 transition-colors active:bg-neutral-900 dark:active:bg-white/20">
             <div className="flex flex-col gap-2">
                 {message.attachments.map((att, index) => (
                     <AttachmentItem key={index} attachment={att} />
@@ -69,11 +71,11 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const showThinkingWrapper = message.isLoading || hasThinkingProcess;
 
     return (
-        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden">
+        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden transition-colors active:bg-neutral-200 dark:active:bg-white/20">
             {showThinkingWrapper ? (
                 // This is the complex bubble with a permanent thinking process section
                 <>
-                    <div className="border-b border-gray-300 dark:border-gray-700/50">
+                    <div className="border-b border-gray-300 dark:border-white/20">
                         <input className="collapsible-checkbox" id={uniqueId} type="checkbox" defaultChecked={!message.isThinkingComplete} />
                         <label className="flex items-center justify-between p-3 cursor-pointer" htmlFor={uniqueId}>
                             <span className="text-xs font-semibold">{t('message.thinking_process')}</span>
@@ -114,21 +116,53 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     );
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) => {
   const { t } = useTranslation();
   const isUser = message.sender === MessageSender.USER;
+  const longPressTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const isLongPress = useRef(false);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only trigger for main button (left-click)
+    if (e.button !== 0) return;
+    isLongPress.current = false;
+    longPressTimeout.current = setTimeout(() => {
+      isLongPress.current = true;
+      onLongPress(message, { x: e.clientX, y: e.clientY });
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    clearTimeout(longPressTimeout.current);
+  };
+
+  const handlePointerLeave = () => {
+    clearTimeout(longPressTimeout.current);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    clearTimeout(longPressTimeout.current);
+    onLongPress(message, { x: e.clientX, y: e.clientY });
+  };
   
   if (isUser) {
     return (
-        <div className="flex w-full items-end gap-2.5 justify-end">
+        <div 
+            className="flex w-full items-end gap-2.5 justify-end"
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+            onContextMenu={handleContextMenu}
+        >
             <div className="flex flex-col gap-1.5 items-end max-w-[80%] md:max-w-md lg:max-w-lg xl:max-w-xl min-w-0">
-                <p className="text-gray-500 dark:text-gray-400 text-xs font-medium leading-normal px-2">
+                <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">
                     {t('message.you')} • {message.timestamp}
                 </p>
                 {(message.attachments && message.attachments.length > 0) ? (
                      <AttachmentDisplay message={message} />
                 ) : (
-                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d break-words">
+                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d break-words transition-colors active:bg-neutral-900 dark:active:bg-white/20">
                         {message.text.split('\n').map((line, index) => (
                           <React.Fragment key={index}>
                             {line}
@@ -144,9 +178,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   // AI Message
   return (
-    <div className="flex w-full items-start gap-2.5">
+    <div 
+        className="flex w-full items-start gap-2.5"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
+        onContextMenu={handleContextMenu}
+    >
        <div className="flex flex-col gap-1.5 w-full xl:w-3/4 min-w-0 overflow-hidden">
-            <p className="text-gray-500 dark:text-gray-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp}</p>
+            <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp}</p>
             <AiMessage message={message} />
        </div>
     </div>
@@ -154,4 +194,4 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
 };
 
-export default MessageBubble;
+export default React.memo(MessageBubble);

@@ -1,3 +1,4 @@
+
 // FIX: Updated to newer database logic, which was previously in the wrong file (`types.ts`).
 // This version includes schema upgrades and function signatures that match their usage in the app.
 import { Message, Note, Conversation } from '../types';
@@ -131,6 +132,18 @@ export const addMessage = async (message: Message): Promise<void> => {
         request.onerror = () => reject(request.error);
     });
 };
+
+export const deleteMessage = async (id: string): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(MESSAGES_STORE, 'readwrite');
+        const store = transaction.objectStore(MESSAGES_STORE);
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+};
+
 
 // Conversation Functions
 export const addConversation = async (conversation: Conversation): Promise<void> => {

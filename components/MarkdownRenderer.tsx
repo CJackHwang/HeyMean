@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,26 +29,26 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           // This completely overrides the default table rendering.
           // It's wrapped in a div that handles scrolling and styling.
           table: ({ node, ...props }) => (
-            <div className="overflow-x-auto custom-scrollbar my-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="overflow-x-auto custom-scrollbar my-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
               <table className="min-w-full text-sm" {...props} />
             </div>
           ),
-          thead: ({ node, ...props }) => <thead className="bg-gray-50 dark:bg-white/5" {...props} />,
+          thead: ({ node, ...props }) => <thead className="bg-neutral-50 dark:bg-white/5" {...props} />,
           th: ({ node, ...props }) => (
             <th
-              className="p-3 font-semibold text-left border-b border-gray-200 dark:border-gray-700 text-primary-text-light dark:text-primary-text-dark whitespace-nowrap"
+              className="p-3 font-semibold text-left border-b border-neutral-200 dark:border-neutral-700 text-primary-text-light dark:text-primary-text-dark whitespace-nowrap"
               {...props}
             />
           ),
           tr: ({ node, ...props }) => (
             <tr
-              className="even:bg-black/[0.02] dark:even:bg-white/[0.02] border-b border-gray-200 dark:border-gray-800 last:border-b-0"
+              className="even:bg-black/[0.02] dark:even:bg-white/[0.02] border-b border-neutral-200 dark:border-neutral-800 last:border-b-0"
               {...props}
             />
           ),
           td: ({ node, ...props }) => (
             <td
-              className="p-3 text-gray-700 dark:text-gray-300 whitespace-nowrap"
+              className="p-3 text-neutral-700 dark:text-neutral-300 whitespace-nowrap"
               {...props}
             />
           ),
@@ -58,7 +59,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           ),
           
           // --- Custom Code Block Component ---
-          code({ node, inline, className, children, ...props }: any) {
+          code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
               // This container handles the scrolling and rounded corners.

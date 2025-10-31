@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-interface Action {
+// FIX: Export Action interface and allow onClick to be async
+export interface Action {
   label: string;
   icon: string;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   isDestructive?: boolean;
 }
 
@@ -16,6 +17,7 @@ interface ListItemMenuProps {
 
 const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, position }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(isOpen);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
     opacity: 0,
     transform: 'scale(0.95)',
@@ -24,10 +26,21 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
     left: '-9999px',
   });
 
+  // Effect to manage mounting/unmounting with animation delay
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+    } else {
+      // When closing, wait for animation to finish before un-rendering
+      const timer = setTimeout(() => setShouldRender(false), 200); // Must match transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+
   useEffect(() => {
     if (isOpen) {
       // Defer measurement and positioning until the next browser paint cycle.
-      // This ensures menuRef.current exists and has calculated dimensions.
       const timer = setTimeout(() => {
         if (!menuRef.current) return;
 
@@ -68,23 +81,24 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
       return () => clearTimeout(timer);
 
     } else {
-        // When closing, reset to the initial off-screen and invisible state.
-        setMenuStyle({
+        // When closing, start the fade-out animation.
+        // It's important to keep the current `top` and `left` from the previous state
+        // so it animates out from its position, instead of jumping off-screen.
+        setMenuStyle(prev => ({
+            ...prev,
             opacity: 0,
             transform: 'scale(0.95)',
-            top: '-9999px',
-            left: '-9999px',
-        });
+        }));
     }
   }, [isOpen, position]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
       <div
         ref={menuRef}
-        className="absolute bg-background-light dark:bg-heymean-d rounded-lg shadow-xl p-1.5 min-w-[150px] border border-gray-200 dark:border-gray-700 transition-[opacity,transform] duration-200 ease-out"
+        className="absolute bg-background-light dark:bg-neutral-700 rounded-lg shadow-xl p-1.5 min-w-[150px] border border-gray-200 dark:border-neutral-700 transition-[opacity,transform] duration-moderate ease-out-quad"
         style={menuStyle}
         onClick={(e) => e.stopPropagation()}
       >

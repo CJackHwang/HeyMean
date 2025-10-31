@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  // FIX: Allow async functions for onConfirm to resolve type errors.
+  onConfirm: () => void | Promise<void>;
   title: string;
   children: React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   confirmButtonClass?: string;
-  onDestructive?: () => void;
+  // FIX: Allow async functions for onDestructive to resolve type errors.
+  onDestructive?: () => void | Promise<void>;
   destructiveText?: string;
   destructiveButtonClass?: string;
 }
@@ -28,16 +31,34 @@ const Modal: React.FC<ModalProps> = ({
   destructiveButtonClass,
 }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+  const modalPanelRef = useRef<HTMLDivElement>(null);
 
+  // Effect to manage mounting/unmounting and exit animation
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
     } else {
+      setIsAnimatingIn(false); // Start exit animation
       // When closing, wait for animation to finish before un-rendering
       const timer = setTimeout(() => setShouldRender(false), 200); // Must match transition duration
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+  
+  // Effect to manage the entry animation after the component is mounted
+  useEffect(() => {
+    if (shouldRender && isOpen && modalPanelRef.current) {
+      // Force a browser reflow.
+      // This ensures the initial state (opacity-0, scale-95) is rendered
+      // before the final state (opacity-100, scale-100) is applied for the transition.
+      void modalPanelRef.current.offsetHeight;
+      
+      // Now trigger the animation by updating the state
+      setIsAnimatingIn(true);
+    }
+  }, [shouldRender, isOpen]);
+
 
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
@@ -64,20 +85,21 @@ const Modal: React.FC<ModalProps> = ({
     >
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-200 ease-out ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-moderate ease-out-quad ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
         onClick={onClose}
       ></div>
 
       {/* Modal Panel */}
       <div
-        className={`relative w-full max-w-md p-6 m-4 bg-background-light dark:bg-heymean-d rounded-2xl shadow-xl transform transition-all duration-200 ease-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        ref={modalPanelRef}
+        className={`relative w-full max-w-md p-6 m-4 bg-background-light dark:bg-heymean-d rounded-2xl shadow-xl transform transition-all duration-moderate ease-out-quad ${isAnimatingIn ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold text-primary-text-light dark:text-primary-text-dark" id="modal-title">
           {title}
         </h3>
-        <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+        <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
           {children}
         </div>
         <div className="mt-6 flex justify-end gap-3">
@@ -92,7 +114,7 @@ const Modal: React.FC<ModalProps> = ({
            )}
           <button
             type="button"
-            className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-heymean-d/50 hover:bg-gray-200 dark:hover:bg-heymean-d rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
             onClick={onClose}
           >
             {cancelText}

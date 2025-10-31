@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../hooks/useSettings';
@@ -5,6 +6,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Theme, ApiProvider, Language } from '../types';
 import Modal from '../components/Modal';
 import { clearAllData } from '../services/db';
+import Selector from '../components/Selector';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +20,8 @@ const SettingsPage: React.FC = () => {
     setSelectedApiProvider,
     geminiApiKey,
     setGeminiApiKey,
+    geminiModel,
+    setGeminiModel,
     openAiApiKey,
     setOpenAiApiKey,
     openAiModel,
@@ -50,6 +54,10 @@ const SettingsPage: React.FC = () => {
         },
       });
       if (!response.ok) {
+        // Check for specific authentication error
+        if (response.status === 401) {
+            throw new Error(t('settings.api_key_invalid'));
+        }
         const errorData = await response.json();
         throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
       }
@@ -91,7 +99,7 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
-      <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
+      <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
         <button onClick={() => navigate(-1)} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
         </button>
@@ -117,25 +125,17 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-             <div className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
-                    <span className="material-symbols-outlined">language</span>
-                    </div>
-                    <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.appearance_language')}</p>
-                </div>
-                <div className="shrink-0">
-                    <select
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value as Language)}
-                        className="p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
-                    >
-                        <option value={Language.EN}>English</option>
-                        <option value={Language.ZH_CN}>简体中文</option>
-                        <option value={Language.JA}>日本語</option>
-                    </select>
-                </div>
-            </div>
+            <Selector
+              label={t('settings.appearance_language')}
+              icon="language"
+              options={[
+                { value: Language.EN, label: 'English' },
+                { value: Language.ZH_CN, label: '简体中文' },
+                { value: Language.JA, label: '日本語' },
+              ]}
+              selectedValue={language}
+              onSelect={(lang) => setLanguage(lang as Language)}
+            />
           </div>
         </section>
 
@@ -143,11 +143,11 @@ const SettingsPage: React.FC = () => {
             <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_model')}</h2>
             <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-4 space-y-4">
                  <div>
-                    <label htmlFor="system-prompt" className="block text-sm font-medium mb-2">{t('settings.model_system_prompt')}</label>
+                    <label htmlFor="system-prompt" className="block text-sm font-medium mb-2 px-2">{t('settings.model_system_prompt')}</label>
                     <textarea
                         id="system-prompt"
                         rows={4}
-                        className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
                         value={systemPrompt}
                         onChange={(e) => setSystemPrompt(e.target.value)}
                         placeholder={t('settings.model_system_prompt_placeholder')}
@@ -158,44 +158,57 @@ const SettingsPage: React.FC = () => {
 
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_api')}</h2>
-          <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-4 space-y-4">
-            <div>
-              <label htmlFor="api-provider" className="block text-sm font-medium mb-2">{t('settings.api_provider')}</label>
-              <select
-                id="api-provider"
-                className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
-                value={selectedApiProvider}
-                onChange={(e) => setSelectedApiProvider(e.target.value as ApiProvider)}
-              >
-                <option value={ApiProvider.GEMINI}>{t('settings.api_provider_gemini')}</option>
-                <option value={ApiProvider.OPENAI}>{t('settings.api_provider_openai')}</option>
-              </select>
-            </div>
+          <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
+            <Selector
+              label={t('settings.api_provider')}
+              icon="hub"
+              options={[
+                { value: ApiProvider.GEMINI, label: t('settings.api_provider_gemini') },
+                { value: ApiProvider.OPENAI, label: t('settings.api_provider_openai') }
+              ]}
+              selectedValue={selectedApiProvider}
+              onSelect={(provider) => setSelectedApiProvider(provider as ApiProvider)}
+            />
 
             {selectedApiProvider === ApiProvider.GEMINI && (
-              <div>
-                <label htmlFor="gemini-api-key" className="block text-sm font-medium mb-2">{t('settings.api_key')}</label>
-                <input
-                  id="gemini-api-key"
-                  type="password"
-                  placeholder={t('settings.api_key_gemini_placeholder')}
-                  className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
-                  value={geminiApiKey}
-                  onChange={(e) => setGeminiApiKey(e.target.value)}
+              <>
+                <div className="p-4 space-y-4">
+                  <div>
+                    <label htmlFor="gemini-api-key" className="block text-sm font-medium mb-2">{t('settings.api_key')}</label>
+                    <input
+                      id="gemini-api-key"
+                      type="password"
+                      placeholder={t('settings.api_key_gemini_placeholder')}
+                      className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                      value={geminiApiKey}
+                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">{t('settings.api_key_gemini_info')}</p>
+                  </div>
+                </div>
+                <Selector
+                  label={t('settings.api_model_name')}
+                  icon="memory"
+                  options={[
+                    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Fast, Default)' },
+                    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Powerful)' }
+                  ]}
+                  selectedValue={geminiModel}
+                  onSelect={setGeminiModel}
                 />
-                <p className="text-xs text-gray-500 mt-1">{t('settings.api_key_gemini_info')}</p>
-              </div>
+                <p className="text-xs text-gray-500 mt-1 px-4 pb-2">{t('settings.api_model_gemini_info')}</p>
+              </>
             )}
 
             {selectedApiProvider === ApiProvider.OPENAI && (
-              <>
+              <div className="p-4 space-y-4">
                 <div>
                   <label htmlFor="openai-api-key" className="block text-sm font-medium mb-2">{t('settings.api_key')}</label>
                   <input
                     id="openai-api-key"
                     type="password"
                     placeholder={t('settings.api_key_openai_placeholder')}
-                    className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                    className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
                     value={openAiApiKey}
                     onChange={(e) => setOpenAiApiKey(e.target.value)}
                   />
@@ -207,7 +220,7 @@ const SettingsPage: React.FC = () => {
                     id="openai-base-url"
                     type="text"
                     placeholder={t('settings.api_base_url_placeholder')}
-                    className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                    className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
                     value={openAiBaseUrl}
                     onChange={(e) => setOpenAiBaseUrl(e.target.value)}
                   />
@@ -225,22 +238,18 @@ const SettingsPage: React.FC = () => {
                       </button>
                   </div>
                   {availableModels.length > 0 ? (
-                      <select
-                        id="openai-model"
-                        className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
-                        value={openAiModel}
-                        onChange={(e) => setOpenAiModel(e.target.value)}
-                      >
-                        {availableModels.map(modelId => (
-                          <option key={modelId} value={modelId}>{modelId}</option>
-                        ))}
-                      </select>
+                      <Selector
+                        label={t('settings.api_model_name')}
+                        options={availableModels.map(id => ({ value: id, label: id }))}
+                        selectedValue={openAiModel}
+                        onSelect={setOpenAiModel}
+                      />
                     ) : (
                       <input
                         id="openai-model"
                         type="text"
                         placeholder={t('settings.api_model_placeholder')}
-                        className="w-full p-2 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
                         value={openAiModel}
                         onChange={(e) => setOpenAiModel(e.target.value)}
                       />
@@ -252,7 +261,7 @@ const SettingsPage: React.FC = () => {
                       : t('settings.api_model_fetch_info')}
                   </p>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </section>
@@ -262,9 +271,6 @@ const SettingsPage: React.FC = () => {
            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
             <div onClick={() => setIsClearDataModalOpen(true)} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-red-500/10">
                 <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate">{t('settings.account_clear_data')}</p>
-            </div>
-            <div className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg">
-              <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate cursor-pointer">{t('settings.account_delete')}</p>
             </div>
           </div>
         </section>
