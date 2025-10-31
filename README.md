@@ -29,21 +29,24 @@
 ### 💬 Intelligent Chat Interface
 - **Rich Message Display** - Markdown rendering with syntax highlighting (powered by react-syntax-highlighter)
 - **Mathematical Expressions** - LaTeX/KaTeX support via remark-math and rehype-katex
-- **File Attachments** - Support for images (PNG, JPG, GIF, WebP) and PDFs (Gemini only)
-- **Thinking Process Display** - Visualize AI reasoning steps in real-time
-- **Streaming Responses** - See AI responses as they're generated
+- **File Attachments** - Attach up to 4 files (≤5 MB each), covering images (PNG/JPG/GIF/WebP), plain-text/Markdown, and PDFs (Gemini only) with intelligent compression
+- **Thinking Process Display** - Visualize AI reasoning steps in real-time with collapsible sections
+- **Streaming Responses** - See AI responses as they're generated with real-time typing effect
+- **Message Actions** - Copy, resend, regenerate, and delete messages with context menu
 
 ### 📝 Integrated Notes Workspace
 - Create and manage notes alongside your conversations
 - Pin important notes for quick access
-- Full Markdown support in notes
-- Auto-save functionality
+- Full Markdown support with live preview
+- Auto-save functionality with unsaved changes detection
+- Rename and organize notes with context menu
 
 ### 🗂️ Conversation Management
 - **History Tracking** - All conversations automatically saved to IndexedDB
 - **Pin Conversations** - Keep important chats at the top
-- **Rename & Delete** - Organize your learning journey
-- **Continue Where You Left Off** - Resume your last conversation instantly
+- **Rename & Delete** - Organize your learning journey from the history page
+- **Long-Press Actions** - Access copy/resend/regenerate/delete from chat history
+- **Continue Where You Left Off** - Resume your last conversation instantly from the home screen
 
 ### 🎨 Personalization
 - **Theme Switching** - Light and dark modes
@@ -56,6 +59,15 @@
 - No server-side data transmission
 - Complete data control with clear all data option
 - Works offline after initial load
+
+---
+
+## 🧱 Architecture Highlights
+- **Provider Composition** — SettingsProvider + TranslationProvider wrap the router for global state
+- **Strategy Pattern** — `apiService.ts` dispatches between Gemini and OpenAI implementations
+- **IndexedDB Persistence** — Conversations, messages, notes, and settings stored locally with schema migrations
+- **Modular Hooks** — Reusable hooks (`useConversation`, `useChatStream`, `useAttachments`) encapsulate complex flows
+- **Responsive Layout** — Chat + Notes split view on desktop, drawer-based experience on mobile
 
 ---
 
@@ -215,29 +227,35 @@ heymean-ai-learning-assistant/
 │   ├── ChatInput.tsx       # Message input with file upload
 │   ├── MessageBubble.tsx   # Chat message display
 │   ├── MarkdownRenderer.tsx # Rich markdown rendering
-│   ├── NotesView.tsx       # Notes workspace
+│   ├── NotesView.tsx       # Notes workspace with full CRUD
 │   ├── Modal.tsx           # Confirmation dialogs
-│   └── ListItemMenu.tsx    # Context menu for list items
+│   ├── ListItemMenu.tsx    # Context menu for list items
+│   └── Selector.tsx        # Dropdown selector component
 ├── pages/              # Route pages
-│   ├── HomePage.tsx        # Landing page
-│   ├── ChatPage.tsx        # Main chat interface
-│   ├── HistoryPage.tsx     # Conversation history
-│   └── SettingsPage.tsx    # Settings panel
+│   ├── HomePage.tsx        # Landing page with quick start
+│   ├── ChatPage.tsx        # Main chat interface with streaming
+│   ├── HistoryPage.tsx     # Conversation history management
+│   └── SettingsPage.tsx    # Settings panel with API config
 ├── services/           # Business logic
-│   ├── db.ts               # IndexedDB operations
-│   ├── apiService.ts       # OpenAI-compatible API
-│   └── geminiService.ts    # Gemini API service
+│   ├── db.ts               # IndexedDB operations (conversations, messages, notes, settings)
+│   └── apiService.ts       # Unified API service (Gemini + OpenAI compatible)
 ├── hooks/              # Custom React hooks
-│   ├── useSettings.tsx     # Settings context & hooks
-│   └── useTranslation.tsx  # i18n hooks
+│   ├── useSettings.tsx     # Settings context & provider
+│   ├── useTranslation.tsx  # i18n hooks with caching
+│   ├── useConversation.tsx # Conversation state management
+│   ├── useChatStream.tsx   # AI streaming response handler
+│   ├── useAttachments.tsx  # File attachment handling
+│   └── useMessageActions.tsx # Message action handlers (resend, regenerate, delete)
 ├── locales/            # Internationalization
 │   ├── en.json             # English translations
 │   ├── zh-CN.json          # Simplified Chinese
 │   └── ja.json             # Japanese
-├── App.tsx             # App root with providers
+├── App.tsx             # App root with providers and router
+├── index.tsx           # App entry point
 ├── types.ts            # TypeScript type definitions
 ├── prompt.txt          # Default AI system prompt
-└── index.html          # HTML template
+├── vite.config.ts      # Vite configuration
+└── index.html          # HTML template with CDN imports
 ```
 
 ---
@@ -427,21 +445,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 #### 💬 智能对话界面
 - **富文本消息** - Markdown 渲染，语法高亮
 - **数学表达式** - LaTeX/KaTeX 支持
-- **文件附件** - 支持图片（PNG、JPG、GIF、WebP）和 PDF（仅 Gemini）
-- **思考过程展示** - 实时可视化 AI 推理步骤
-- **流式响应** - 实时查看 AI 生成的回复
+- **文件附件** - 最多支持 4 个文件（≤5 MB），涵盖图片（PNG/JPG/GIF/WebP）、纯文本/Markdown，PDF 仅限 Gemini，并自动压缩图片
+- **思考过程展示** - 可折叠的 AI 推理过程，实时查看
+- **流式响应** - 实时查看 AI 生成的回复，具有动态输出效果
+- **消息操作** - 长按即可复制、重发、重新生成或删除消息
 
 #### 📝 集成笔记工作区
 - 在对话过程中创建和管理笔记
 - 置顶重要笔记以便快速访问
-- 完整 Markdown 支持
-- 自动保存功能
+- Markdown 编辑 + 预览双模式
+- 自动保存并提供未保存提示
+- 支持重命名、删除、置顶等上下文操作
 
 #### 🗂️ 对话管理
 - **历史记录** - 所有对话自动保存到 IndexedDB
 - **置顶对话** - 将重要聊天保持在顶部
-- **重命名和删除** - 组织你的学习旅程
-- **继续学习** - 立即恢复上次对话
+- **重命名和删除** - 在历史页集中管理
+- **长按操作** - 快速复制、重发、重新生成或删除消息
+- **继续学习** - 在首页一键恢复上次对话
 
 #### 🎨 个性化设置
 - **主题切换** - 明亮和暗黑模式
@@ -454,6 +475,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 无服务器端数据传输
 - 完全数据控制，可清除所有数据
 - 初次加载后可离线工作
+
+### 🧱 架构亮点
+- **Provider 组合** —— SettingsProvider 与 TranslationProvider 包裹路由，统一管理全局状态
+- **策略模式** —— `apiService.ts` 按配置在 Gemini 与 OpenAI 之间动态切换
+- **IndexedDB 持久化** —— 对话、消息、笔记与设置统一存储，支持版本迁移
+- **模块化 Hooks** —— `useConversation`、`useChatStream`、`useAttachments` 等封装复杂流程
+- **响应式布局** —— 桌面端聊天 + 笔记分栏，移动端则采用抽屉式交互
 
 ### 🌿 分支策略（Main ↔ Canary）
 
