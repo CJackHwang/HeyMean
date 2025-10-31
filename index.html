@@ -21,7 +21,7 @@
             "background-light": "#ffffff",
             "background-dark": "#111111",
             "heymean-l": "#F0F0F0",
-            "heymean-d": "#222222",
+            "heymean-d": "#2C2C2C",
             "primary-text-light": "#333333",
             "primary-text-dark": "#ffffff",
             "thinking-dark": "#1A2B21",
@@ -37,6 +37,12 @@
             "2xl": "2rem",
             "full": "9999px"
           },
+          transitionDuration: {
+            'moderate': '200ms',
+          },
+          transitionTimingFunction: {
+            'out-quad': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          }
         },
       },
     }
@@ -45,9 +51,22 @@
     body {
       min-height: 100vh;
       min-height: 100dvh;
+      /* Disable text selection globally for a better mobile experience */
+      -webkit-user-select: none; /* Safari */
+      -moz-user-select: none; /* Firefox */
+      -ms-user-select: none; /* IE10+/Edge */
+      user-select: none; /* Standard */
     }
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    /* Re-enable text selection for specific elements where it's needed */
+    input, textarea, .selectable-text {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
     }
 
     /* Generic Collapsible Checkbox */
@@ -69,7 +88,7 @@
 
     /* Notes Drawer Styles */
     #notes-content {
-      transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+      transition: transform 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     #notes-drawer:checked ~ #notes-content {
       transform: translateY(0);
@@ -86,24 +105,6 @@
         transform: rotate(0deg);
     }
 
-    /* Squircle Loader Animation */
-    @keyframes squircle-rotate {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    @keyframes squircle-morph {
-      0%, 100% { border-radius: 40% 60% 60% 40% / 70% 30% 70% 30%; }
-      50% { border-radius: 30% 70% 30% 70% / 60% 40% 60% 40%; }
-    }
-    .squircle-loader {
-      width: 28px;
-      height: 28px;
-      display: inline-block;
-      position: relative;
-      border: 3px solid #A6E0B3; /* thinking-text-dark */
-      animation: squircle-rotate 2s linear infinite, squircle-morph 2s ease-in-out infinite;
-    }
-    
     /* Custom Scrollbar */
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;

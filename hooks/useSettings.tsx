@@ -12,6 +12,8 @@ interface SettingsContextType {
   setSelectedApiProvider: (provider: ApiProvider) => void;
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
+  geminiModel: string;
+  setGeminiModel: (model: string) => void;
   openAiApiKey: string;
   setOpenAiApiKey: (key: string) => void;
   openAiModel: string;
@@ -31,6 +33,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState<string>(''); // Loaded from file
   const [selectedApiProvider, setSelectedApiProviderState] = useState<ApiProvider>(ApiProvider.GEMINI);
   const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
+  const [geminiModel, setGeminiModelState] = useState<string>('gemini-2.5-flash');
   const [openAiApiKey, setOpenAiApiKeyState] = useState<string>('');
   const [openAiModel, setOpenAiModelState] = useState<string>('');
   const [openAiBaseUrl, setOpenAiBaseUrlState] = useState<string>('');
@@ -39,41 +42,49 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const loadSettings = async () => {
-      await initDB();
-
-      // Fetch the default prompt from prompt.txt
-      let fetchedDefaultPrompt = 'You are a helpful and friendly AI learning assistant called HeyMean. Your goal is to explain complex topics in a simple and understandable way.'; // Fallback
       try {
-        const response = await fetch('prompt.txt');
-        if (response.ok) {
-          fetchedDefaultPrompt = await response.text();
-        } else {
-          console.error("Failed to load default prompt.txt, using fallback.");
+        await initDB();
+
+        // Fetch the default prompt from prompt.txt
+        let fetchedDefaultPrompt = 'You are a helpful and friendly AI learning assistant called HeyMean. Your goal is to explain complex topics in a simple and understandable way.'; // Fallback
+        try {
+          const response = await fetch('prompt.txt');
+          if (response.ok) {
+            fetchedDefaultPrompt = await response.text();
+          } else {
+            console.error("Failed to load default prompt.txt, using fallback.");
+          }
+        } catch (error) {
+          console.error("Error fetching prompt.txt:", error, "using fallback.");
         }
+        setDefaultSystemPrompt(fetchedDefaultPrompt.trim());
+
+        const savedTheme = await getSetting<Theme>('theme') || Theme.LIGHT;
+        const savedPrompt = await getSetting<string>('systemPrompt') || ''; // Default to empty
+        const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.GEMINI;
+        const savedGeminiApiKey = await getSetting<string>('geminiApiKey') || '';
+        const savedGeminiModel = await getSetting<string>('geminiModel') || 'gemini-2.5-flash';
+        const savedOpenAiApiKey = await getSetting<string>('openAiApiKey') || '';
+        const savedOpenAiModel = await getSetting<string>('openAiModel') || 'gpt-4o'; // Default OpenAI model
+        const savedOpenAiBaseUrl = await getSetting<string>('openAiBaseUrl') || 'https://api.openai.com/v1';
+        const savedLanguage = await getSetting<Language>('language') || Language.EN;
+
+
+        setThemeState(savedTheme);
+        setSystemPromptState(savedPrompt);
+        setSelectedApiProviderState(savedApiProvider);
+        setGeminiApiKeyState(savedGeminiApiKey);
+        setGeminiModelState(savedGeminiModel);
+        setOpenAiApiKeyState(savedOpenAiApiKey);
+        setOpenAiModelState(savedOpenAiModel);
+        setOpenAiBaseUrlState(savedOpenAiBaseUrl);
+        setLanguageState(savedLanguage);
       } catch (error) {
-        console.error("Error fetching prompt.txt:", error, "using fallback.");
+          console.error("Failed to load settings from database:", error);
+          // Keep default state on error
+      } finally {
+        setIsLoading(false);
       }
-      setDefaultSystemPrompt(fetchedDefaultPrompt.trim());
-
-      const savedTheme = await getSetting<Theme>('theme') || Theme.LIGHT;
-      const savedPrompt = await getSetting<string>('systemPrompt') || ''; // Default to empty
-      const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.GEMINI;
-      const savedGeminiApiKey = await getSetting<string>('geminiApiKey') || '';
-      const savedOpenAiApiKey = await getSetting<string>('openAiApiKey') || '';
-      const savedOpenAiModel = await getSetting<string>('openAiModel') || 'gpt-4o'; // Default OpenAI model
-      const savedOpenAiBaseUrl = await getSetting<string>('openAiBaseUrl') || 'https://api.openai.com/v1';
-      const savedLanguage = await getSetting<Language>('language') || Language.EN;
-
-
-      setThemeState(savedTheme);
-      setSystemPromptState(savedPrompt);
-      setSelectedApiProviderState(savedApiProvider);
-      setGeminiApiKeyState(savedGeminiApiKey);
-      setOpenAiApiKeyState(savedOpenAiApiKey);
-      setOpenAiModelState(savedOpenAiModel);
-      setOpenAiBaseUrlState(savedOpenAiBaseUrl);
-      setLanguageState(savedLanguage);
-      setIsLoading(false);
     };
     loadSettings();
   }, []);
@@ -83,7 +94,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const root = window.document.documentElement;
     root.classList.remove(theme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
     root.classList.add(theme);
-    setSetting('theme', theme);
+
+    const saveTheme = async () => {
+      try {
+        await setSetting('theme', theme);
+      } catch (error) {
+        console.error("Failed to save theme setting to database:", error);
+      }
+    };
+    saveTheme();
+
   }, [theme, isLoading]);
   
   const setTheme = (newTheme: Theme) => {
@@ -92,44 +112,67 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   const setSystemPrompt = (prompt: string) => {
     setSystemPromptState(prompt);
-    setSetting('systemPrompt', prompt);
+    setSetting('systemPrompt', prompt).catch(error => {
+        console.error("Failed to save system prompt:", error);
+    });
   };
 
   const setSelectedApiProvider = (provider: ApiProvider) => {
     setSelectedApiProviderState(provider);
-    setSetting('selectedApiProvider', provider);
+    setSetting('selectedApiProvider', provider).catch(error => {
+        console.error("Failed to save API provider setting:", error);
+    });
   };
 
   const setGeminiApiKey = (key: string) => {
     setGeminiApiKeyState(key);
-    setSetting('geminiApiKey', key);
+    setSetting('geminiApiKey', key).catch(error => {
+        console.error("Failed to save Gemini API key:", error);
+    });
+  };
+
+  const setGeminiModel = (model: string) => {
+    setGeminiModelState(model);
+    setSetting('geminiModel', model).catch(error => {
+        console.error("Failed to save Gemini model:", error);
+    });
   };
 
   const setOpenAiApiKey = (key: string) => {
     setOpenAiApiKeyState(key);
-    setSetting('openAiApiKey', key);
+    setSetting('openAiApiKey', key).catch(error => {
+        console.error("Failed to save OpenAI API key:", error);
+    });
   };
 
   const setOpenAiModel = (model: string) => {
     setOpenAiModelState(model);
-    setSetting('openAiModel', model);
+    setSetting('openAiModel', model).catch(error => {
+        console.error("Failed to save OpenAI model:", error);
+    });
   };
 
   const setOpenAiBaseUrl = (url: string) => {
     setOpenAiBaseUrlState(url);
-    setSetting('openAiBaseUrl', url);
+    setSetting('openAiBaseUrl', url).catch(error => {
+        console.error("Failed to save OpenAI base URL:", error);
+    });
   };
   
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    setSetting('language', lang);
+    setSetting('language', lang).catch(error => {
+        console.error("Failed to save language setting:", error);
+    });
   };
 
   const resetSettings = () => {
+    // These setters already contain error handling
     setTheme(Theme.LIGHT);
     setSystemPrompt('');
     setSelectedApiProvider(ApiProvider.GEMINI);
     setGeminiApiKey('');
+    setGeminiModel('gemini-2.5-flash');
     setOpenAiApiKey('');
     setOpenAiModel('gpt-4o');
     setOpenAiBaseUrl('https://api.openai.com/v1');
@@ -148,6 +191,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSelectedApiProvider,
     geminiApiKey,
     setGeminiApiKey,
+    geminiModel,
+    setGeminiModel,
     openAiApiKey,
     setOpenAiApiKey,
     openAiModel,
@@ -163,6 +208,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     effectiveSystemPrompt,
     selectedApiProvider, 
     geminiApiKey, 
+    geminiModel,
     openAiApiKey, 
     openAiModel, 
     openAiBaseUrl,

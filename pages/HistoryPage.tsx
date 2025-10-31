@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
@@ -36,7 +37,7 @@ const ConversationList: React.FC<{
             {conversations.length > 0 ? conversations.map(conv => (
                 <div 
                     key={conv.id} 
-                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-gray-700"
+                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
                     onPointerDown={(e) => handlePointerDown(e, conv.id)}
                     onPointerUp={(e) => handlePointerUp(e, conv)}
                     onPointerLeave={() => clearTimeout(longPressTimeout.current)}
@@ -47,11 +48,11 @@ const ConversationList: React.FC<{
                         onLongPress(conv.id, { x: e.clientX, y: e.clientY });
                     }}
                 >
-                    {conv.isPinned && <span className="material-symbols-outlined !text-base text-gray-500 dark:text-gray-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
+                    {conv.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
                     <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{conv.title}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 pointer-events-none">{conv.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{conv.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
-            )) : <p className="text-center text-gray-500 dark:text-gray-400 mt-8">{t('history.empty_state')}</p>}
+            )) : <p className="text-center text-neutral-500 dark:text-neutral-400 mt-8">{t('history.empty_state')}</p>}
         </div>
     );
 }
@@ -115,28 +116,42 @@ const HistoryPage: React.FC = () => {
     if (id === null) return;
     const conversation = conversations.find(c => c.id === id);
     if (conversation) {
-        await updateConversation(id, { isPinned: !conversation.isPinned });
-        await loadConversations();
+        try {
+            await updateConversation(id, { isPinned: !conversation.isPinned });
+            await loadConversations();
+        } catch (error) {
+            console.error("Failed to toggle pin for conversation:", error);
+        }
     }
   };
 
   const confirmDelete = async () => {
     if (conversationToDeleteId) {
-        await deleteConversation(conversationToDeleteId);
-        setConversationToDeleteId(null);
-        setIsDeleteModalOpen(false);
-        // Refresh the list from the DB to ensure consistency
-        await loadConversations();
+        try {
+            await deleteConversation(conversationToDeleteId);
+            // Refresh the list from the DB to ensure consistency
+            await loadConversations();
+        } catch (error) {
+            console.error("Failed to delete conversation:", error);
+        } finally {
+            setConversationToDeleteId(null);
+            setIsDeleteModalOpen(false);
+        }
     }
   };
 
   const confirmRename = async () => {
     if (conversationToRename && newTitle.trim()) {
-        await updateConversation(conversationToRename.id, { title: newTitle.trim(), updatedAt: new Date() });
-        setIsRenameModalOpen(false);
-        setConversationToRename(null);
-        setNewTitle('');
-        await loadConversations();
+        try {
+            await updateConversation(conversationToRename.id, { title: newTitle.trim(), updatedAt: new Date() });
+            await loadConversations();
+        } catch (error) {
+            console.error("Failed to rename conversation:", error);
+        } finally {
+            setIsRenameModalOpen(false);
+            setConversationToRename(null);
+            setNewTitle('');
+        }
     }
   };
   
@@ -163,7 +178,7 @@ const HistoryPage: React.FC = () => {
 
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
-      <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
+      <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
         <button onClick={() => navigate(-1)} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
         </button>
@@ -174,7 +189,7 @@ const HistoryPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {isLoading ? (
             <div className="flex justify-center items-center h-full">
-                <div className="w-8 h-8 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-neutral-400 dark:border-neutral-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         ) : (
             <ConversationList conversations={conversations} onSelect={handleSelectConversation} onLongPress={handleLongPress} />
