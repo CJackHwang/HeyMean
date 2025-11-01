@@ -23,7 +23,7 @@ export const useLongPress = <T extends HTMLElement, C = any>(
   onClick?: (e: React.PointerEvent<T>, context: C) => void,
   { delay = 500 }: LongPressOptions = {}
 ) => {
-  const timeout = useRef<ReturnType<typeof setTimeout>>();
+  const timeout = useRef<number | null>(null);
   const isLongPressTriggered = useRef(false);
 
   const getHandlers = useCallback((context: C) => {
@@ -31,26 +31,35 @@ export const useLongPress = <T extends HTMLElement, C = any>(
       // Only trigger for main button (left-click)
       if (e.button !== 0) return;
       isLongPressTriggered.current = false;
-      timeout.current = setTimeout(() => {
+      timeout.current = window.setTimeout(() => {
         onLongPress(e, context);
         isLongPressTriggered.current = true;
       }, delay);
     };
 
     const handlePointerUp = (e: React.PointerEvent<T>) => {
-      clearTimeout(timeout.current);
+      if (timeout.current !== null) {
+        clearTimeout(timeout.current);
+        timeout.current = null;
+      }
       if (onClick && !isLongPressTriggered.current) {
         onClick(e, context);
       }
     };
 
     const handlePointerLeave = () => {
-      clearTimeout(timeout.current);
+      if (timeout.current !== null) {
+        clearTimeout(timeout.current);
+        timeout.current = null;
+      }
     };
 
     const handleContextMenu = (e: React.MouseEvent<T>) => {
       e.preventDefault();
-      clearTimeout(timeout.current);
+      if (timeout.current !== null) {
+        clearTimeout(timeout.current);
+        timeout.current = null;
+      }
       onLongPress(e, context);
       // FIX: Set the flag here. This is crucial for touch devices where a long press
       // fires a contextmenu event. Without this, the subsequent pointerup event

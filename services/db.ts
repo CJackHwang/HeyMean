@@ -4,7 +4,7 @@ import { Message, Note, Conversation } from '../types';
 import { handleError } from './errorHandler';
 
 const DB_NAME = 'HeyMeanDB';
-const DB_VERSION = 4; // Incremented version for schema change
+const DB_VERSION = 5; // Incremented version for schema change (notes title split)
 
 const MESSAGES_STORE = 'messages';
 const NOTES_STORE = 'notes';
@@ -33,6 +33,7 @@ export const initDB = (): Promise<IDBDatabase> => {
         request.onupgradeneeded = (event) => {
             const dbInstance = (event.target as IDBRequest).result;
             const transaction = (event.target as IDBOpenDBRequest).transaction;
+            const oldVersion = (event.target as IDBOpenDBRequest).result.version;
             
             // Messages Store
             if (!dbInstance.objectStoreNames.contains(MESSAGES_STORE)) {
@@ -58,6 +59,33 @@ export const initDB = (): Promise<IDBDatabase> => {
                 }
                 if (!notesStore.indexNames.contains('isPinned')) {
                     notesStore.createIndex('isPinned', 'isPinned', { unique: false }); // Add index to existing store
+                }
+            }
+
+            // Migration for v5: split title from content for existing notes
+            if (transaction && (event as IDBVersionChangeEvent).oldVersion < 5) {
+                try {
+                    const notesStore = transaction.objectStore(NOTES_STORE);
+                    const getAllReq = (notesStore.getAll && notesStore.getAll()) as IDBRequest<any[]> | undefined;
+                    if (getAllReq) {
+                        getAllReq.onsuccess = () => {
+                            const allNotes = getAllReq.result || [];
+                            allNotes.forEach((note: any) => {
+                                if (typeof note.title === 'undefined') {
+                                    const raw = typeof note.content === 'string' ? note.content : '';
+                                    const [first, ...rest] = raw.split('\n');
+                                    const title = first && first.trim().length > 0 ? first.trim() : 'New Note';
+                                    const content = rest.join('\n');
+                                    const updated = { ...note, title, content };
+                                    notesStore.put(updated);
+                                }
+                            });
+                        };
+                        // No need to block upgrade completion on migration; best-effort
+                    }
+                } catch (e) {
+                    // Best-effort migration; ignore errors to avoid blocking app
+                    console.warn('Notes migration to v5 failed:', e);
                 }
             }
 
@@ -327,9 +355,10 @@ export const getNotes = async (): Promise<Note[]> => {
     });
 };
 
-export const addNote = async (content: string): Promise<Note> => {
+export const addNote = async (title: string = 'New Note', content: string = ''): Promise<Note> => {
     const db = await initDB();
     const newNote: Omit<Note, 'id'> = {
+        title,
         content,
         createdAt: new Date(),
         updatedAt: new Date(),

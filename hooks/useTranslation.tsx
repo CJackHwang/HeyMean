@@ -36,7 +36,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error(error);
       // Fallback to English if the selected language file fails to load
       if (lang !== 'en') {
-        showToast(`Could not load translations for ${lang}. Falling back to English.`, 'error');
+        showToast(t('toast.translation_fallback', lang), 'error');
         await fetchTranslations('en');
       }
     }

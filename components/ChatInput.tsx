@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Attachment } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAttachments } from '../hooks/useAttachments';
+import { useToast } from '../hooks/useToast';
 import { getFileIcon } from '../utils/fileHelpers';
 
 interface ChatInputProps {
@@ -38,12 +39,17 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => 
       triggerFileInput, 
       resetAttachments 
   } = useAttachments();
+  const { showToast } = useToast();
 
   const handleSendClick = () => {
-    if (text.trim() || attachments.length > 0) {
+    const hasText = !!text.trim();
+    const hasAttachments = attachments.length > 0;
+    if (hasText || hasAttachments) {
       onSend(text, attachments);
       setText('');
       resetAttachments();
+    } else {
+      showToast(t('toast.input_required'), 'error');
     }
   };
 

@@ -97,4 +97,7 @@
   "about.developed_by": "Developed by CJackHwang",
   "about.github_repo": "GitHub Repository",
   "about.license": "License (AGPL-3.0)"
+  ,
+  "toast.input_required": "Please enter content",
+  "toast.translation_fallback": "Could not load translations for {0}. Falling back to English."
 }

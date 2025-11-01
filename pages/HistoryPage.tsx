@@ -135,18 +135,22 @@ const HistoryPage: React.FC = () => {
   };
 
   const confirmRename = async () => {
-    if (conversationToRename && newTitle.trim()) {
-        try {
-            await updateConversation(conversationToRename.id, { title: newTitle.trim(), updatedAt: new Date() });
-            await loadConversations();
-        } catch (error) {
-            const appError = handleError(error, 'db');
-            showToast(appError.userMessage, 'error');
-        } finally {
-            setIsRenameModalOpen(false);
-            setConversationToRename(null);
-            setNewTitle('');
-        }
+    if (!conversationToRename) return;
+    const trimmed = newTitle.trim();
+    if (!trimmed) {
+      showToast(t('toast.input_required'), 'error');
+      return;
+    }
+    try {
+      await updateConversation(conversationToRename.id, { title: trimmed, updatedAt: new Date() });
+      await loadConversations();
+    } catch (error) {
+      const appError = handleError(error, 'db');
+      showToast(appError.userMessage, 'error');
+    } finally {
+      setIsRenameModalOpen(false);
+      setConversationToRename(null);
+      setNewTitle('');
     }
   };
   

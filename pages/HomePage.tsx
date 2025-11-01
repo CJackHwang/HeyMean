@@ -22,10 +22,14 @@ const HomePage: React.FC = () => {
     } = useAttachments();
 
     const handleSend = () => {
-        if (prompt.trim() || attachments.length > 0) {
+        const hasText = !!prompt.trim();
+        const hasAttachments = attachments.length > 0;
+        if (hasText || hasAttachments) {
             // Do not revoke object URLs here.
             // The ChatPage component is responsible for handling their lifecycle.
             navigate('/chat', { state: { initialPrompt: prompt, initialAttachments: attachments, newChat: true } });
+        } else {
+            showToast(t('toast.input_required'), 'error');
         }
     };
 

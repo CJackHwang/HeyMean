@@ -97,4 +97,7 @@
   "about.developed_by": "由 CJackHwang 开发",
   "about.github_repo": "GitHub 仓库",
   "about.license": "许可证 (AGPL-3.0)"
+  ,
+  "toast.input_required": "请输入内容",
+  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。"
 }

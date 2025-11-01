@@ -113,8 +113,8 @@ const NoteList: React.FC<{
                     {...getLongPressHandlers(note)}
                 >
                     {note.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
-                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{note.content.split('\n')[0] || t('notes.untitled')}</p>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 pointer-events-none">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
+                    <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{note.title || t('notes.untitled')}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 pointer-events-none">{(note.content || '').split('\n').slice(0, 2).join(' ') || t('notes.no_content')}</p>
                     <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{formatDateTime(note.updatedAt)}</p>
                 </div>
             )) : <p className="text-center text-neutral-500 dark:text-neutral-400 mt-8">{t('notes.empty_state')}</p>}
@@ -181,7 +181,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     const createNewNote = async () => {
         try {
-            const newNote = await addNote('New Note\n\n');
+            const newNote = await addNote('New Note', '');
             await loadNotes();
             setActiveNote(newNote);
             setOriginalNoteContent(newNote.content);
@@ -216,6 +216,10 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     const handleSaveNote = async () => {
         if (activeNote) {
+            if (!activeNote.content.trim()) {
+                showToast(t('toast.input_required'), 'error');
+                return;
+            }
             try {
                 setSaveStatus('saving');
                 await new Promise(res => setTimeout(res, 300));
@@ -287,6 +291,10 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     // --- Unsaved Changes Modal Handlers ---
     const handleConfirmSave = async () => {
         if (activeNote) {
+            if (!activeNote.content.trim()) {
+                showToast(t('toast.input_required'), 'error');
+                return;
+            }
             // A simplified save that transitions to the next state without delay effects
             try {
                 await updateNote(activeNote.id, { content: activeNote.content });
@@ -333,7 +341,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         const note = notes.find(n => n.id === id);
         if (note) {
             setNoteToRename(note);
-            setNewTitle(note.content.split('\n')[0]);
+            setNewTitle(note.title || '');
             setIsRenameModalOpen(true);
         }
     };
@@ -353,21 +361,25 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     };
     
     const confirmRename = async () => {
-        if (noteToRename && newTitle.trim()) {
-            try {
-                const contentParts = noteToRename.content.split('\n');
-                contentParts[0] = newTitle.trim();
-                const newContent = contentParts.join('\n');
-                await updateNote(noteToRename.id, { content: newContent });
-                await loadNotes();
-            } catch(error) {
-                const appError = handleError(error, 'db');
-                showToast(appError.userMessage, 'error');
-            } finally {
-                setIsRenameModalOpen(false);
-                setNoteToRename(null);
-                setNewTitle('');
+        if (!noteToRename) return;
+        const trimmed = newTitle.trim();
+        if (!trimmed) {
+            showToast(t('toast.input_required'), 'error');
+            return;
+        }
+        try {
+            await updateNote(noteToRename.id, { title: trimmed });
+            if (activeNote && activeNote.id === noteToRename.id) {
+                setActiveNote({ ...activeNote, title: trimmed, updatedAt: new Date() });
             }
+            await loadNotes();
+        } catch(error) {
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
+        } finally {
+            setIsRenameModalOpen(false);
+            setNoteToRename(null);
+            setNewTitle('');
         }
     };
 

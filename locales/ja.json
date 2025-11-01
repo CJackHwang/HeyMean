@@ -97,4 +97,7 @@
   "about.developed_by": "開発者 CJackHwang",
   "about.github_repo": "GitHubリポジトリ",
   "about.license": "ライセンス (AGPL-3.0)"
+  ,
+  "toast.input_required": "内容を入力してください",
+  "toast.translation_fallback": "{0} の翻訳を読み込めませんでした。英語にフォールバックします。"
 }
