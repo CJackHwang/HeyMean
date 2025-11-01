@@ -5,7 +5,7 @@ import { SettingsProvider } from './hooks/useSettings';
 import { TranslationProvider } from './hooks/useTranslation';
 import { ToastProvider } from './hooks/useToast';
 
-// --- Direct Page Imports ---
+// --- Direct Page Imports (eager for seamless switches) ---
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';

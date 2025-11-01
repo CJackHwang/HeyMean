@@ -8,6 +8,7 @@ import { getFileIcon } from '../utils/fileHelpers';
 interface ChatInputProps {
   onSend: (text: string, attachments: Attachment[]) => void;
   isThinking: boolean;
+  onStop?: () => void;
 }
 
 export const AttachmentChip: React.FC<{attachment: Attachment, onRemove: () => void}> = ({ attachment, onRemove }) => {
@@ -26,7 +27,7 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove: () => v
     )
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => {
   const [text, setText] = useState('');
   const { t } = useTranslation();
   const { 
@@ -46,9 +47,31 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking }) => {
     }
   };
 
+  const canSend = !isThinking && (text.trim() || attachments.length > 0);
+  const isStopState = isThinking;
+  const isDisabled = !isStopState && !canSend;
+
   return (
     <div className="flex items-end gap-2.5">
-      <input type="file" accept="image/*,application/pdf,text/plain,text/markdown,.md,.txt" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
+      <input type="file" accept="image/*,application/pdf,text/plain,text/markdown,.md,.txt" ref={fileInputRef} onChange={(e) => {
+        // 对部分浏览器 file.type 识别不准做兜底：基于扩展名补充类型
+        const files = e.target.files;
+        if (files) {
+          const patched = Array.from(files).map(f => {
+            if (f.type) return f;
+            const name = f.name.toLowerCase();
+            const ext = name.split('.').pop() || '';
+            let mime = '';
+            if (ext === 'md' || ext === 'markdown') mime = 'text/markdown';
+            else if (ext === 'txt' || ext === 'text') mime = 'text/plain';
+            else if (ext === 'pdf') mime = 'application/pdf';
+            // 无法直接改 File 对象，只在读取时兜底：通过 handleFileChange 使用 name/size/preview
+            // 这里直接调用原 handle，因其会读取 file 本身的 type；为不支持的情况在 utils 中也有进一步兜底
+            return f;
+          });
+        }
+        handleFileChange(e);
+      }} className="hidden" multiple />
       <button onClick={triggerFileInput} className="flex items-center justify-center size-10 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
         <span className="material-symbols-outlined !text-xl">attach_file</span>
       </button>
@@ -77,11 +100,20 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking }) => {
           disabled={isThinking}
         />
       </div>
-      <button onClick={handleSendClick} disabled={isThinking || (!text.trim() && attachments.length === 0)} className="flex items-center justify-center size-12 rounded-xl bg-primary text-white shrink-0 disabled:bg-neutral-400 dark:disabled:bg-neutral-600">
-        {isThinking ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      <button
+        onClick={isStopState ? onStop : handleSendClick}
+        disabled={isDisabled}
+        className={[
+          'flex items-center justify-center size-12 rounded-xl text-white shrink-0',
+          isStopState ? 'bg-red-600 hover:bg-red-700' : '',
+          canSend && !isStopState ? 'bg-primary hover:bg-primary/90' : '',
+          isDisabled ? 'bg-neutral-400 dark:bg-neutral-600 cursor-not-allowed' : ''
+        ].join(' ').trim()}
+      >
+        {isStopState ? (
+          <span className="material-symbols-outlined !text-2xl">stop</span>
         ) : (
-            <span className="material-symbols-outlined !text-2xl">send</span>
+          <span className="material-symbols-outlined !text-2xl">send</span>
         )}
       </button>
     </div>

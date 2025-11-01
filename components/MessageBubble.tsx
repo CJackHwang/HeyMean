@@ -52,7 +52,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const hasThinkingProcess = message.thinkingText && message.thinkingText.length > 0;
     
     // The thinking wrapper is shown if the message is loading, OR if it has completed with thinking steps.
-    const showThinkingWrapper = message.isLoading || hasThinkingProcess;
+    const showThinkingWrapper = hasThinkingProcess; // Do not show based on loading
 
     return (
         <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden transition-colors active:bg-neutral-200 dark:active:bg-white/20">
@@ -68,26 +68,12 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                         <div className="px-3 pb-3 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
                              {hasThinkingProcess ? (
                                 <MarkdownRenderer content={message.thinkingText || ''} />
-                             ) : (
-                                // Show "Thinking..." placeholder when loading but no steps are available yet.
-                                <div className="flex items-start gap-2 p-2.5 rounded-lg text-primary-text-light dark:text-primary-text-dark">
-                                    <span className="material-symbols-outlined text-green-500 !text-base pt-0.5">psychology_alt</span>
-                                    <div className="prose prose-sm dark:prose-invert max-w-none flex-1 min-w-0">{t('message.thinking')}</div>
-                                    <div className="shrink-0 w-4 h-4 flex items-center justify-center mt-0.5">
-                                        <div className="w-full h-full border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                </div>
-                             )}
+                             ) : null}
                         </div>
                     </div>
                     <div className="p-4 min-h-[3.5rem]">
                         <MarkdownRenderer content={message.text} />
-                        {message.isLoading && !message.text && hasThinkingProcess && (
-                             <div className="flex items-center gap-2.5 text-sm">
-                                <div className="w-2.5 h-2.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse"></div>
-                                <span className="font-medium">{t('message.synthesizing')}</span>
-                            </div>
-                        )}
+                        {/* No pulsing or spinner while composing */}
                     </div>
                 </>
             ) : (

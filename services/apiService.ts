@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import { Message, MessageSender, ApiProvider } from '../types';
-import { getTextFromDataUrl } from "../utils/fileHelpers";
+import { getTextFromDataUrl, getInlineDataFromDataUrl } from "../utils/fileHelpers";
 import { AppError, handleError } from "./errorHandler";
 
 // --- HELPER FUNCTIONS ---
@@ -36,7 +36,8 @@ interface IChatService<T> {
         newMessage: Message,
         systemInstruction: string,
         config: T,
-        onChunk: (text: string) => void
+        onChunk: (text: string) => void,
+        signal?: AbortSignal
     ): Promise<void>;
 }
 
@@ -49,10 +50,8 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         if (msg.attachments) {
             for (const att of msg.attachments) {
                 try {
-                    const base64Data = att.data.split(',')[1];
-                    if (base64Data) {
-                        parts.push({ inlineData: { data: base64Data, mimeType: att.type } });
-                    }
+                    const { base64Data, mimeType } = getInlineDataFromDataUrl(att.data, att.type);
+                    parts.push({ inlineData: { data: base64Data, mimeType } });
                 } catch (e) {
                     console.error("Error processing attachment for Gemini:", e);
                 }
@@ -64,7 +63,7 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         return { role: msg.sender === MessageSender.USER ? 'user' : 'model', parts };
     }
 
-    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void): Promise<void> {
+    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
         const ai = new GoogleGenAI({ apiKey: config.apiKey });
         const model = config.model || 'gemini-2.5-flash';
         
@@ -82,12 +81,16 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                 }
             });
             for await (const chunk of response) {
+                if (signal?.aborted) {
+                    throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                }
                 if (chunk.text) {
                     onChunk(chunk.text);
                 }
             }
         } catch (error) {
-            const appError = handleError(error, 'api');
+            const appError = handleError(error, 'api', { provider: 'gemini', model, endpoint: 'google-genai' });
+            if (appError.code === 'CANCELLED') return;
             onChunk(appError.userMessage);
         }
     }
@@ -112,11 +115,22 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
 
             if (msg.attachments && msg.attachments.length > 0) {
                 for (const att of msg.attachments) {
+                    if (att.type === 'application/pdf') {
+                        throw new AppError('UNSUPPORTED_ATTACHMENT', 'PDF attachments are not supported for OpenAI-compatible providers. Please switch to Gemini to analyze PDFs.');
+                    }
                     if (att.type.startsWith('image/')) {
                         contentParts.push({ type: 'image_url', image_url: { url: att.data } });
                     } else if (att.type.startsWith('text/')) {
                         const text = await getTextFromDataUrl(att.data);
-                        fileTextContent += `\n\n--- Attachment: ${att.name} ---\n${text}`;
+                        const MAX_TEXT_ATTACHMENT_CHARS = 4000;
+                        let summary = text;
+                        if (text.length > MAX_TEXT_ATTACHMENT_CHARS) {
+                            summary = text.slice(0, MAX_TEXT_ATTACHMENT_CHARS) + '\n... [truncated]';
+                        }
+                        fileTextContent += `\n\n--- Attachment summary: ${att.name} ---\n${summary}`;
+                    } else {
+                        // For unknown types on OpenAI, ignore (don't break)
+                        fileTextContent += `\n\n[Attachment ${att.name} (${att.type}) omitted. Unsupported type for OpenAI]`;
                     }
                 }
             }
@@ -131,7 +145,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         return openAIMessages;
     }
 
-    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void): Promise<void> {
+    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
         const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
         const messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
         const model = config.model || 'gpt-4o';
@@ -145,6 +159,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
                 body: JSON.stringify({ model, messages, stream: true }),
+                signal,
             });
 
             if (!response.ok) {
@@ -161,6 +176,9 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
             
             const decoder = new TextDecoder('utf-8');
             while (true) {
+                if (signal?.aborted) {
+                    throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                }
                 const { value, done } = await reader.read();
                 if (done) break;
                 const chunk = decoder.decode(value);
@@ -180,7 +198,8 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                 }
             }
         } catch (error) {
-            const appError = handleError(error, 'api');
+            const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: openaiEndpoint });
+            if (appError.code === 'CANCELLED') return;
             onChunk(appError.userMessage);
         }
     }
@@ -203,7 +222,9 @@ export const streamChatResponse = async (
   openAiApiKey: string,
   openAiModel: string,
   openAiBaseUrl: string,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+  retryTimes: number = 0
 ): Promise<string> => {
     let fullText = '';
     const accumulatingOnChunk = (chunk: string) => {
@@ -219,20 +240,47 @@ export const streamChatResponse = async (
                 throw new AppError("CONFIG_ERROR", "Error: Gemini API key is not configured. Please add it in settings.");
             }
             const config: GeminiServiceConfig = { apiKey: effectiveGeminiKey, model: geminiModel };
-            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk);
+            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
         } else if (selectedApiProvider === ApiProvider.OPENAI) {
             const service = apiServices[ApiProvider.OPENAI];
             if (!openAiApiKey) {
                 throw new AppError("CONFIG_ERROR", "Error: OpenAI API key is not configured in settings.");
             }
             const config: OpenAIServiceConfig = { apiKey: openAiApiKey, model: openAiModel, baseUrl: openAiBaseUrl };
-            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk);
+            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
         } else {
             throw new AppError("CONFIG_ERROR", `Error: API provider "${selectedApiProvider}" is not supported.`);
         }
     } catch (error) {
-        const appError = handleError(error, 'api');
-        accumulatingOnChunk(appError.userMessage);
+        const appError = handleError(error, 'api', {
+            provider: selectedApiProvider === ApiProvider.GEMINI ? 'gemini' : 'openai',
+            model: selectedApiProvider === ApiProvider.GEMINI ? geminiModel : openAiModel,
+            endpoint: selectedApiProvider === ApiProvider.GEMINI ? 'google-genai' : (openAiBaseUrl || 'https://api.openai.com/v1')
+        });
+        // Retry on recoverable errors (network issues, 429), up to 2 times with backoff
+        const isRecoverable = appError.code === 'API_RATE_LIMIT' || appError.userMessage.toLowerCase().includes('failed to fetch');
+        const wasCancelled = appError.code === 'CANCELLED' || (error instanceof Error && error.name === 'AbortError');
+        if (!wasCancelled && isRecoverable && retryTimes < 2) {
+            const backoffMs = 500 * Math.pow(2, retryTimes);
+            await new Promise(res => setTimeout(res, backoffMs));
+            return await streamChatResponse(
+                chatHistory,
+                newMessage,
+                systemInstruction,
+                selectedApiProvider,
+                geminiApiKey,
+                geminiModel,
+                openAiApiKey,
+                openAiModel,
+                openAiBaseUrl,
+                onChunk,
+                signal,
+                retryTimes + 1
+            );
+        }
+        if (!wasCancelled) {
+            accumulatingOnChunk(appError.userMessage);
+        }
     }
     
     return fullText;

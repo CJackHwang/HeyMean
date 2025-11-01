@@ -32,10 +32,14 @@ const config: Config = {
         full: '9999px',
       },
       transitionDuration: {
-        moderate: '200ms',
+        ultra: '150ms',
+        moderate: '220ms',
+        slow: '320ms',
       },
       transitionTimingFunction: {
         'out-quad': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        'in-out-expo': 'cubic-bezier(0.87, 0, 0.13, 1)',
+        'soft-spring': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
       },
     },
   },

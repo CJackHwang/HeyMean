@@ -50,7 +50,7 @@ const HistoryPage: React.FC = () => {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [menuState, setMenuState] = useState<{ isOpen: boolean; position: { x: number; y: number }; conversationId: string | null }>({ isOpen: false, position: { x: 0, y: 0 }, conversationId: null });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [conversationToDeleteId, setConversationToDeleteId] = useState<string | null>(null);
@@ -63,18 +63,20 @@ const HistoryPage: React.FC = () => {
 
   const loadConversations = async () => {
     try {
-      setIsLoading(true);
+      // Fetch in background without showing spinner
       const convs = await getConversations();
       setConversations(convs);
     } catch (error) {
       const appError = handleError(error, 'db');
       showToast(appError.userMessage, 'error');
     } finally {
+      // No visible loading state
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    // Load without blocking UI
     loadConversations();
   }, []);
 
@@ -191,13 +193,7 @@ const HistoryPage: React.FC = () => {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-        {isLoading ? (
-            <div className="flex justify-center items-center h-full">
-                <div className="w-8 h-8 border-4 border-neutral-400 dark:border-neutral-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        ) : (
-            <ConversationList conversations={conversations} onSelect={handleSelectConversation} onLongPress={handleLongPress} />
-        )}
+        <ConversationList conversations={conversations} onSelect={handleSelectConversation} onLongPress={handleLongPress} />
       </div>
 
        <ListItemMenu 

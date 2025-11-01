@@ -239,11 +239,12 @@ heymean-ai-learning-assistant/
 ├── services/           # Business logic
 │   ├── db.ts               # IndexedDB operations (conversations, messages, notes, settings)
 │   └── apiService.ts       # Unified API service (Gemini + OpenAI compatible)
+│   └── streamController.ts # Cross-provider streaming control (cancel/retry)
 ├── hooks/              # Custom React hooks
 │   ├── useSettings.tsx     # Settings context & provider
 │   ├── useTranslation.tsx  # i18n hooks with caching
 │   ├── useConversation.tsx # Conversation state management
-│   ├── useChatStream.tsx   # AI streaming response handler
+│   ├── useChatStream.tsx   # AI streaming response handler (supports cancel)
 │   ├── useAttachments.tsx  # File attachment handling
 │   └── useMessageActions.tsx # Message action handlers (resend, regenerate, delete)
 ├── locales/            # Internationalization

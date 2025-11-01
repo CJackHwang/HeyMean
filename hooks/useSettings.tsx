@@ -42,7 +42,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [openAiModel, setOpenAiModelState] = useState<string>('');
   const [openAiBaseUrl, setOpenAiBaseUrlState] = useState<string>('');
   const [language, setLanguageState] = useState<Language>(Language.EN);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -88,6 +88,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           showToast(appError.userMessage, 'error');
           // Keep default state on error
       } finally {
+        // Do not gate rendering with a loading state; initial render should be immediate
         setIsLoading(false);
       }
     };

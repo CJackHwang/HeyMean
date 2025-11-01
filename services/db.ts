@@ -52,6 +52,10 @@ export const initDB = (): Promise<IDBDatabase> => {
                 notesStore.createIndex('isPinned', 'isPinned', { unique: false }); // Add index on creation
             } else {
                 const notesStore = transaction.objectStore(NOTES_STORE);
+                // Ensure updatedAt index exists for older DBs
+                if (!notesStore.indexNames.contains('updatedAt')) {
+                    notesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                }
                 if (!notesStore.indexNames.contains('isPinned')) {
                     notesStore.createIndex('isPinned', 'isPinned', { unique: false }); // Add index to existing store
                 }
@@ -299,17 +303,25 @@ export const getNotes = async (): Promise<Note[]> => {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(NOTES_STORE, 'readonly');
         const store = transaction.objectStore(NOTES_STORE);
-        const index = store.index('updatedAt');
-        const request = index.getAll();
+        let request: IDBRequest<Note[]>;
+        try {
+            const index = store.index('updatedAt');
+            request = index.getAll();
+        } catch (e) {
+            // Fallback for legacy DBs without the index
+            request = store.getAll() as IDBRequest<Note[]>;
+        }
         request.onsuccess = () => {
-            const notes = request.result.reverse() as Note[];
-            // Sort by pinned status first, then by date.
-            notes.sort((a, b) => {
+            const all = (request.result || []) as Note[];
+            // Sort by updatedAt desc
+            const sortedByDate = all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            // Then bring pinned to top, keep date order within groups
+            sortedByDate.sort((a, b) => {
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
-                return 0; // Keep original date-based order for items with same pinned status
+                return 0;
             });
-            resolve(notes);
+            resolve(sortedByDate);
         };
         request.onerror = () => reject(handleError(request.error, 'db'));
     });

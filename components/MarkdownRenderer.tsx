@@ -4,8 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import CodeBlock from './CodeBlock';
 import { useSettings } from '../hooks/useSettings';
 import { Theme } from '../types';
 
@@ -15,7 +14,6 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   const { theme } = useSettings();
-  const syntaxTheme = theme === Theme.DARK ? oneDark : oneLight;
 
   return (
     // The .prose class now only affects standard text elements, not our custom components.
@@ -28,11 +26,27 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           // --- Custom Table Component ---
           // This completely overrides the default table rendering.
           // It's wrapped in a div that handles scrolling and styling.
-          table: ({ node, ...props }) => (
-            <div className="overflow-x-auto custom-scrollbar my-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-              <table className="min-w-full text-sm" {...props} />
-            </div>
-          ),
+          table: ({ node, ...props }) => {
+            // 包裹表格并提供复制整表按钮
+            return (
+              <div className="overflow-x-auto custom-scrollbar my-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                <div className="flex items-center justify-end px-2 py-1 bg-neutral-50 dark:bg-white/5 border-b border-neutral-200 dark:border-neutral-700">
+                  <button
+                    className="px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-xs"
+                    onClick={(e) => {
+                      const container = (e.currentTarget.parentElement?.parentElement) as HTMLElement | null;
+                      const tbl = container?.querySelector('table');
+                      if (!tbl) return;
+                      const rows = Array.from(tbl.querySelectorAll('tr'));
+                      const text = rows.map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => (td as HTMLElement).innerText).join('\t')).join('\n');
+                      navigator.clipboard.writeText(text);
+                    }}
+                  >复制表格</button>
+                </div>
+                <table className="min-w-full text-sm" {...props} />
+              </div>
+            );
+          },
           thead: ({ node, ...props }) => <thead className="bg-neutral-50 dark:bg-white/5" {...props} />,
           th: ({ node, ...props }) => (
             <th
@@ -59,26 +73,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           ),
           
           // --- Custom Code Block Component ---
-          code({ node, inline, className, children, ...props }) {
+          code(compProps) {
+            const { inline, className, children, ...rest } = compProps as any;
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
-              // This container handles the scrolling and rounded corners.
-              <div className="my-4 rounded-lg overflow-x-auto custom-scrollbar">
-                <SyntaxHighlighter
-                  children={String(children).replace(/\n$/, '')}
-                  style={syntaxTheme}
-                  language={match[1]}
-                  PreTag="div" // Use a div to avoid prose styles
-                  customStyle={{
-                    margin: 0,
-                    borderRadius: 0, 
-                  }}
-                  {...props}
-                />
-              </div>
+              <CodeBlock language={match[1]} code={String(children)} />
             ) : (
-              // For inline code, use the default styling from `.prose`.
-              <code className={className} {...props}>
+              <code className={className} {...rest}>
                 {children}
               </code>
             );

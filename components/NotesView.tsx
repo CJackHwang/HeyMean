@@ -227,11 +227,13 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 setSaveStatus('saved');
                 setIsNewNote(false); // A new note is no longer "new" after the first save.
 
-                // After a short delay to show "Saved!", transition back to preview.
+                // After a short delay to show "Saved!", transition back to list for better discoverability.
                 setTimeout(() => {
-                    setViewState('preview');
+                    setViewState('list');
+                    setActiveNote(null);
+                    setOriginalNoteContent(null);
                     setSaveStatus('idle'); // Reset for the next time the editor opens.
-                }, 1500);
+                }, 800);
             } catch (error) {
                 const appError = handleError(error, 'db');
                 showToast(appError.userMessage, 'error');

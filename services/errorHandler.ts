@@ -30,9 +30,13 @@ const KNOWN_API_ERROR_MESSAGES: Record<string, string> = {
  * @param context A string to provide context (e.g., 'api', 'db', 'file') for more specific messages.
  * @returns An AppError instance with a user-friendly message.
  */
-export const handleError = (error: unknown, context: 'api' | 'db' | 'settings' | 'file' | 'general' = 'general'): AppError => {
+type ErrorContext = 'api' | 'db' | 'settings' | 'file' | 'general';
+type ErrorMeta = { provider?: string; model?: string; endpoint?: string } | undefined;
+
+export const handleError = (error: unknown, context: ErrorContext = 'general', meta: ErrorMeta = undefined): AppError => {
     // Log the full error for developers
-    console.error(`[Error Context: ${context}]`, error);
+    const metaStr = meta ? ` [${meta.provider}:${meta.model}:${meta.endpoint}]` : '';
+    console.error(`[Error Context: ${context}]${metaStr}`, error);
     
     // If it's already an AppError, just return it.
     if (error instanceof AppError) {
@@ -50,6 +54,10 @@ export const handleError = (error: unknown, context: 'api' | 'db' | 'settings' |
 
     // --- API Specific Error Handling ---
     if (context === 'api') {
+        // Treat AbortError specially so UI can swallow without user-facing text
+        if (error instanceof Error && error.name === 'AbortError') {
+            return new AppError('CANCELLED', 'Request was cancelled.', error);
+        }
         for (const key in KNOWN_API_ERROR_MESSAGES) {
             if (lowerCaseErrorMessage.includes(key)) {
                 return new AppError('API_KNOWN_ERROR', KNOWN_API_ERROR_MESSAGES[key], error);

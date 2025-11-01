@@ -6,21 +6,24 @@ import { useConversation } from '../hooks/useConversation';
 import { useChatStream } from '../hooks/useChatStream';
 import { useMessageActions } from '../hooks/useMessageActions';
 import { useTranslation } from '../hooks/useTranslation';
+import { useToast } from '../hooks/useToast';
+import { handleError } from '../services/errorHandler';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import { NotesView } from '../components/NotesView';
 import ListItemMenu from '../components/ListItemMenu';
 import Modal from '../components/Modal';
-import LoadingScreen from '../components/LoadingScreen';
+// Remove full-screen loading UI for seamless entry
 
 const ChatPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
     const isInitialLoad = useRef(true);
-    const [isInitialized, setIsInitialized] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(true);
     const { initialPrompt, initialAttachments, newChat, conversationId: stateConversationId } = location.state || {};
     const shouldForceScroll = useRef(false);
+    const { showToast } = useToast();
 
     // --- CUSTOM HOOKS ---
 
@@ -36,7 +39,7 @@ const ChatPage: React.FC = () => {
         deleteMultipleMessagesFromConversation,
     } = useConversation(stateConversationId);
 
-    const { isThinking, streamedAiMessage, streamResponse } = useChatStream();
+    const { isThinking, streamedAiMessage, streamResponse, cancel } = useChatStream();
 
     // --- EFFECT TO SYNC STREAMED MESSAGE ---
 
@@ -103,22 +106,22 @@ const ChatPage: React.FC = () => {
             }
 
             if (stateConversationId) {
-                await loadConversation(stateConversationId);
-                shouldForceScroll.current = true;
+                // Load conversation in the background and render UI immediately
+                loadConversation(stateConversationId).then(() => {
+                    shouldForceScroll.current = true;
+                });
             } else if (newChat) {
-                // For a new chat, initialize the UI first to avoid a long loading screen.
+                // Render immediately
                 setMessages([]);
-                setIsInitialized(true);
-
-                // Then, if there's an initial prompt, send it without blocking UI rendering.
+                // Fire-and-forget initial prompt
                 if (initialPrompt || (initialAttachments && initialAttachments.length > 0)) {
-                    // This will create the conversation, add the user message, and start the AI stream.
-                    handleSend(initialPrompt || '', initialAttachments || []);
+                    handleSend(initialPrompt || '', initialAttachments || []).catch(error => {
+                        const appError = handleError(error, 'api');
+                        showToast(appError.userMessage, 'error');
+                    });
                 }
-                return; // We've handled initialization for new chats, so exit early.
+                return;
             }
-            // This is for the case where a conversation is loaded from history.
-            setIsInitialized(true);
         };
         loadAndInitialize();
     }, [stateConversationId, newChat, initialPrompt, initialAttachments, navigate, handleSend, loadConversation, setMessages]);
@@ -192,7 +195,16 @@ const ChatPage: React.FC = () => {
             const baseSize = message.sender === MessageSender.USER ? 80 : 120;
             const textLines = message.text.split('\n').length;
             const attachmentSize = (message.attachments?.length || 0) * 70;
-            const thinkingSize = (message.thinkingText && message.thinkingText.length > 0) ? 100 : 0;
+            let thinkingSize = 0;
+            const hasThinking = message.isLoading || (!!message.thinkingText && message.thinkingText.length > 0);
+            if (hasThinking) {
+                if (message.isThinkingComplete) {
+                    const thinkingLines = (message.thinkingText || '').split('\n').length;
+                    thinkingSize = Math.min(300, 24 + thinkingLines * 16);
+                } else {
+                    thinkingSize = 80; // 未完成时固定占位，避免抖动
+                }
+            }
             return baseSize + (textLines * 18) + attachmentSize + thinkingSize;
         }, [messages]),
         overscan: 10,
@@ -229,9 +241,7 @@ const ChatPage: React.FC = () => {
         }
     }, [messages.length, rowVirtualizer]);
 
-    if (!isInitialized) {
-        return <LoadingScreen />;
-    }
+    // Always render content; no blocking loaders
 
     return (
         <div className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
@@ -265,7 +275,17 @@ const ChatPage: React.FC = () => {
                                     <div
                                         key={message.id}
                                         data-index={virtualItem.index}
-                                        ref={rowVirtualizer.measureElement}
+                                        ref={(el) => {
+                                            if (!el) return;
+                                            rowVirtualizer.measureElement(el);
+                                            const anyEl = el as any;
+                                            if (!anyEl.__hm_ro) {
+                                                anyEl.__hm_ro = new ResizeObserver(() => {
+                                                    rowVirtualizer.measureElement(el);
+                                                });
+                                                anyEl.__hm_ro.observe(el);
+                                            }
+                                        }}
                                         style={{
                                             position: 'absolute',
                                             top: 0,
@@ -301,7 +321,7 @@ const ChatPage: React.FC = () => {
                         <span className="material-symbols-outlined !text-xl text-primary-text-light dark:text-primary-text-dark transform rotate-180">expand_less</span>
                     </label>
                     <footer className="p-3 bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-neutral-700">
-                        <ChatInput onSend={handleSend} isThinking={isThinking} />
+                        <ChatInput onSend={handleSend} isThinking={isThinking} onStop={cancel} />
                     </footer>
                 </div>
                 <div className="xl:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col transition-transform transform translate-y-full opacity-0 pointer-events-none z-10" id="notes-content">

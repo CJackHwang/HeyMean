@@ -1,7 +1,8 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Message, MessageSender } from '../types';
 import { streamChatResponse } from '../services/apiService';
+import { StreamController } from '../services/streamController';
 import { useSettings } from './useSettings';
 import { parseStreamedText } from '../utils/textHelpers';
 
@@ -9,12 +10,16 @@ export const useChatStream = () => {
     const [isThinking, setIsThinking] = useState(false);
     const [streamedAiMessage, setStreamedAiMessage] = useState<Message | null>(null);
     const { effectiveSystemPrompt, selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl } = useSettings();
+    const controllerRef = useRef<StreamController | null>(null);
+    if (!controllerRef.current) controllerRef.current = new StreamController();
 
     const streamResponse = useCallback((
         chatHistory: Message[],
         userMessage: Message,
         aiMessageId: string
     ) => {
+        // Cancel any ongoing stream to avoid re-entrancy
+        controllerRef.current?.cancel();
         setIsThinking(true);
         const thinkingStartTime = Date.now();
         setStreamedAiMessage({
@@ -31,16 +36,19 @@ export const useChatStream = () => {
 
         let streamedText = '';
 
-        return streamChatResponse(
+        return controllerRef.current!.start(
             chatHistory,
             userMessage,
-            effectiveSystemPrompt,
-            selectedApiProvider,
-            geminiApiKey,
-            geminiModel,
-            openAiApiKey,
-            openAiModel,
-            openAiBaseUrl,
+            aiMessageId,
+            {
+                provider: selectedApiProvider,
+                systemInstruction: effectiveSystemPrompt,
+                geminiApiKey,
+                geminiModel,
+                openAiApiKey,
+                openAiModel,
+                openAiBaseUrl,
+            },
             (chunk) => {
                 streamedText += chunk;
                 const { thinkingContent, finalContent, isThinkingBlockComplete } = parseStreamedText(streamedText);
@@ -74,6 +82,9 @@ export const useChatStream = () => {
                     thinkingDuration: prev.thinkingDuration || (Date.now() - thinkingStartTime) / 1000,
                 };
             });
+        }).catch((e) => {
+            // Swallow cancellation to avoid user-visible error text injection
+            setIsThinking(false);
         });
     }, [
         effectiveSystemPrompt,
@@ -89,5 +100,6 @@ export const useChatStream = () => {
         isThinking,
         streamedAiMessage,
         streamResponse,
+        cancel: () => controllerRef.current?.cancel(),
     };
 };

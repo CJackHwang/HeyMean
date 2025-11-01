@@ -92,6 +92,27 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
     }
   }, [isOpen, position]);
 
+  // ESC 关闭与焦点陷阱
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab') {
+        const focusable = menuRef.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          last.focus(); e.preventDefault();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          first.focus(); e.preventDefault();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
+
   if (!shouldRender) return null;
 
   return (
@@ -106,9 +127,16 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
           {actions.map((action, index) => (
             <li key={index}>
               <button
-                onClick={() => {
-                  action.onClick();
-                  onClose();
+                onClick={async () => {
+                  // 防抖与加载态处理
+                  const btn = document.activeElement as HTMLButtonElement | null;
+                  if (btn) btn.disabled = true;
+                  try {
+                    await action.onClick();
+                  } finally {
+                    if (btn) btn.disabled = false;
+                    onClose();
+                  }
                 }}
                 className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-md text-sm ${
                   action.isDestructive
