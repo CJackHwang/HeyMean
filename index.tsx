@@ -1,6 +1,7 @@
 
 import React from 'react';
 import 'katex/dist/katex.min.css';
+import './src/index.css';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
