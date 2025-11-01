@@ -1,8 +1,9 @@
-
-import React, { useRef } from 'react';
+import React, { useCallback } from 'react';
 import { Message, MessageSender, Attachment } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
+import { getFileIcon, formatBytes } from '../utils/fileHelpers';
+import { useLongPress } from '../hooks/useLongPress';
 
 interface MessageBubbleProps {
   message: Message;
@@ -10,23 +11,6 @@ interface MessageBubbleProps {
 }
 
 const AttachmentItem: React.FC<{ attachment: Attachment }> = ({ attachment }) => {
-    const getFileIcon = (mimeType: string) => {
-        if (mimeType.startsWith('image/')) return 'image';
-        if (mimeType === 'application/pdf') return 'picture_as_pdf';
-        if (mimeType === 'text/markdown') return 'article';
-        if (mimeType.startsWith('text/')) return 'description';
-        return 'attach_file';
-    };
-
-    const formatBytes = (bytes: number, decimals = 2) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    };
-
     return (
         <div className="bg-black/20 rounded-lg p-2 flex items-center gap-3">
             <div className="size-10 bg-black/20 rounded-md flex items-center justify-center shrink-0">
@@ -119,41 +103,21 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) => {
   const { t } = useTranslation();
   const isUser = message.sender === MessageSender.USER;
-  const longPressTimeout = useRef<ReturnType<typeof setTimeout>>();
-  const isLongPress = useRef(false);
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Only trigger for main button (left-click)
-    if (e.button !== 0) return;
-    isLongPress.current = false;
-    longPressTimeout.current = setTimeout(() => {
-      isLongPress.current = true;
-      onLongPress(message, { x: e.clientX, y: e.clientY });
-    }, 500);
-  };
-
-  const handlePointerUp = () => {
-    clearTimeout(longPressTimeout.current);
-  };
-
-  const handlePointerLeave = () => {
-    clearTimeout(longPressTimeout.current);
-  };
-
-  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    clearTimeout(longPressTimeout.current);
-    onLongPress(message, { x: e.clientX, y: e.clientY });
-  };
   
+  const handleLongPressCallback = useCallback((
+    e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>, 
+    context: Message
+  ) => {
+    onLongPress(context, { x: e.clientX, y: e.clientY });
+  }, [onLongPress]);
+
+  const getLongPressHandlers = useLongPress<HTMLDivElement, Message>(handleLongPressCallback, undefined, { delay: 500 });
+
   if (isUser) {
     return (
         <div 
             className="flex w-full items-end gap-2.5 justify-end"
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerLeave}
-            onContextMenu={handleContextMenu}
+            {...getLongPressHandlers(message)}
         >
             <div className="flex flex-col gap-1.5 items-end max-w-[80%] md:max-w-md lg:max-w-lg xl:max-w-xl min-w-0">
                 <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">
@@ -180,10 +144,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
   return (
     <div 
         className="flex w-full items-start gap-2.5"
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
-        onContextMenu={handleContextMenu}
+        {...getLongPressHandlers(message)}
     >
        <div className="flex flex-col gap-1.5 w-full xl:w-3/4 min-w-0 overflow-hidden">
             <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp}</p>

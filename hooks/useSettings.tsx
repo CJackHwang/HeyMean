@@ -1,6 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Theme, ApiProvider, Language } from '../types';
 import { getSetting, setSetting, initDB } from '../services/db';
+import { useToast } from './useToast';
+import { handleError } from '../services/errorHandler';
 
 interface SettingsContextType {
   theme: Theme;
@@ -28,6 +31,7 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { showToast } = useToast();
   const [theme, setThemeState] = useState<Theme>(Theme.LIGHT);
   const [systemPrompt, setSystemPromptState] = useState<string>(''); // User's custom prompt
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState<string>(''); // Loaded from file
@@ -80,14 +84,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setOpenAiBaseUrlState(savedOpenAiBaseUrl);
         setLanguageState(savedLanguage);
       } catch (error) {
-          console.error("Failed to load settings from database:", error);
+          const appError = handleError(error, 'db');
+          showToast(appError.userMessage, 'error');
           // Keep default state on error
       } finally {
         setIsLoading(false);
       }
     };
     loadSettings();
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -99,12 +104,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         await setSetting('theme', theme);
       } catch (error) {
-        console.error("Failed to save theme setting to database:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
       }
     };
     saveTheme();
 
-  }, [theme, isLoading]);
+  }, [theme, isLoading, showToast]);
   
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
@@ -113,56 +119,64 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setSystemPrompt = (prompt: string) => {
     setSystemPromptState(prompt);
     setSetting('systemPrompt', prompt).catch(error => {
-        console.error("Failed to save system prompt:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 
   const setSelectedApiProvider = (provider: ApiProvider) => {
     setSelectedApiProviderState(provider);
     setSetting('selectedApiProvider', provider).catch(error => {
-        console.error("Failed to save API provider setting:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 
   const setGeminiApiKey = (key: string) => {
     setGeminiApiKeyState(key);
     setSetting('geminiApiKey', key).catch(error => {
-        console.error("Failed to save Gemini API key:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 
   const setGeminiModel = (model: string) => {
     setGeminiModelState(model);
     setSetting('geminiModel', model).catch(error => {
-        console.error("Failed to save Gemini model:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 
   const setOpenAiApiKey = (key: string) => {
     setOpenAiApiKeyState(key);
     setSetting('openAiApiKey', key).catch(error => {
-        console.error("Failed to save OpenAI API key:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 
   const setOpenAiModel = (model: string) => {
     setOpenAiModelState(model);
     setSetting('openAiModel', model).catch(error => {
-        console.error("Failed to save OpenAI model:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 
   const setOpenAiBaseUrl = (url: string) => {
     setOpenAiBaseUrlState(url);
     setSetting('openAiBaseUrl', url).catch(error => {
-        console.error("Failed to save OpenAI base URL:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
   
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     setSetting('language', lang).catch(error => {
-        console.error("Failed to save language setting:", error);
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
     });
   };
 

@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSettings } from './useSettings';
 import { Language } from '../types';
+import { useToast } from './useToast';
 
 interface TranslationContextType {
   t: (key: string, ...args: any[]) => string;
@@ -14,6 +16,7 @@ const translationsCache: { [key: string]: any } = {};
 
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { language } = useSettings();
+  const { showToast } = useToast();
   const [translations, setTranslations] = useState<Record<string, string>>({});
 
   const fetchTranslations = useCallback(async (lang: string) => {
@@ -33,10 +36,11 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error(error);
       // Fallback to English if the selected language file fails to load
       if (lang !== 'en') {
+        showToast(`Could not load translations for ${lang}. Falling back to English.`, 'error');
         await fetchTranslations('en');
       }
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     fetchTranslations(language);

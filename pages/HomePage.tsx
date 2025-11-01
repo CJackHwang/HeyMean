@@ -5,10 +5,13 @@ import { useTranslation } from '../hooks/useTranslation';
 import { getLatestConversation } from '../services/db';
 import { useAttachments } from '../hooks/useAttachments';
 import { AttachmentChip } from '../components/ChatInput'; // Re-using the chip component
+import { useToast } from '../hooks/useToast';
+import { handleError } from '../services/errorHandler';
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const [prompt, setPrompt] = useState('');
     const { 
         attachments, 
@@ -35,7 +38,8 @@ const HomePage: React.FC = () => {
                 navigate('/chat', { state: { newChat: true } });
             }
         } catch (error) {
-            console.error("Failed to get the latest conversation:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
             // Fallback to a new chat if there's an error
             navigate('/chat', { state: { newChat: true } });
         }

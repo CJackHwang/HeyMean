@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Attachment } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAttachments } from '../hooks/useAttachments';
+import { getFileIcon } from '../utils/fileHelpers';
 
 interface ChatInputProps {
   onSend: (text: string, attachments: Attachment[]) => void;
@@ -10,14 +11,6 @@ interface ChatInputProps {
 }
 
 export const AttachmentChip: React.FC<{attachment: Attachment, onRemove: () => void}> = ({ attachment, onRemove }) => {
-    const getFileIcon = (mimeType: string) => {
-        if (mimeType.startsWith('image/')) return 'image';
-        if (mimeType === 'application/pdf') return 'picture_as_pdf';
-        if (mimeType === 'text/markdown') return 'article';
-        if (mimeType.startsWith('text/')) return 'description';
-        return 'attach_file';
-    };
-
     return (
         <div className="flex items-center gap-2 bg-neutral-200 dark:bg-neutral-700 rounded-full pl-2 pr-1 py-1 text-sm text-primary-text-light dark:text-primary-text-dark">
             {attachment.preview ? (

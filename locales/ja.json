@@ -78,6 +78,7 @@
   "modal.clear_data_title": "全データを消去しますか？",
   "modal.clear_data_content": "これにより、すべてのチャット履歴、ノート、設定が完全に削除されます。この操作は元に戻せません。",
   "modal.clear_data_confirm": "データを消去",
+  "modal.clear_data_success": "すべてのデータが正常に消去されました。",
   "modal.clear_data_error": "データの消去中にエラーが発生しました。もう一度お試しください。",
   "modal.rename_conversation_title": "会話の名前を変更",
   "modal.rename_conversation_content": "会話の新しい名前を入力してください：",
@@ -86,6 +87,14 @@
   "modal.rename_save": "保存",
   "file.size_error": "ファイル「{0}」が{1}MBのサイズ制限を超えています。",
   "file.type_unsupported": "「{0}」のファイルタイプはサポートされていません。",
+  "file.max_attachments_error": "最大{0}個のファイルをアップロードできます。",
   "file.generic_name": "添付ファイル",
-  "file.pdf_not_supported_openai": "OpenAIプロバイダーではPDFファイルの分析はサポートされていません。このファイルを使用するには、Geminiに切り替えてください。"
+  "file.pdf_not_supported_openai": "OpenAIプロバイダーではPDFファイルの分析はサポートされていません。このファイルを使用するには、Geminiに切り替えてください。",
+  "settings.section_about": "その他",
+  "settings.about_app": "HeyMeanについて",
+  "about.header_title": "アプリについて",
+  "about.app_description": "学習を直感的で魅力的にするために設計されたAI学習アシスタント。",
+  "about.developed_by": "開発者 CJackHwang",
+  "about.github_repo": "GitHubリポジトリ",
+  "about.license": "ライセンス (AGPL-3.0)"
 }

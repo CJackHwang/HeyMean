@@ -1,6 +1,8 @@
 
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import { Message, MessageSender, ApiProvider } from '../types';
+import { getTextFromDataUrl } from "../utils/fileHelpers";
+import { AppError, handleError } from "./errorHandler";
 
 // --- HELPER FUNCTIONS ---
 
@@ -14,23 +16,6 @@ type OpenAIMessage = {
     content: string | OpenAIMessageContentPart[];
 };
 
-
-const getTextFromDataUrl = async (dataUrl: string): Promise<string> => {
-    try {
-        const response = await fetch(dataUrl);
-        if (!response.ok) throw new Error(`Failed to fetch data URL: ${response.statusText}`);
-        return response.text();
-    } catch (error) {
-        console.error("Error fetching text from data URL:", error);
-        try {
-            const base64 = dataUrl.split(',')[1];
-            return atob(base64);
-        } catch (decodeError) {
-             console.error("Error decoding base64 from data URL:", decodeError);
-             return "";
-        }
-    }
-};
 
 // --- SERVICE INTERFACE AND IMPLEMENTATIONS (STRATEGY PATTERN) ---
 
@@ -102,8 +87,8 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                 }
             }
         } catch (error) {
-            console.error("Error calling Gemini API:", error);
-            onChunk(`Sorry, an error occurred with the Gemini API: ${(error as Error).message}. Please try again or check settings.`);
+            const appError = handleError(error, 'api');
+            onChunk(appError.userMessage);
         }
     }
 }
@@ -152,10 +137,8 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         const model = config.model || 'gpt-4o';
 
         try {
-             // Add checks for user configuration errors before making the API call.
             if (model.includes('veo')) {
-                onChunk("Configuration Error: Video generation models are not supported in chat. Please select a text-based model in settings.");
-                return;
+                throw new AppError("CONFIG_ERROR", "Configuration Error: Video generation models are not supported in chat. Please select a text-based model in settings.");
             }
 
             const response = await fetch(openaiEndpoint, {
@@ -166,8 +149,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
 
             if (!response.ok) {
                 if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
-                    onChunk("Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
-                    return;
+                    throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
                 }
                 const errorData = await response.json();
                 const message = errorData?.error?.message || JSON.stringify(errorData);
@@ -198,8 +180,8 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                 }
             }
         } catch (error) {
-            console.error("Error with OpenAI compatible provider:", error);
-            onChunk(`Sorry, an error occurred: ${(error as Error).message}. Please check your settings or try again.`);
+            const appError = handleError(error, 'api');
+            onChunk(appError.userMessage);
         }
     }
 }
@@ -222,26 +204,36 @@ export const streamChatResponse = async (
   openAiModel: string,
   openAiBaseUrl: string,
   onChunk: (text: string) => void
-) => {
-    if (selectedApiProvider === ApiProvider.GEMINI) {
-        const service = apiServices[ApiProvider.GEMINI];
-        const effectiveGeminiKey = geminiApiKey || process.env.API_KEY;
-        if (!effectiveGeminiKey) {
-            onChunk("Error: Gemini API key is not configured. Please add it in settings.");
-            return;
+): Promise<string> => {
+    let fullText = '';
+    const accumulatingOnChunk = (chunk: string) => {
+        fullText += chunk;
+        onChunk(chunk);
+    };
+
+    try {
+        if (selectedApiProvider === ApiProvider.GEMINI) {
+            const service = apiServices[ApiProvider.GEMINI];
+            const effectiveGeminiKey = geminiApiKey || process.env.API_KEY;
+            if (!effectiveGeminiKey) {
+                throw new AppError("CONFIG_ERROR", "Error: Gemini API key is not configured. Please add it in settings.");
+            }
+            const config: GeminiServiceConfig = { apiKey: effectiveGeminiKey, model: geminiModel };
+            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk);
+        } else if (selectedApiProvider === ApiProvider.OPENAI) {
+            const service = apiServices[ApiProvider.OPENAI];
+            if (!openAiApiKey) {
+                throw new AppError("CONFIG_ERROR", "Error: OpenAI API key is not configured in settings.");
+            }
+            const config: OpenAIServiceConfig = { apiKey: openAiApiKey, model: openAiModel, baseUrl: openAiBaseUrl };
+            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk);
+        } else {
+            throw new AppError("CONFIG_ERROR", `Error: API provider "${selectedApiProvider}" is not supported.`);
         }
-        const config: GeminiServiceConfig = { apiKey: effectiveGeminiKey, model: geminiModel };
-        await service.stream(chatHistory, newMessage, systemInstruction, config, onChunk);
-    } else if (selectedApiProvider === ApiProvider.OPENAI) {
-        const service = apiServices[ApiProvider.OPENAI];
-        if (!openAiApiKey) {
-            onChunk("Error: OpenAI API key is not configured in settings.");
-            return;
-        }
-        const config: OpenAIServiceConfig = { apiKey: openAiApiKey, model: openAiModel, baseUrl: openAiBaseUrl };
-        await service.stream(chatHistory, newMessage, systemInstruction, config, onChunk);
-    } else {
-        onChunk(`Error: API provider "${selectedApiProvider}" is not supported.`);
-        return;
+    } catch (error) {
+        const appError = handleError(error, 'api');
+        accumulatingOnChunk(appError.userMessage);
     }
+    
+    return fullText;
 };

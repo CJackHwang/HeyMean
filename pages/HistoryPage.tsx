@@ -1,11 +1,14 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import { Conversation } from '../types';
 import { getConversations, deleteConversation, updateConversation } from '../services/db';
 import ListItemMenu from '../components/ListItemMenu';
 import Modal from '../components/Modal';
+import { useToast } from '../hooks/useToast';
+import { useLongPress } from '../hooks/useLongPress';
+import { formatDateTime } from '../utils/dateHelpers';
+import { handleError } from '../services/errorHandler';
 
 const ConversationList: React.FC<{ 
     conversations: Conversation[]; 
@@ -13,24 +16,16 @@ const ConversationList: React.FC<{
     onLongPress: (conversationId: string, position: { x: number; y: number; }) => void;
 }> = ({ conversations, onSelect, onLongPress }) => {
     const { t } = useTranslation();
-    // FIX: Use `ReturnType<typeof setTimeout>` which is environment-agnostic and resolves to `number` in the browser, instead of the Node.js-specific `NodeJS.Timeout`.
-    const longPressTimeout = useRef<ReturnType<typeof setTimeout>>();
-    const isLongPress = useRef(false);
 
-    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, convId: string) => {
-        isLongPress.current = false;
-        longPressTimeout.current = setTimeout(() => {
-            isLongPress.current = true;
-            onLongPress(convId, { x: e.clientX, y: e.clientY });
-        }, 500);
-    };
+    const handleLongPressCallback = useCallback((e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>, context: Conversation) => {
+        onLongPress(context.id, { x: e.clientX, y: e.clientY });
+    }, [onLongPress]);
 
-    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>, conv: Conversation) => {
-        clearTimeout(longPressTimeout.current);
-        if (!isLongPress.current) {
-            onSelect(conv);
-        }
-    };
+    const handleClickCallback = useCallback((e: React.PointerEvent<HTMLDivElement>, context: Conversation) => {
+        onSelect(context);
+    }, [onSelect]);
+
+    const getLongPressHandlers = useLongPress<HTMLDivElement, Conversation>(handleLongPressCallback, handleClickCallback);
     
     return (
         <div className="space-y-2">
@@ -38,19 +33,11 @@ const ConversationList: React.FC<{
                 <div 
                     key={conv.id} 
                     className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
-                    onPointerDown={(e) => handlePointerDown(e, conv.id)}
-                    onPointerUp={(e) => handlePointerUp(e, conv)}
-                    onPointerLeave={() => clearTimeout(longPressTimeout.current)}
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        isLongPress.current = true;
-                        clearTimeout(longPressTimeout.current);
-                        onLongPress(conv.id, { x: e.clientX, y: e.clientY });
-                    }}
+                    {...getLongPressHandlers(conv)}
                 >
                     {conv.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
                     <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{conv.title}</p>
-                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{conv.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{formatDateTime(conv.updatedAt)}</p>
                 </div>
             )) : <p className="text-center text-neutral-500 dark:text-neutral-400 mt-8">{t('history.empty_state')}</p>}
         </div>
@@ -59,7 +46,9 @@ const ConversationList: React.FC<{
 
 const HistoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [menuState, setMenuState] = useState<{ isOpen: boolean; position: { x: number; y: number }; conversationId: string | null }>({ isOpen: false, position: { x: 0, y: 0 }, conversationId: null });
@@ -78,7 +67,8 @@ const HistoryPage: React.FC = () => {
       const convs = await getConversations();
       setConversations(convs);
     } catch (error) {
-      console.error("Failed to load conversations:", error);
+      const appError = handleError(error, 'db');
+      showToast(appError.userMessage, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +110,8 @@ const HistoryPage: React.FC = () => {
             await updateConversation(id, { isPinned: !conversation.isPinned });
             await loadConversations();
         } catch (error) {
-            console.error("Failed to toggle pin for conversation:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
     }
   };
@@ -132,7 +123,8 @@ const HistoryPage: React.FC = () => {
             // Refresh the list from the DB to ensure consistency
             await loadConversations();
         } catch (error) {
-            console.error("Failed to delete conversation:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         } finally {
             setConversationToDeleteId(null);
             setIsDeleteModalOpen(false);
@@ -146,7 +138,8 @@ const HistoryPage: React.FC = () => {
             await updateConversation(conversationToRename.id, { title: newTitle.trim(), updatedAt: new Date() });
             await loadConversations();
         } catch (error) {
-            console.error("Failed to rename conversation:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         } finally {
             setIsRenameModalOpen(false);
             setConversationToRename(null);
@@ -175,11 +168,22 @@ const HistoryPage: React.FC = () => {
         onClick: () => handleDeleteRequest(menuState.conversationId),
     },
   ] : [];
+  
+  const handleBack = () => {
+    // The initial location in the history stack has the key "default".
+    // If we are not on the initial location, we can safely go back.
+    if (location.key !== 'default') {
+        navigate(-1);
+    } else {
+        // Otherwise, navigate to the home page as a fallback.
+        navigate('/');
+    }
+  };
 
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
-        <button onClick={() => navigate(-1)} className="flex size-10 shrink-0 items-center justify-center">
+        <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
         </button>
         <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('history.header_title')}</h2>

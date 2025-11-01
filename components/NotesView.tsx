@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '../types';
 import { getNotes, addNote, updateNote, deleteNote } from '../services/db';
@@ -6,11 +5,17 @@ import Modal from './Modal';
 import { useTranslation } from '../hooks/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
 import ListItemMenu from './ListItemMenu';
+import { useToast } from '../hooks/useToast';
+import { useLongPress } from '../hooks/useLongPress';
+import { formatDateTime } from '../utils/dateHelpers';
+import { handleError } from '../services/errorHandler';
 
 
 interface NotesViewProps {
     isDesktop?: boolean;
 }
+
+type ViewState = 'list' | 'preview' | 'editing';
 
 const NotePreview: React.FC<{
     note: Note;
@@ -88,24 +93,16 @@ const NoteList: React.FC<{
     onNoteLongPress: (noteId: number, position: { x: number, y: number }) => void;
 }> = ({ notes, onSelect, onNoteLongPress }) => {
     const { t } = useTranslation();
-    // FIX: Use `ReturnType<typeof setTimeout>` which is environment-agnostic and resolves to `number` in the browser, instead of the Node.js-specific `NodeJS.Timeout`.
-    const longPressTimeout = useRef<ReturnType<typeof setTimeout>>();
-    const isLongPress = useRef(false);
 
-    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, noteId: number) => {
-        isLongPress.current = false;
-        longPressTimeout.current = setTimeout(() => {
-            isLongPress.current = true;
-            onNoteLongPress(noteId, { x: e.clientX, y: e.clientY });
-        }, 500);
-    };
+    const handleLongPressCallback = useCallback((e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>, context: Note) => {
+        onNoteLongPress(context.id, { x: e.clientX, y: e.clientY });
+    }, [onNoteLongPress]);
 
-    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>, note: Note) => {
-        clearTimeout(longPressTimeout.current);
-        if (!isLongPress.current) {
-            onSelect(note);
-        }
-    };
+    const handleClickCallback = useCallback((e: React.PointerEvent<HTMLDivElement>, context: Note) => {
+        onSelect(context);
+    }, [onSelect]);
+    
+    const getLongPressHandlers = useLongPress<HTMLDivElement, Note>(handleLongPressCallback, handleClickCallback);
     
     return (
         <div className="space-y-2">
@@ -113,20 +110,12 @@ const NoteList: React.FC<{
                 <div 
                     key={note.id} 
                     className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
-                    onPointerDown={(e) => handlePointerDown(e, note.id)}
-                    onPointerUp={(e) => handlePointerUp(e, note)}
-                    onPointerLeave={() => clearTimeout(longPressTimeout.current)}
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        isLongPress.current = true;
-                        clearTimeout(longPressTimeout.current);
-                        onNoteLongPress(note.id, { x: e.clientX, y: e.clientY });
-                    }}
+                    {...getLongPressHandlers(note)}
                 >
                     {note.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
                     <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{note.content.split('\n')[0] || t('notes.untitled')}</p>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 pointer-events-none">{note.content.split('\n').slice(1).join(' ') || t('notes.no_content')}</p>
-                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{note.updatedAt.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{formatDateTime(note.updatedAt)}</p>
                 </div>
             )) : <p className="text-center text-neutral-500 dark:text-neutral-400 mt-8">{t('notes.empty_state')}</p>}
         </div>
@@ -138,8 +127,9 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const [activeNote, setActiveNote] = useState<Note | null>(null);
     const [originalNoteContent, setOriginalNoteContent] = useState<string | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-    const [isEditing, setIsEditing] = useState(false);
+    const [viewState, setViewState] = useState<ViewState>('list');
     const { t } = useTranslation();
+    const { showToast } = useToast();
     
     // State for modals & context menu
     const [menuState, setMenuState] = useState<{ isOpen: boolean; position: { x: number; y: number }; noteId: number | null }>({ isOpen: false, position: { x: 0, y: 0 }, noteId: null });
@@ -155,17 +145,18 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const [newTitle, setNewTitle] = useState('');
 
 
-    const hasUnsavedChanges = activeNote && isEditing ? activeNote.content !== originalNoteContent : false;
-    const shouldPromptOnExit = hasUnsavedChanges || (isNewNote && isEditing);
+    const hasUnsavedChanges = activeNote && viewState === 'editing' ? activeNote.content !== originalNoteContent : false;
+    const shouldPromptOnExit = hasUnsavedChanges || (isNewNote && viewState === 'editing');
 
     const loadNotes = useCallback(async () => {
         try {
             const notesFromDb = await getNotes();
             setNotes(notesFromDb);
         } catch (error) {
-            console.error("Failed to load notes:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
-    }, []);
+    }, [showToast]);
 
     useEffect(() => {
         loadNotes();
@@ -175,14 +166,14 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         if (action?.type === 'select' && action.note) {
             setActiveNote(action.note);
             setOriginalNoteContent(action.note.content);
-            setIsEditing(false);
+            setViewState('preview');
             setIsNewNote(false);
         } else if (action?.type === 'new') {
             createNewNote();
         } else { // 'back' or null
             setActiveNote(null);
             setOriginalNoteContent(null);
-            setIsEditing(false);
+            setViewState('list');
             setIsNewNote(false);
         }
         setPendingAction(null);
@@ -194,10 +185,11 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
             await loadNotes();
             setActiveNote(newNote);
             setOriginalNoteContent(newNote.content);
-            setIsEditing(true); // New notes go directly to edit mode
+            setViewState('editing'); // New notes go directly to edit mode
             setIsNewNote(true);
         } catch (error) {
-            console.error("Failed to create new note:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
     };
 
@@ -217,7 +209,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         } else {
             setActiveNote(note);
             setOriginalNoteContent(note.content);
-            setIsEditing(false); // Select goes to preview mode
+            setViewState('preview'); // Select goes to preview mode
             setIsNewNote(false);
         }
     };
@@ -233,12 +225,17 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 setActiveNote(updated);
                 await loadNotes();
                 setSaveStatus('saved');
-                setIsEditing(false);
-                setIsNewNote(false);
-                setTimeout(() => setSaveStatus('idle'), 2000);
+                setIsNewNote(false); // A new note is no longer "new" after the first save.
+
+                // After a short delay to show "Saved!", transition back to preview.
+                setTimeout(() => {
+                    setViewState('preview');
+                    setSaveStatus('idle'); // Reset for the next time the editor opens.
+                }, 1500);
             } catch (error) {
-                console.error("Failed to save note:", error);
-                setSaveStatus('idle'); // Reset status on error
+                const appError = handleError(error, 'db');
+                showToast(appError.userMessage, 'error');
+                setSaveStatus('idle');
             }
         }
     };
@@ -256,9 +253,11 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 await loadNotes();
                 setActiveNote(null);
                 setOriginalNoteContent(null);
+                setViewState('list');
                 setIsNewNote(false);
             } catch (error) {
-                console.error("Failed to delete note:", error);
+                const appError = handleError(error, 'db');
+                showToast(appError.userMessage, 'error');
             } finally {
                 setIsDeleteModalOpen(false);
                 setNoteToDeleteId(null);
@@ -278,7 +277,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         } else {
             setActiveNote(null);
             setOriginalNoteContent(null);
-            setIsEditing(false);
+            setViewState('list');
             setIsNewNote(false);
         }
     }
@@ -286,7 +285,15 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     // --- Unsaved Changes Modal Handlers ---
     const handleConfirmSave = async () => {
         if (activeNote) {
-            await handleSaveNote();
+            // A simplified save that transitions to the next state without delay effects
+            try {
+                await updateNote(activeNote.id, { content: activeNote.content });
+                await loadNotes();
+                setIsNewNote(false);
+            } catch (error) {
+                const appError = handleError(error, 'db');
+                showToast(appError.userMessage, 'error');
+            }
         }
         setIsUnsavedModalOpen(false);
         transitionTo(pendingAction);
@@ -302,7 +309,8 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 await deleteNote(activeNote.id);
                 await loadNotes();
             } catch (error) {
-                console.error("Failed to discard new note:", error);
+                const appError = handleError(error, 'db');
+                showToast(appError.userMessage, 'error');
             }
         }
         
@@ -336,7 +344,8 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 await updateNote(id, { isPinned: !note.isPinned });
                 await loadNotes();
             } catch (error) {
-                console.error("Failed to toggle pin status for note:", error);
+                const appError = handleError(error, 'db');
+                showToast(appError.userMessage, 'error');
             }
         }
     };
@@ -350,7 +359,8 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 await updateNote(noteToRename.id, { content: newContent });
                 await loadNotes();
             } catch(error) {
-                console.error("Failed to rename note:", error);
+                const appError = handleError(error, 'db');
+                showToast(appError.userMessage, 'error');
             } finally {
                 setIsRenameModalOpen(false);
                 setNoteToRename(null);
@@ -393,24 +403,24 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 </div>
             </header>
             <main className="flex-1 p-4 overflow-y-auto">
-                {activeNote ? (
-                    isEditing ? (
-                        <NoteEditor
-                            note={activeNote}
-                            setNote={setActiveNote}
-                            onSave={handleSaveNote}
-                            onBack={handleBack}
-                            saveStatus={saveStatus}
-                        />
-                    ) : (
-                        <NotePreview
-                            note={activeNote}
-                            onEdit={() => setIsEditing(true)}
-                            onBack={handleBack}
-                        />
-                    )
-                ) : (
+                {viewState === 'list' && (
                     <NoteList notes={notes} onSelect={handleSelectNote} onNoteLongPress={handleNoteLongPress}/>
+                )}
+                {viewState === 'preview' && activeNote && (
+                    <NotePreview
+                        note={activeNote}
+                        onEdit={() => setViewState('editing')}
+                        onBack={handleBack}
+                    />
+                )}
+                {viewState === 'editing' && activeNote && (
+                     <NoteEditor
+                        note={activeNote}
+                        setNote={setActiveNote}
+                        onSave={handleSaveNote}
+                        onBack={handleBack}
+                        saveStatus={saveStatus}
+                    />
                 )}
             </main>
             <ListItemMenu 

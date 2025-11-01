@@ -1,16 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from '../hooks/useTranslation';
 import { Theme, ApiProvider, Language } from '../types';
 import Modal from '../components/Modal';
 import { clearAllData } from '../services/db';
 import Selector from '../components/Selector';
+import { useToast } from '../hooks/useToast';
+import { handleError } from '../services/errorHandler';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const { 
     theme, 
     setTheme, 
@@ -54,12 +57,8 @@ const SettingsPage: React.FC = () => {
         },
       });
       if (!response.ok) {
-        // Check for specific authentication error
-        if (response.status === 401) {
-            throw new Error(t('settings.api_key_invalid'));
-        }
         const errorData = await response.json();
-        throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData?.error?.message || `API error (${response.status})`);
       }
       const data = await response.json();
       const modelIds = data.data.map((model: any) => model.id).sort();
@@ -69,8 +68,8 @@ const SettingsPage: React.FC = () => {
           setOpenAiModel(modelIds[0]);
       }
     } catch (error: any) {
-      setFetchError(error.message || "Failed to fetch models.");
-      console.error("Failed to fetch models:", error);
+      const appError = handleError(error, 'api');
+      setFetchError(appError.userMessage);
     } finally {
       setIsFetchingModels(false);
     }
@@ -82,10 +81,11 @@ const SettingsPage: React.FC = () => {
       // Reset the application's in-memory state to defaults
       resetSettings();
       // Use the router's navigate function to safely return to the home page.
+      showToast(t('modal.clear_data_success'), 'success');
       navigate('/', { replace: true });
     } catch (error) {
-      console.error("Failed to clear data:", error);
-      alert(t('modal.clear_data_error'));
+      const appError = handleError(error, 'db');
+      showToast(appError.userMessage, 'error');
       setIsClearDataModalOpen(false);
     }
   };
@@ -96,11 +96,22 @@ const SettingsPage: React.FC = () => {
     setFetchError(null);
   }, [openAiApiKey, openAiBaseUrl]);
 
+  const handleBack = () => {
+    // The initial location in the history stack has the key "default".
+    // If we are not on the initial location, we can safely go back.
+    if (location.key !== 'default') {
+        navigate(-1);
+    } else {
+        // Otherwise, navigate to the home page as a fallback.
+        navigate('/');
+    }
+  };
+
 
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
-        <button onClick={() => navigate(-1)} className="flex size-10 shrink-0 items-center justify-center">
+        <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
         </button>
         <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('settings.header_title')}</h2>
@@ -266,6 +277,23 @@ const SettingsPage: React.FC = () => {
           </div>
         </section>
 
+        {/* --- Informational Sections --- */}
+        <section>
+          <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_about')}</h2>
+           <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
+            <div onClick={() => navigate('/about')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
+                <div className="flex items-center gap-4 min-w-0">
+                    <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
+                        <span className="material-symbols-outlined">info</span>
+                    </div>
+                    <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.about_app')}</p>
+                </div>
+                 <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">chevron_right</span>
+            </div>
+          </div>
+        </section>
+        
+        {/* --- Destructive Actions - Placed at the very bottom for safety --- */}
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_account')}</h2>
            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">

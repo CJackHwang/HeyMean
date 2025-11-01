@@ -1,7 +1,7 @@
-
 // FIX: Updated to newer database logic, which was previously in the wrong file (`types.ts`).
 // This version includes schema upgrades and function signatures that match their usage in the app.
 import { Message, Note, Conversation } from '../types';
+import { handleError } from './errorHandler';
 
 const DB_NAME = 'HeyMeanDB';
 const DB_VERSION = 4; // Incremented version for schema change
@@ -22,8 +22,7 @@ export const initDB = (): Promise<IDBDatabase> => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onerror = (event) => {
-            console.error("Database error: ", (event.target as IDBRequest).error);
-            reject("Database error");
+            reject(handleError((event.target as IDBRequest).error, 'db'));
         };
 
         request.onsuccess = (event) => {
@@ -80,7 +79,7 @@ export const getSetting = async <T>(key: string): Promise<T | undefined> => {
         const store = transaction.objectStore(SETTINGS_STORE);
         const request = store.get(key);
         request.onsuccess = () => resolve(request.result ? request.result.value : undefined);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -91,7 +90,7 @@ export const setSetting = async (key: string, value: any): Promise<void> => {
         const store = transaction.objectStore(SETTINGS_STORE);
         const request = store.put({ key, value });
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -104,7 +103,7 @@ export const getMessages = async (conversationId: string): Promise<Message[]> =>
         const index = store.index('conversationId');
         const request = index.getAll(conversationId);
         request.onsuccess = () => resolve(request.result.sort((a, b) => a.id.localeCompare(b.id)));
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -129,7 +128,34 @@ export const addMessage = async (message: Message): Promise<void> => {
         
         const request = store.put(messageToStore);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
+    });
+};
+
+export const batchAddMessages = async (messages: Message[]): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(MESSAGES_STORE, 'readwrite');
+        const store = transaction.objectStore(MESSAGES_STORE);
+
+        messages.forEach(message => {
+            const messageToStore = { ...message };
+        
+            delete messageToStore.isLoading; 
+            delete messageToStore.isThinkingComplete;
+            delete messageToStore.thinkingStartTime;
+            
+            if (messageToStore.attachments) {
+                messageToStore.attachments = messageToStore.attachments.map(att => {
+                    const { preview, ...rest } = att;
+                    return rest;
+                });
+            }
+            store.put(messageToStore);
+        });
+
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(handleError(transaction.error, 'db'));
     });
 };
 
@@ -140,7 +166,18 @@ export const deleteMessage = async (id: string): Promise<void> => {
         const store = transaction.objectStore(MESSAGES_STORE);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
+    });
+};
+
+export const batchDeleteMessages = async (ids: string[]): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(MESSAGES_STORE, 'readwrite');
+        const store = transaction.objectStore(MESSAGES_STORE);
+        ids.forEach(id => store.delete(id));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(handleError(transaction.error, 'db'));
     });
 };
 
@@ -154,7 +191,7 @@ export const addConversation = async (conversation: Conversation): Promise<void>
         const conversationWithDefault = { ...conversation, isPinned: false };
         const request = store.add(conversationWithDefault);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -176,7 +213,7 @@ export const getConversations = async (): Promise<Conversation[]> => {
             });
             resolve(conversations);
         };
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -203,12 +240,12 @@ export const updateConversation = async (id: string, updates: Partial<Omit<Conve
                 const updatedConversation = { ...conversation, ...updates };
                 const putRequest = store.put(updatedConversation);
                 putRequest.onsuccess = () => resolve();
-                putRequest.onerror = () => reject(putRequest.error);
+                putRequest.onerror = () => reject(handleError(putRequest.error, 'db'));
             } else {
                 reject(new Error("Conversation not found"));
             }
         };
-        getRequest.onerror = () => reject(getRequest.error);
+        getRequest.onerror = () => reject(handleError(getRequest.error, 'db'));
     });
 };
 
@@ -222,7 +259,7 @@ export const deleteConversation = async (id: string): Promise<void> => {
 
         // 1. Delete conversation
         const deleteConvRequest = conversationsStore.delete(id);
-        deleteConvRequest.onerror = () => reject(deleteConvRequest.error);
+        deleteConvRequest.onerror = () => reject(handleError(deleteConvRequest.error, 'db'));
 
         // 2. Delete all associated messages using a cursor
         const cursorRequest = messageIndex.openCursor(IDBKeyRange.only(id));
@@ -233,10 +270,10 @@ export const deleteConversation = async (id: string): Promise<void> => {
                 cursor.continue();
             }
         };
-        cursorRequest.onerror = () => reject(cursorRequest.error);
+        cursorRequest.onerror = () => reject(handleError(cursorRequest.error, 'db'));
 
         transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
+        transaction.onerror = () => reject(handleError(transaction.error, 'db'));
     });
 };
 
@@ -246,7 +283,7 @@ export const clearAllData = async (): Promise<void> => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([MESSAGES_STORE, NOTES_STORE, SETTINGS_STORE, CONVERSATIONS_STORE], 'readwrite');
-        transaction.onerror = (event) => reject((event.target as IDBRequest).error);
+        transaction.onerror = (event) => reject(handleError((event.target as IDBRequest).error, 'db'));
         transaction.oncomplete = () => resolve();
 
         transaction.objectStore(MESSAGES_STORE).clear();
@@ -274,7 +311,7 @@ export const getNotes = async (): Promise<Note[]> => {
             });
             resolve(notes);
         };
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -293,7 +330,7 @@ export const addNote = async (content: string): Promise<Note> => {
         request.onsuccess = () => {
             resolve({ ...newNote, id: request.result as number });
         };
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
 
@@ -311,12 +348,12 @@ export const updateNote = async (id: number, updates: Partial<Omit<Note, 'id' | 
                 const updatedNote = { ...note, ...updates, updatedAt: new Date() };
                 const putRequest = store.put(updatedNote);
                 putRequest.onsuccess = () => resolve();
-                putRequest.onerror = () => reject(putRequest.error);
+                putRequest.onerror = () => reject(handleError(putRequest.error, 'db'));
             } else {
                 reject(new Error("Note not found"));
             }
         };
-        getRequest.onerror = () => reject(getRequest.error);
+        getRequest.onerror = () => reject(handleError(getRequest.error, 'db'));
     });
 };
 
@@ -327,6 +364,6 @@ export const deleteNote = async (id: number): Promise<void> => {
         const store = transaction.objectStore(NOTES_STORE);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };

@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Message, MessageSender, Attachment } from '../types';
 import { useConversation } from '../hooks/useConversation';
 import { useChatStream } from '../hooks/useChatStream';
@@ -11,12 +11,14 @@ import ChatInput from '../components/ChatInput';
 import { NotesView } from '../components/NotesView';
 import ListItemMenu from '../components/ListItemMenu';
 import Modal from '../components/Modal';
+import LoadingScreen from '../components/LoadingScreen';
 
 const ChatPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
     const isInitialLoad = useRef(true);
+    const [isInitialized, setIsInitialized] = useState(false);
     const { initialPrompt, initialAttachments, newChat, conversationId: stateConversationId } = location.state || {};
     const shouldForceScroll = useRef(false);
 
@@ -31,6 +33,7 @@ const ChatPage: React.FC = () => {
         addMessageToConversation,
         saveUpdatedMessage,
         deleteMessageFromConversation,
+        deleteMultipleMessagesFromConversation,
     } = useConversation(stateConversationId);
 
     const { isThinking, streamedAiMessage, streamResponse } = useChatStream();
@@ -101,12 +104,21 @@ const ChatPage: React.FC = () => {
 
             if (stateConversationId) {
                 await loadConversation(stateConversationId);
+                shouldForceScroll.current = true;
             } else if (newChat) {
+                // For a new chat, initialize the UI first to avoid a long loading screen.
                 setMessages([]);
+                setIsInitialized(true);
+
+                // Then, if there's an initial prompt, send it without blocking UI rendering.
                 if (initialPrompt || (initialAttachments && initialAttachments.length > 0)) {
-                    await handleSend(initialPrompt || '', initialAttachments || []);
+                    // This will create the conversation, add the user message, and start the AI stream.
+                    handleSend(initialPrompt || '', initialAttachments || []);
                 }
+                return; // We've handled initialization for new chats, so exit early.
             }
+            // This is for the case where a conversation is loaded from history.
+            setIsInitialized(true);
         };
         loadAndInitialize();
     }, [stateConversationId, newChat, initialPrompt, initialAttachments, navigate, handleSend, loadConversation, setMessages]);
@@ -119,14 +131,16 @@ const ChatPage: React.FC = () => {
         if (messageIndex < 0) return;
 
         const subsequentMessages = messages.slice(messageIndex + 1);
-        for (const msg of subsequentMessages) await deleteMessageFromConversation(msg.id);
+        if (subsequentMessages.length > 0) {
+            const idsToDelete = subsequentMessages.map(msg => msg.id);
+            await deleteMultipleMessagesFromConversation(idsToDelete);
+        }
 
         const chatHistory = messages.slice(0, messageIndex);
-        setMessages(prev => prev.slice(0, messageIndex + 1));
 
         const aiMessageId = (Date.now() + 1).toString();
         await streamResponse(chatHistory, userMessageToResend, aiMessageId);
-    }, [messages, deleteMessageFromConversation, setMessages, streamResponse]);
+    }, [messages, deleteMultipleMessagesFromConversation, streamResponse]);
 
     const handleRegenerate = useCallback(async (aiMessageToRegenerate: Message) => {
         shouldForceScroll.current = true;
@@ -152,52 +166,78 @@ const ChatPage: React.FC = () => {
         regenerate: handleRegenerate,
         delete: deleteMessageFromConversation,
     });
+    
+    const handleBack = () => {
+        // The initial location in the history stack has the key "default".
+        // If we are not on the initial location, we can safely go back.
+        if (location.key !== 'default') {
+            navigate(-1);
+        } else {
+            // Otherwise, navigate to the home page as a fallback.
+            navigate('/');
+        }
+    };
 
     // --- UI & RENDER ---
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
-    const scrollInfo = useRef({ scrollTop: 0, scrollHeight: 0 });
+    const isUserAtBottom = useRef(true);
 
-    useLayoutEffect(() => {
-        const container = chatContainerRef.current;
-        if (container) {
-            // Before the browser paints, capture the current scroll values.
-            // At this point, new messages are in the DOM, so scrollHeight is updated,
-            // but the browser hasn't adjusted the scroll position yet.
-            scrollInfo.current = {
-                scrollTop: container.scrollTop,
-                scrollHeight: container.scrollHeight,
-            };
-        }
-    }); // No dependency array, runs on every render
+    const rowVirtualizer = useVirtualizer({
+        count: messages.length,
+        getScrollElement: () => chatContainerRef.current,
+        estimateSize: useCallback((index: number) => {
+            const message = messages[index];
+            if (!message) return 150;
+            const baseSize = message.sender === MessageSender.USER ? 80 : 120;
+            const textLines = message.text.split('\n').length;
+            const attachmentSize = (message.attachments?.length || 0) * 70;
+            const thinkingSize = (message.thinkingText && message.thinkingText.length > 0) ? 100 : 0;
+            return baseSize + (textLines * 18) + attachmentSize + thinkingSize;
+        }, [messages]),
+        overscan: 10,
+    });
 
+    // Effect to track if user is scrolled to the bottom
     useEffect(() => {
         const container = chatContainerRef.current;
         if (!container) return;
 
-        const { scrollTop: prevScrollTop, scrollHeight: prevScrollHeight } = scrollInfo.current;
-        
-        // The user is considered "at the bottom" if they were within a threshold
-        // before the new content was added.
-        // We compare the previous scroll position with the previous scroll height.
-        const wasAtBottom = prevScrollHeight - container.clientHeight <= prevScrollTop + 50; // A small threshold for tolerance
+        const handleScroll = () => {
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            const atBottom = scrollHeight - clientHeight <= scrollTop + 50;
+            isUserAtBottom.current = atBottom;
+        };
 
-        // Force scroll if the user initiated an action (send, resend, etc.),
-        // or if they were already at the bottom when new content arrived.
-        if (shouldForceScroll.current || wasAtBottom) {
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-            if(shouldForceScroll.current) {
-                shouldForceScroll.current = false; // Reset the flag after use
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
+
+    // Effect to scroll to bottom on new messages
+    useLayoutEffect(() => {
+        if (messages.length > 0) {
+            if (shouldForceScroll.current || isUserAtBottom.current) {
+                rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' });
+                if (shouldForceScroll.current) {
+                    shouldForceScroll.current = false;
+                }
             }
         }
-    }, [messages]); // This effect specifically handles scrolling when messages change.
+    }, [messages.length, rowVirtualizer]);
 
+    if (!isInitialized) {
+        return <LoadingScreen />;
+    }
 
     return (
         <div className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
             <div className="flex-1 flex flex-col relative">
                 <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 shrink-0">
-                    <button onClick={() => navigate('/')} className="flex size-10 shrink-0 items-center justify-center">
+                    <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
                         <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
                     </button>
                     <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('chat.header_title')}</h2>
@@ -208,10 +248,42 @@ const ChatPage: React.FC = () => {
                     </div>
                 </header>
 
-                <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
-                    {messages.map((msg) => (
-                        <MessageBubble key={msg.id} message={msg} onLongPress={handleLongPress} />
-                    ))}
+                <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                   {messages.length > 0 && (
+                        <div
+                            style={{
+                                height: `${rowVirtualizer.getTotalSize()}px`,
+                                width: '100%',
+                                position: 'relative',
+                            }}
+                        >
+                            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                                const message = messages[virtualItem.index];
+                                if (!message) return null;
+
+                                return (
+                                    <div
+                                        key={message.id}
+                                        data-index={virtualItem.index}
+                                        ref={rowVirtualizer.measureElement}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            transform: `translateY(${virtualItem.start}px)`,
+                                            paddingBottom: '24px',
+                                        }}
+                                    >
+                                        <MessageBubble
+                                            message={message}
+                                            onLongPress={handleLongPress}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </main>
 
                 <ListItemMenu isOpen={menuState.isOpen} onClose={closeMenu} position={menuState.position} actions={menuActions} />

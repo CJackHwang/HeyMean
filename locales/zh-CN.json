@@ -78,6 +78,7 @@
   "modal.clear_data_title": "清除所有数据？",
   "modal.clear_data_content": "这将永久删除所有聊天记录、笔记和设置。此操作无法撤销。",
   "modal.clear_data_confirm": "清除数据",
+  "modal.clear_data_success": "所有数据已成功清除。",
   "modal.clear_data_error": "清除数据时发生错误。请重试。",
   "modal.rename_conversation_title": "重命名对话",
   "modal.rename_conversation_content": "为此对话输入一个新名称：",
@@ -86,6 +87,14 @@
   "modal.rename_save": "保存",
   "file.size_error": "文件 “{0}” 超出 {1}MB 的大小限制。",
   "file.type_unsupported": "不支持 “{0}” 的文件类型。",
+  "file.max_attachments_error": "最多可以上传 {0} 个文件。",
   "file.generic_name": "附件",
-  "file.pdf_not_supported_openai": "OpenAI 提供商不支持 PDF 文件分析。请切换到 Gemini 以使用此文件。"
+  "file.pdf_not_supported_openai": "OpenAI 提供商不支持 PDF 文件分析。请切换到 Gemini 以使用此文件。",
+  "settings.section_about": "其他",
+  "settings.about_app": "关于 HeyMean",
+  "about.header_title": "关于",
+  "about.app_description": "一个旨在使学习变得直观和有趣的AI学习助手。",
+  "about.developed_by": "由 CJackHwang 开发",
+  "about.github_repo": "GitHub 仓库",
+  "about.license": "许可证 (AGPL-3.0)"
 }

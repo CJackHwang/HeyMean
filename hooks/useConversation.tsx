@@ -1,14 +1,27 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, Conversation, Attachment, MessageSender } from '../types';
-import { getMessages, addMessage, deleteMessage, addConversation, updateConversation, initDB } from '../services/db';
+import { getMessages, addMessage, deleteMessage, batchDeleteMessages, addConversation, updateConversation, initDB } from '../services/db';
+import { useToast } from './useToast';
+import { handleError } from '../services/errorHandler';
 
 export const useConversation = (initialConversationId: string | null) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversationId);
+    const urlsToRevoke = useRef(new Set<string>());
+    const { showToast } = useToast();
 
     useEffect(() => {
-        initDB().catch(error => console.error("Failed to initialize database:", error));
-    }, []);
+        initDB().catch(error => {
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
+        });
+        
+        // Return cleanup function that runs on unmount
+        return () => {
+            urlsToRevoke.current.forEach(url => URL.revokeObjectURL(url));
+            urlsToRevoke.current.clear();
+        };
+    }, []); // Empty dependency array ensures this runs only on mount and unmount
 
     const loadConversation = useCallback(async (id: string) => {
         try {
@@ -20,7 +33,9 @@ export const useConversation = (initialConversationId: string | null) => {
                             try {
                                 const response = await fetch(att.data);
                                 const blob = await response.blob();
-                                att.preview = URL.createObjectURL(blob);
+                                const previewUrl = URL.createObjectURL(blob);
+                                att.preview = previewUrl;
+                                urlsToRevoke.current.add(previewUrl);
                             } catch (e) { console.error("Error creating blob from data URL:", e); }
                         }
                         return att;
@@ -31,9 +46,10 @@ export const useConversation = (initialConversationId: string | null) => {
             setMessages(historyWithPreviews);
             setCurrentConversationId(id);
         } catch (error) {
-            console.error("Failed to load conversation history:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
-    }, []);
+    }, [showToast]);
 
     const startNewConversation = useCallback(async (text: string, attachments: Attachment[]): Promise<{ userMessage: Message, conversationId: string }> => {
         try {
@@ -41,6 +57,12 @@ export const useConversation = (initialConversationId: string | null) => {
             const title = text.substring(0, 50) || (attachments.length > 0 ? attachments[0].name : "New Conversation");
             const newConversation: Conversation = { id: newConversationId, title, createdAt: new Date(), updatedAt: new Date() };
             await addConversation(newConversation);
+
+            attachments.forEach(att => {
+                if (att.preview) {
+                    urlsToRevoke.current.add(att.preview);
+                }
+            });
 
             const userMessage: Message = {
                 id: Date.now().toString(),
@@ -57,11 +79,12 @@ export const useConversation = (initialConversationId: string | null) => {
             setCurrentConversationId(newConversationId);
             return { userMessage, conversationId: newConversationId };
         } catch (error) {
-            console.error("Failed to start new conversation:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
             // Rethrow or handle error to notify the caller
             throw error;
         }
-    }, []);
+    }, [showToast]);
 
     const addMessageToConversation = useCallback(async (message: Message) => {
         if (!currentConversationId) {
@@ -69,14 +92,22 @@ export const useConversation = (initialConversationId: string | null) => {
             return;
         }
         try {
+            if (message.attachments) {
+                message.attachments.forEach(att => {
+                    if (att.preview) {
+                        urlsToRevoke.current.add(att.preview);
+                    }
+                });
+            }
             const messageWithId = { ...message, conversationId: currentConversationId };
             setMessages(prev => [...prev, messageWithId]);
             await addMessage(messageWithId);
             await updateConversation(currentConversationId, { updatedAt: new Date() });
         } catch (error) {
-            console.error("Failed to add message to conversation:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
-    }, [currentConversationId]);
+    }, [currentConversationId, showToast]);
 
     const saveUpdatedMessage = useCallback(async (message: Message) => {
         try {
@@ -85,31 +116,30 @@ export const useConversation = (initialConversationId: string | null) => {
                 await updateConversation(message.conversationId, { updatedAt: new Date() });
             }
         } catch (error) {
-            console.error("Failed to save updated message:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
-    }, []);
+    }, [showToast]);
 
     const deleteMessageFromConversation = useCallback(async (messageId: string) => {
         try {
             setMessages(prev => prev.filter(m => m.id !== messageId));
             await deleteMessage(messageId);
         } catch (error) {
-            console.error("Failed to delete message:", error);
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
         }
-    }, []);
+    }, [showToast]);
 
-    // Revoke object URLs on cleanup
-    useEffect(() => {
-        return () => {
-            messages.forEach(msg => {
-                if (msg.attachments) {
-                    msg.attachments.forEach(att => {
-                        if (att.preview) URL.revokeObjectURL(att.preview);
-                    });
-                }
-            });
-        };
-    }, [messages]);
+    const deleteMultipleMessagesFromConversation = useCallback(async (messageIds: string[]) => {
+        try {
+            setMessages(prev => prev.filter(m => !messageIds.includes(m.id)));
+            await batchDeleteMessages(messageIds);
+        } catch (error) {
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
+        }
+    }, [showToast]);
 
     return {
         messages,
@@ -120,5 +150,6 @@ export const useConversation = (initialConversationId: string | null) => {
         addMessageToConversation,
         saveUpdatedMessage,
         deleteMessageFromConversation,
+        deleteMultipleMessagesFromConversation,
     };
 };

@@ -78,6 +78,7 @@
   "modal.clear_data_title": "Clear All Data?",
   "modal.clear_data_content": "This will permanently delete all chat history, notes, and settings. This action cannot be undone.",
   "modal.clear_data_confirm": "Clear Data",
+  "modal.clear_data_success": "All data has been successfully cleared.",
   "modal.clear_data_error": "An error occurred while clearing data. Please try again.",
   "modal.rename_conversation_title": "Rename Conversation",
   "modal.rename_conversation_content": "Enter a new name for the conversation:",
@@ -86,6 +87,14 @@
   "modal.rename_save": "Save",
   "file.size_error": "File \"{0}\" exceeds the {1}MB size limit.",
   "file.type_unsupported": "File type for \"{0}\" is not supported.",
+  "file.max_attachments_error": "You can upload a maximum of {0} files.",
   "file.generic_name": "Attached File",
-  "file.pdf_not_supported_openai": "PDF file analysis is not supported with the OpenAI provider. Please switch to Gemini to use this file."
+  "file.pdf_not_supported_openai": "PDF file analysis is not supported with the OpenAI provider. Please switch to Gemini to use this file.",
+  "settings.section_about": "Other",
+  "settings.about_app": "About HeyMean",
+  "about.header_title": "About",
+  "about.app_description": "An AI-powered learning assistant designed to make learning intuitive and engaging.",
+  "about.developed_by": "Developed by CJackHwang",
+  "about.github_repo": "GitHub Repository",
+  "about.license": "License (AGPL-3.0)"
 }
