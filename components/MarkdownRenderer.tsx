@@ -1,9 +1,8 @@
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import CodeBlock from './CodeBlock';
 import { useSettings } from '../hooks/useSettings';
 import { Theme } from '../types';
@@ -14,6 +13,27 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   const { theme } = useSettings();
+  const [katexPlugin, setKatexPlugin] = useState<any | null>(null);
+
+  const containsMath = useMemo(() => {
+    // naive check: inline $...$, block $$...$$ or \( \) / \[ \]
+    return /\$(?=\S)[\s\S]*?\$|\$\$[\s\S]*?\$\$|\\\(|\\\)|\\\[|\\\]/.test(content);
+  }, [content]);
+
+  useEffect(() => {
+    let active = true;
+    if (!containsMath) {
+      setKatexPlugin(null);
+      return;
+    }
+    (async () => {
+      // Dynamically import KaTeX CSS and rehype-katex only when math is detected
+      await import('katex/dist/katex.min.css');
+      const mod = await import('rehype-katex');
+      if (active) setKatexPlugin(() => mod.default);
+    })();
+    return () => { active = false; };
+  }, [containsMath]);
 
   return (
     // The .prose class now only affects standard text elements, not our custom components.
@@ -21,7 +41,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
       <ReactMarkdown
         children={content}
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={katexPlugin ? [katexPlugin] : []}
         components={{
           // --- Custom Table Component ---
           // This completely overrides the default table rendering.
