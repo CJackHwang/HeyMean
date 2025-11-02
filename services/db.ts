@@ -1,5 +1,5 @@
 import { Message, Note, Conversation, AttachmentStored, MessageStored, ConversationUpdate, NoteUpdate } from '../types';
-import { handleError } from './errorHandler';
+import { AppError, handleError } from './errorHandler';
 
 const DB_NAME = 'HeyMeanDB';
 const DB_VERSION = 5; // Incremented version for schema change (notes title split)
@@ -9,7 +9,8 @@ const NOTES_STORE = 'notes';
 const SETTINGS_STORE = 'settings';
 const CONVERSATIONS_STORE = 'conversations';
 
-let db: IDBDatabase;
+let db: IDBDatabase | null = null;
+let dbPromise: Promise<IDBDatabase> | null = null;
 
 const ensureDate = (value: unknown, fallback: Date = new Date()): Date => {
     if (value instanceof Date) return value;
@@ -57,95 +58,122 @@ const prepareNoteForStore = <T extends { createdAt: unknown; updatedAt: unknown;
 });
 
 export const initDB = (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-        if (db) {
-            return resolve(db);
-        }
+    if (db) {
+        return Promise.resolve(db);
+    }
 
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+    if (dbPromise) {
+        return dbPromise;
+    }
 
-        request.onerror = (event) => {
-            reject(handleError((event.target as IDBRequest).error, 'db'));
-        };
+    if (typeof window === 'undefined' || !window.indexedDB) {
+        return Promise.reject(new AppError('DB_NOT_SUPPORTED', 'Your browser does not support IndexedDB. Please use a modern browser to access HeyMean.', undefined));
+    }
 
-        request.onsuccess = (event) => {
-            db = (event.target as IDBRequest).result;
-            resolve(db);
-        };
+    dbPromise = new Promise((resolve, reject) => {
+        try {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onupgradeneeded = (event) => {
-            const dbInstance = (event.target as IDBRequest).result;
-            const transaction = (event.target as IDBOpenDBRequest).transaction;
-            const oldVersion = (event.target as IDBOpenDBRequest).result.version;
-            
-            // Messages Store
-            if (!dbInstance.objectStoreNames.contains(MESSAGES_STORE)) {
-                const messagesStore = dbInstance.createObjectStore(MESSAGES_STORE, { keyPath: 'id' });
-                messagesStore.createIndex('conversationId', 'conversationId', { unique: false });
-            } else {
-                 const messagesStore = transaction.objectStore(MESSAGES_STORE);
-                 if (!messagesStore.indexNames.contains('conversationId')) {
+            request.onerror = (event) => {
+                const err = handleError((event.target as IDBRequest).error, 'db');
+                dbPromise = null;
+                reject(err);
+            };
+
+            request.onsuccess = (event) => {
+                db = (event.target as IDBRequest).result;
+                if (db) {
+                    db.onversionchange = () => {
+                        try {
+                            db?.close();
+                        } catch {}
+                        db = null;
+                    };
+                }
+                dbPromise = null;
+                resolve(db!);
+            };
+
+            request.onblocked = () => {
+                dbPromise = null;
+                reject(new AppError('DB_BLOCKED', 'A previous version of the HeyMean database is still open in another tab. Please close other tabs or reload this one.', undefined));
+            };
+
+            request.onupgradeneeded = (event) => {
+                const dbInstance = (event.target as IDBRequest).result;
+                const transaction = (event.target as IDBOpenDBRequest).transaction;
+
+                // Messages Store
+                if (!dbInstance.objectStoreNames.contains(MESSAGES_STORE)) {
+                    const messagesStore = dbInstance.createObjectStore(MESSAGES_STORE, { keyPath: 'id' });
                     messagesStore.createIndex('conversationId', 'conversationId', { unique: false });
-                 }
-            }
-
-            // Notes Store
-            if (!dbInstance.objectStoreNames.contains(NOTES_STORE)) {
-                const notesStore = dbInstance.createObjectStore(NOTES_STORE, { keyPath: 'id', autoIncrement: true });
-                notesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-                notesStore.createIndex('isPinned', 'isPinned', { unique: false }); // Add index on creation
-            } else {
-                const notesStore = transaction.objectStore(NOTES_STORE);
-                // Ensure updatedAt index exists for older DBs
-                if (!notesStore.indexNames.contains('updatedAt')) {
-                    notesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-                }
-                if (!notesStore.indexNames.contains('isPinned')) {
-                    notesStore.createIndex('isPinned', 'isPinned', { unique: false }); // Add index to existing store
-                }
-            }
-
-            // Migration for v5: split title from content for existing notes
-            if (transaction && (event as IDBVersionChangeEvent).oldVersion < 5) {
-                try {
-                    const notesStore = transaction.objectStore(NOTES_STORE);
-                    const getAllReq = (notesStore.getAll && notesStore.getAll()) as IDBRequest<unknown[]> | undefined;
-                    if (getAllReq) {
-                        getAllReq.onsuccess = () => {
-                            const allNotes = (getAllReq.result || []) as unknown[];
-                            allNotes.forEach((noteUnknown) => {
-                                const noteObj = noteUnknown as Record<string, unknown>;
-                                if (!('title' in noteObj)) {
-                                    const contentVal = noteObj['content'];
-                                    const raw = typeof contentVal === 'string' ? contentVal : '';
-                                    const [first, ...rest] = raw.split('\n');
-                                    const title = first && first.trim().length > 0 ? first.trim() : 'New Note';
-                                    const content = rest.join('\n');
-                                    const updated = { ...noteObj, title, content } as Note;
-                                    notesStore.put(updated);
-                                }
-                            });
-                        };
-                        // No need to block upgrade completion on migration; best-effort
+                } else if (transaction) {
+                    const messagesStore = transaction.objectStore(MESSAGES_STORE);
+                    if (!messagesStore.indexNames.contains('conversationId')) {
+                        messagesStore.createIndex('conversationId', 'conversationId', { unique: false });
                     }
-                } catch (e) {
-                    // Best-effort migration; ignore errors to avoid blocking app
-                    console.warn('Notes migration to v5 failed:', e);
                 }
-            }
 
-            // Settings Store
-            if (!dbInstance.objectStoreNames.contains(SETTINGS_STORE)) {
-                dbInstance.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
-            }
-            
-            // Conversations Store
-            if (!dbInstance.objectStoreNames.contains(CONVERSATIONS_STORE)) {
-                const conversationsStore = dbInstance.createObjectStore(CONVERSATIONS_STORE, { keyPath: 'id' });
-                conversationsStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-            }
-        };
+                // Notes Store
+                if (!dbInstance.objectStoreNames.contains(NOTES_STORE)) {
+                    const notesStore = dbInstance.createObjectStore(NOTES_STORE, { keyPath: 'id', autoIncrement: true });
+                    notesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    notesStore.createIndex('isPinned', 'isPinned', { unique: false });
+                } else if (transaction) {
+                    const notesStore = transaction.objectStore(NOTES_STORE);
+                    if (!notesStore.indexNames.contains('updatedAt')) {
+                        notesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    }
+                    if (!notesStore.indexNames.contains('isPinned')) {
+                        notesStore.createIndex('isPinned', 'isPinned', { unique: false });
+                    }
+                }
+
+                // Migration for v5: split title from content for existing notes
+                if (transaction && (event as IDBVersionChangeEvent).oldVersion < 5) {
+                    try {
+                        const notesStore = transaction.objectStore(NOTES_STORE);
+                        const getAllReq = (notesStore.getAll && notesStore.getAll()) as IDBRequest<unknown[]> | undefined;
+                        if (getAllReq) {
+                            getAllReq.onsuccess = () => {
+                                const allNotes = (getAllReq.result || []) as unknown[];
+                                allNotes.forEach((noteUnknown) => {
+                                    const noteObj = noteUnknown as Record<string, unknown>;
+                                    if (!('title' in noteObj)) {
+                                        const contentVal = noteObj['content'];
+                                        const raw = typeof contentVal === 'string' ? contentVal : '';
+                                        const [first, ...rest] = raw.split('\n');
+                                        const title = first && first.trim().length > 0 ? first.trim() : 'New Note';
+                                        const content = rest.join('\n');
+                                        const updated = { ...noteObj, title, content } as Note;
+                                        notesStore.put(updated);
+                                    }
+                                });
+                            };
+                        }
+                    } catch (e) {
+                        console.warn('Notes migration to v5 failed:', e);
+                    }
+                }
+
+                // Settings Store
+                if (!dbInstance.objectStoreNames.contains(SETTINGS_STORE)) {
+                    dbInstance.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
+                }
+
+                // Conversations Store
+                if (!dbInstance.objectStoreNames.contains(CONVERSATIONS_STORE)) {
+                    const conversationsStore = dbInstance.createObjectStore(CONVERSATIONS_STORE, { keyPath: 'id' });
+                    conversationsStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                }
+            };
+        } catch (error) {
+            dbPromise = null;
+            reject(handleError(error, 'db'));
+        }
     });
+
+    return dbPromise;
 };
 
 // Settings Functions

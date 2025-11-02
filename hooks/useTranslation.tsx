@@ -25,7 +25,8 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     try {
-      const response = await fetch(`./locales/${lang}.json`);
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const response = await fetch(`${baseUrl}locales/${lang}.json`);
       if (!response.ok) {
         throw new Error(`Could not load ${lang}.json`);
       }
