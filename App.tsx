@@ -8,7 +8,6 @@ import { SettingsProvider } from './hooks/useSettings';
 import { TranslationProvider } from './hooks/useTranslation';
 import { ToastProvider } from './hooks/useToast';
 
-// --- Eager imports: 彻底移除 Suspense 回退，首屏即就绪 ---
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';

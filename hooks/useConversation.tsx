@@ -39,26 +39,43 @@ export const useConversation = (initialConversationId: string | null) => {
     const loadConversation = useCallback(async (id: string) => {
         try {
             const history = await conversationCache.load(id, getMessages);
-            const historyWithPreviews = await Promise.all(history.map(async (m) => {
-                if (m.attachments && m.attachments.length > 0) {
-                    m.attachments = await Promise.all(m.attachments.map(async (att) => {
-                        if (att.data && att.type.startsWith('image/')) {
-                            try {
-                                const response = await fetch(att.data);
-                                const blob = await response.blob();
-                                const previewUrl = URL.createObjectURL(blob);
-                                att.preview = previewUrl;
-                                urlsToRevoke.current.add(previewUrl);
-                            } catch (e) { console.error("Error creating blob from data URL:", e); }
-                        }
-                        return att;
-                    }));
+
+            const urlsToRelease: string[] = [];
+            urlsToRevoke.current.forEach((url) => urlsToRelease.push(url));
+            urlsToRevoke.current.clear();
+
+            const historyWithPreviews = await Promise.all(history.map(async (message) => {
+                if (!message.attachments || message.attachments.length === 0) {
+                    return message;
                 }
-                return m;
+
+                const attachmentsWithPreview = await Promise.all(message.attachments.map(async (attachment) => {
+                    if (!attachment.data || !attachment.type.startsWith('image/')) {
+                        return attachment;
+                    }
+
+                    try {
+                        const response = await fetch(attachment.data);
+                        const blob = await response.blob();
+                        const previewUrl = URL.createObjectURL(blob);
+                        urlsToRevoke.current.add(previewUrl);
+                        return { ...attachment, preview: previewUrl };
+                    } catch (error) {
+                        console.error("Error creating blob from data URL:", error);
+                        return attachment;
+                    }
+                }));
+
+                return { ...message, attachments: attachmentsWithPreview };
             }));
             setMessages(historyWithPreviews);
             setCurrentConversationId(id);
-            // 按需保留缓存提高后退体验；如需释放内存可调用 conversationCache.delete(id)
+
+            urlsToRelease.forEach((url) => {
+                try {
+                    URL.revokeObjectURL(url);
+                } catch {}
+            });
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
@@ -67,19 +84,25 @@ export const useConversation = (initialConversationId: string | null) => {
 
     const startNewConversation = useCallback(async (text: string, attachments: Attachment[]): Promise<{ userMessage: Message, conversationId: string }> => {
         try {
-            const newConversationId = Date.now().toString();
-            const title = text.substring(0, 50) || (attachments.length > 0 ? attachments[0].name : "New Conversation");
-            const newConversation: Conversation = { id: newConversationId, title, createdAt: new Date(), updatedAt: new Date() };
+            const now = Date.now();
+            const newConversationId = now.toString();
+            const title = text.substring(0, 50).trim() || (attachments.length > 0 ? attachments[0].name : "New Conversation");
+            const newConversation: Conversation = {
+                id: newConversationId,
+                title,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
             await addConversation(newConversation);
 
-            attachments.forEach(att => {
-                if (att.preview) {
-                    urlsToRevoke.current.add(att.preview);
+            attachments.forEach(attachment => {
+                if (attachment.preview) {
+                    urlsToRevoke.current.add(attachment.preview);
                 }
             });
 
             const userMessage: Message = {
-                id: Date.now().toString(),
+                id: (now + 1).toString(),
                 conversationId: newConversationId,
                 sender: MessageSender.USER,
                 text,
@@ -88,7 +111,6 @@ export const useConversation = (initialConversationId: string | null) => {
                 isLoading: false,
             };
             await addMessage(userMessage);
-            // 确保缓存不会残留旧值，避免后续路由复用旧会话数据
             conversationCache.delete(newConversationId);
             
             setMessages([userMessage]);
@@ -97,7 +119,6 @@ export const useConversation = (initialConversationId: string | null) => {
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
-            // Rethrow or handle error to notify the caller
             throw error;
         }
     }, [showToast]);
