@@ -54,6 +54,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
                 <div className="flex items-center justify-end px-2 py-1 bg-neutral-50 dark:bg-white/5 border-b border-neutral-200 dark:border-neutral-700">
                   <button
                     className="px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-xs"
+                    aria-label="Copy table"
                     onClick={(e) => {
                       const container = (e.currentTarget.parentElement?.parentElement) as HTMLElement | null;
                       const tbl = container?.querySelector('table');
@@ -62,7 +63,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
                       const text = rows.map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => (td as HTMLElement).innerText).join('\t')).join('\n');
                       navigator.clipboard.writeText(text);
                     }}
-                  >复制表格</button>
+                  >Copy table</button>
                 </div>
                 <table className="min-w-full text-sm" {...props} />
               </div>

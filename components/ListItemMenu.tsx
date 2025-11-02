@@ -116,17 +116,18 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
   if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+    <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} role="dialog" aria-modal="true">
       <div
         ref={menuRef}
         className="absolute bg-background-light dark:bg-neutral-700 rounded-lg shadow-xl p-1.5 min-w-[150px] border border-gray-200 dark:border-neutral-700 transition-[opacity,transform] duration-moderate ease-out-quad"
         style={menuStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <ul>
+        <ul role="menu" aria-label="Context menu">
           {actions.map((action, index) => (
             <li key={index}>
               <button
+                role="menuitem"
                 onClick={async () => {
                   // 防抖与加载态处理
                   const btn = document.activeElement as HTMLButtonElement | null;

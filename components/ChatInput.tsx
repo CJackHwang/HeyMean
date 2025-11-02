@@ -21,7 +21,7 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove: () => v
                 <span className="material-symbols-outlined !text-base">{getFileIcon(attachment.type)}</span>
             )}
             <span className="truncate max-w-28">{attachment.name}</span>
-            <button onClick={onRemove} className="flex items-center justify-center size-5 bg-neutral-500 text-white rounded-full shrink-0 hover:bg-neutral-600">
+            <button onClick={onRemove} aria-label={attachment.name ? `${attachment.name}` : undefined} title={attachment.name} className="flex items-center justify-center size-5 bg-neutral-500 text-white rounded-full shrink-0 hover:bg-neutral-600">
                 <span className="material-symbols-outlined !text-sm">close</span>
             </button>
         </div>
@@ -78,7 +78,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => 
         }
         handleFileChange(e);
       }} className="hidden" multiple />
-      <button onClick={triggerFileInput} className="flex items-center justify-center size-10 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+      <button onClick={triggerFileInput} aria-label={t('chat.attach_file_button')} className="flex items-center justify-center size-10 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
         <span className="material-symbols-outlined !text-xl">attach_file</span>
       </button>
       <div className="flex flex-col min-w-0 flex-1 relative bg-heymean-l dark:bg-heymean-d rounded-xl">
@@ -94,6 +94,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => 
         <textarea
           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent placeholder:text-neutral-500 dark:placeholder:text-neutral-400 px-4 py-3 text-sm font-normal leading-normal h-12"
           placeholder={t('chat.input_placeholder')}
+          aria-label={t('chat.input_aria_label')}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -109,6 +110,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => 
       <button
         onClick={isStopState ? onStop : handleSendClick}
         disabled={isDisabled}
+        aria-label={isStopState ? t('chat.stop_button') : t('chat.send_button')}
         className={[
           'flex items-center justify-center size-12 rounded-xl text-white shrink-0',
           isStopState ? 'bg-red-600 hover:bg-red-700' : '',

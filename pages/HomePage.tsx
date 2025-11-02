@@ -94,10 +94,10 @@ const HomePage: React.FC = () => {
                             <button onClick={handleContinue} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 flex-1 bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-base font-bold leading-normal tracking-[0.015em]">
                                 <span className="truncate">{t('home.button_continue')}</span>
                             </button>
-                             <button onClick={() => navigate('/history')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+                             <button onClick={() => navigate('/history')} aria-label={t('history.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
                                 <span className="material-symbols-outlined !text-xl">history</span>
                             </button>
-                             <button onClick={() => navigate('/settings')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+                             <button onClick={() => navigate('/settings')} aria-label={t('settings.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
                                 <span className="material-symbols-outlined !text-xl">settings</span>
                             </button>
                         </div>
