@@ -1,4 +1,3 @@
-// FIX: Define and export all application-wide types to resolve circular dependency and missing export errors.
 export enum Theme {
   LIGHT = 'light',
   DARK = 'dark',
@@ -24,8 +23,8 @@ export interface Attachment {
   name: string;
   size: number;
   type: string;
-  data: string; // base64 data URL
-  preview?: string; // Object URL for image previews
+  data: string;
+  preview?: string;
 }
 
 export interface Message {
@@ -33,7 +32,7 @@ export interface Message {
   conversationId: string;
   sender: MessageSender;
   text: string;
-  timestamp: Date; // Use Date for consistency; format in UI
+  timestamp: Date;
   attachments?: Attachment[];
   isLoading?: boolean;
   thinkingText?: string;
@@ -42,10 +41,8 @@ export interface Message {
   thinkingDuration?: number;
 }
 
-// Persistent attachment type (without UI-only preview field)
 export type AttachmentStored = Omit<Attachment, 'preview'>;
 
-// Message shape stored in IndexedDB (timestamp serialized, UI-only fields removed)
 export type MessageStored = Omit<
   Message,
   'timestamp' | 'attachments' | 'isLoading' | 'isThinkingComplete' | 'thinkingStartTime' | 'thinkingDuration'
@@ -64,9 +61,22 @@ export interface Note {
 }
 
 export interface Conversation {
-    id: string;
-    title: string;
-    createdAt: Date;
-    updatedAt: Date;
-    isPinned?: boolean;
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isPinned?: boolean;
+}
+
+export type ConversationUpdate = Partial<Omit<Conversation, 'id' | 'createdAt'>>;
+export type NoteUpdate = Partial<Omit<Note, 'id' | 'createdAt'>>;
+
+export interface StreamOptions {
+  provider: ApiProvider;
+  systemInstruction: string;
+  geminiApiKey: string;
+  geminiModel: string;
+  openAiApiKey: string;
+  openAiModel: string;
+  openAiBaseUrl: string;
 }

@@ -53,7 +53,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Fetch the default prompt from prompt.txt
         let fetchedDefaultPrompt = 'You are a helpful and friendly AI learning assistant called HeyMean. Your goal is to explain complex topics in a simple and understandable way.'; // Fallback
         try {
-          const response = await fetch('prompt.txt');
+          const baseUrl = import.meta.env.BASE_URL || '/';
+          const response = await fetch(`${baseUrl}prompt.txt`);
           if (response.ok) {
             fetchedDefaultPrompt = await response.text();
           } else {

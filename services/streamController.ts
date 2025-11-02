@@ -1,15 +1,5 @@
-import { ApiProvider, Message } from '../types';
+import { Message, StreamOptions } from '../types';
 import { streamChatResponse } from './apiService';
-
-type StreamOptions = {
-  provider: ApiProvider;
-  systemInstruction: string;
-  geminiApiKey: string;
-  geminiModel: string;
-  openAiApiKey: string;
-  openAiModel: string;
-  openAiBaseUrl: string;
-};
 
 export class StreamController {
   private controller: AbortController | null = null;
@@ -28,7 +18,6 @@ export class StreamController {
     options: StreamOptions,
     onChunk: (text: string) => void
   ): Promise<string> {
-    // Cancel any previous stream to avoid re-entrancy issues
     this.cancel();
     this.controller = new AbortController();
 
