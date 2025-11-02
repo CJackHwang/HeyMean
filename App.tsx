@@ -3,7 +3,6 @@ import React, { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { useConversation } from './hooks/useConversation';
 import { getConversations, getNotes } from './services/db';
-import { saveScroll, getScroll } from './utils/scroll';
 import { setPayload } from './utils/preloadPayload';
 import { SettingsProvider } from './hooks/useSettings';
 import { TranslationProvider } from './hooks/useTranslation';
@@ -23,7 +22,6 @@ const AnimatedRoutes: React.FC = () => {
   const { preloadConversation } = useConversation(null);
   const prevRef = useRef(location);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [overlayDirection, setOverlayDirection] = useState<'forward' | 'back'>('forward');
   const prevIdxRef = useRef<number | null>(null);
   const [committedLocation, setCommittedLocation] = useState(location);
@@ -72,7 +70,6 @@ const AnimatedRoutes: React.FC = () => {
         } catch {}
 
         // 预加载完成后，开始动画
-        setDirection(nextDirection);
         setOverlayDirection(nextDirection);
         // 每次新一轮动画开始，确保覆盖层使用动画样式
         setOverlayAsBase(false);
@@ -87,11 +84,6 @@ const AnimatedRoutes: React.FC = () => {
           t = setTimeout(() => {
             setOverlayExitLoc(null);
             setIsAnimating(false);
-            // 恢复滚动位置到新页面的缓存值
-            try {
-              const y = getScroll(location.pathname);
-              if (typeof y === 'number') window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
-            } catch {}
           }, 580);
         } else {
           // 前进：底层保留旧页面，上层新页面滑入覆盖；动画结束后再提交底层为新页面并卸载旧页面

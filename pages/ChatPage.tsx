@@ -21,7 +21,7 @@ const ChatPage: React.FC = () => {
     const location = useLocation();
     const { t } = useTranslation();
     const isInitialLoad = useRef(true);
-    const [isInitialized, setIsInitialized] = useState(true);
+    // Removed unused isInitialized state
     const { initialPrompt, initialAttachments, newChat, conversationId: stateConversationId } = location.state || {};
     const shouldForceScroll = useRef(false);
     const { showToast } = useToast();
