@@ -69,7 +69,7 @@ export const useConversation = (initialConversationId: string | null) => {
                 conversationId: newConversationId,
                 sender: MessageSender.USER,
                 text,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: new Date(),
                 attachments,
                 isLoading: false,
             };

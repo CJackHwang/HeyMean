@@ -235,7 +235,7 @@ export const streamChatResponse = async (
     try {
         if (selectedApiProvider === ApiProvider.GEMINI) {
             const service = apiServices[ApiProvider.GEMINI];
-            const effectiveGeminiKey = geminiApiKey || process.env.API_KEY;
+            const effectiveGeminiKey = geminiApiKey;
             if (!effectiveGeminiKey) {
                 throw new AppError("CONFIG_ERROR", "Error: Gemini API key is not configured. Please add it in settings.");
             }

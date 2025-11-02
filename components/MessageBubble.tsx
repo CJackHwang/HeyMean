@@ -107,7 +107,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
         >
             <div className="flex flex-col gap-1.5 items-end max-w-[80%] md:max-w-md lg:max-w-lg xl:max-w-xl min-w-0">
                 <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">
-                    {t('message.you')} • {message.timestamp}
+                    {t('message.you')} • {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
                 {(message.attachments && message.attachments.length > 0) ? (
                      <AttachmentDisplay message={message} />
@@ -133,7 +133,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
         {...getLongPressHandlers(message)}
     >
        <div className="flex flex-col gap-1.5 w-full xl:w-3/4 min-w-0 overflow-hidden">
-            <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp}</p>
+            <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             <AiMessage message={message} />
        </div>
     </div>

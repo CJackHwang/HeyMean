@@ -5,14 +5,14 @@ import { Language } from '../types';
 import { useToast } from './useToast';
 
 interface TranslationContextType {
-  t: (key: string, ...args: any[]) => string;
+  t: (key: string, ...args: (string | number)[]) => string;
   language: Language;
 }
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
 // A simple cache for translations
-const translationsCache: { [key: string]: any } = {};
+const translationsCache: Record<string, Record<string, string>> = {};
 
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { language } = useSettings();
@@ -46,12 +46,12 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTranslations(language);
   }, [language, fetchTranslations]);
 
-  const t = (key: string, ...args: any[]): string => {
+  const t = (key: string, ...args: (string | number)[]): string => {
     let translation = translations[key] || key;
     // Simple replacement for placeholders like {0}, {1}
     if (args.length > 0) {
       args.forEach((arg, index) => {
-        translation = translation.replace(`{${index}}`, arg);
+        translation = translation.replace(`{${index}}`, String(arg));
       });
     }
     return translation;

@@ -18,7 +18,7 @@ interface LongPressOptions {
  * @param options - Optional configuration for the delay.
  * @returns A function that takes context and returns event handlers to be spread on a component.
  */
-export const useLongPress = <T extends HTMLElement, C = any>(
+export const useLongPress = <T extends HTMLElement, C = unknown>(
   onLongPress: (e: PointerOrMouseEvent<T>, context: C) => void,
   onClick?: (e: React.PointerEvent<T>, context: C) => void,
   { delay = 500 }: LongPressOptions = {}

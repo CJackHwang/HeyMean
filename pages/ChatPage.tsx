@@ -81,7 +81,7 @@ const ChatPage: React.FC = () => {
                 conversationId: convId,
                 sender: MessageSender.USER,
                 text,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: new Date(),
                 attachments,
                 isLoading: false,
             };
@@ -278,7 +278,7 @@ const ChatPage: React.FC = () => {
                                         ref={(el) => {
                                             if (!el) return;
                                             rowVirtualizer.measureElement(el);
-                                            const anyEl = el as any;
+                                            const anyEl = el as HTMLElement & { __hm_ro?: ResizeObserver };
                                             if (!anyEl.__hm_ro) {
                                                 anyEl.__hm_ro = new ResizeObserver(() => {
                                                     rowVirtualizer.measureElement(el);

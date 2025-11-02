@@ -1,6 +1,6 @@
 // FIX: Updated to newer database logic, which was previously in the wrong file (`types.ts`).
 // This version includes schema upgrades and function signatures that match their usage in the app.
-import { Message, Note, Conversation } from '../types';
+import { Message, Note, Conversation, AttachmentStored, MessageStored } from '../types';
 import { handleError } from './errorHandler';
 
 const DB_NAME = 'HeyMeanDB';
@@ -66,17 +66,19 @@ export const initDB = (): Promise<IDBDatabase> => {
             if (transaction && (event as IDBVersionChangeEvent).oldVersion < 5) {
                 try {
                     const notesStore = transaction.objectStore(NOTES_STORE);
-                    const getAllReq = (notesStore.getAll && notesStore.getAll()) as IDBRequest<any[]> | undefined;
+                    const getAllReq = (notesStore.getAll && notesStore.getAll()) as IDBRequest<unknown[]> | undefined;
                     if (getAllReq) {
                         getAllReq.onsuccess = () => {
-                            const allNotes = getAllReq.result || [];
-                            allNotes.forEach((note: any) => {
-                                if (typeof note.title === 'undefined') {
-                                    const raw = typeof note.content === 'string' ? note.content : '';
+                            const allNotes = (getAllReq.result || []) as unknown[];
+                            allNotes.forEach((noteUnknown) => {
+                                const noteObj = noteUnknown as Record<string, unknown>;
+                                if (!('title' in noteObj)) {
+                                    const contentVal = noteObj['content'];
+                                    const raw = typeof contentVal === 'string' ? contentVal : '';
                                     const [first, ...rest] = raw.split('\n');
                                     const title = first && first.trim().length > 0 ? first.trim() : 'New Note';
                                     const content = rest.join('\n');
-                                    const updated = { ...note, title, content };
+                                    const updated = { ...noteObj, title, content } as Note;
                                     notesStore.put(updated);
                                 }
                             });
@@ -115,7 +117,7 @@ export const getSetting = async <T>(key: string): Promise<T | undefined> => {
     });
 };
 
-export const setSetting = async (key: string, value: any): Promise<void> => {
+export const setSetting = async (key: string, value: unknown): Promise<void> => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(SETTINGS_STORE, 'readwrite');
@@ -134,7 +136,16 @@ export const getMessages = async (conversationId: string): Promise<Message[]> =>
         const store = transaction.objectStore(MESSAGES_STORE);
         const index = store.index('conversationId');
         const request = index.getAll(conversationId);
-        request.onsuccess = () => resolve(request.result.sort((a, b) => a.id.localeCompare(b.id)));
+        request.onsuccess = () => {
+            const raw = (request.result || []) as MessageStored[];
+            const sorted = raw.sort((a, b) => a.id.localeCompare(b.id));
+            const withDate: Message[] = sorted.map((m) => {
+                const parsed = Date.parse(m.timestamp);
+                const ts = isNaN(parsed) ? new Date(Number(m.id)) : new Date(parsed);
+                return { ...m, timestamp: ts } as Message;
+            });
+            resolve(withDate);
+        };
         request.onerror = () => reject(handleError(request.error, 'db'));
     });
 };
@@ -145,18 +156,16 @@ export const addMessage = async (message: Message): Promise<void> => {
         const transaction = db.transaction(MESSAGES_STORE, 'readwrite');
         const store = transaction.objectStore(MESSAGES_STORE);
         
-        const messageToStore = { ...message };
+        const messageToStore: MessageStored = {
+            id: message.id,
+            conversationId: message.conversationId,
+            sender: message.sender,
+            text: message.text,
+            timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
+            attachments: message.attachments ? message.attachments.map(({ preview, ...rest }) => rest) : undefined,
+        };
         
-        delete messageToStore.isLoading; 
-        delete messageToStore.isThinkingComplete;
-        delete messageToStore.thinkingStartTime;
-        
-        if (messageToStore.attachments) {
-            messageToStore.attachments = messageToStore.attachments.map(att => {
-                const { preview, ...rest } = att;
-                return rest;
-            });
-        }
+        // messageToStore is already sanitized to storage shape
         
         const request = store.put(messageToStore);
         request.onsuccess = () => resolve();
@@ -171,18 +180,14 @@ export const batchAddMessages = async (messages: Message[]): Promise<void> => {
         const store = transaction.objectStore(MESSAGES_STORE);
 
         messages.forEach(message => {
-            const messageToStore = { ...message };
-        
-            delete messageToStore.isLoading; 
-            delete messageToStore.isThinkingComplete;
-            delete messageToStore.thinkingStartTime;
-            
-            if (messageToStore.attachments) {
-                messageToStore.attachments = messageToStore.attachments.map(att => {
-                    const { preview, ...rest } = att;
-                    return rest;
-                });
-            }
+            const messageToStore: MessageStored = {
+                id: message.id,
+                conversationId: message.conversationId,
+                sender: message.sender,
+                text: message.text,
+                timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
+                attachments: message.attachments ? message.attachments.map(({ preview, ...rest }) => rest) : undefined,
+            };
             store.put(messageToStore);
         });
 

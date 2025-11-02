@@ -33,7 +33,7 @@ export interface Message {
   conversationId: string;
   sender: MessageSender;
   text: string;
-  timestamp: string;
+  timestamp: Date; // Use Date for consistency; format in UI
   attachments?: Attachment[];
   isLoading?: boolean;
   thinkingText?: string;
@@ -41,6 +41,18 @@ export interface Message {
   thinkingStartTime?: number;
   thinkingDuration?: number;
 }
+
+// Persistent attachment type (without UI-only preview field)
+export type AttachmentStored = Omit<Attachment, 'preview'>;
+
+// Message shape stored in IndexedDB (timestamp serialized, UI-only fields removed)
+export type MessageStored = Omit<
+  Message,
+  'timestamp' | 'attachments' | 'isLoading' | 'isThinkingComplete' | 'thinkingStartTime' | 'thinkingDuration'
+> & {
+  timestamp: string;
+  attachments?: AttachmentStored[];
+};
 
 export interface Note {
   id: number;

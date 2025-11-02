@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { PluggableList } from 'unified';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import CodeBlock from './CodeBlock';
@@ -13,7 +14,7 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   const { theme } = useSettings();
-  const [katexPlugin, setKatexPlugin] = useState<any | null>(null);
+  const [katexPlugin, setKatexPlugin] = useState<PluggableList | null>(null);
 
   const containsMath = useMemo(() => {
     // naive check: inline $...$, block $$...$$ or \( \) / \[ \]
@@ -30,7 +31,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
       // Dynamically import KaTeX CSS and rehype-katex only when math is detected
       await import('katex/dist/katex.min.css');
       const mod = await import('rehype-katex');
-      if (active) setKatexPlugin(() => mod.default);
+      if (active) setKatexPlugin([mod.default] as PluggableList);
     })();
     return () => { active = false; };
   }, [containsMath]);
@@ -41,7 +42,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
       <ReactMarkdown
         children={content}
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={katexPlugin ? [katexPlugin] : []}
+        rehypePlugins={katexPlugin || []}
         components={{
           // --- Custom Table Component ---
           // This completely overrides the default table rendering.
@@ -94,7 +95,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           
           // --- Custom Code Block Component ---
           code(compProps) {
-            const { inline, className, children, ...rest } = compProps as any;
+            const { inline, className, children, ...rest } = compProps as { inline?: boolean; className?: string; children?: React.ReactNode } & Record<string, unknown>;
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
               <CodeBlock language={match[1]} code={String(children)} />

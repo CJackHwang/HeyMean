@@ -28,7 +28,7 @@ export const useChatStream = () => {
             sender: MessageSender.AI,
             text: '',
             thinkingText: '',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: new Date(),
             isLoading: true,
             isThinkingComplete: false,
             thinkingStartTime: thinkingStartTime,

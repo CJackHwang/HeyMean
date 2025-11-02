@@ -14,22 +14,29 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
   const { theme } = useSettings();
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [styleTheme, setStyleTheme] = useState<any>(null);
-  const [Highlighter, setHighlighter] = useState<React.ComponentType<any> | null>(null);
-  const [registerLanguage, setRegisterLanguage] = useState<((name: string, syntax: any) => void) | null>(null);
+  const [styleTheme, setStyleTheme] = useState<Record<string, unknown> | null>(null);
+  type HighlighterProps = {
+    language?: string;
+    style?: Record<string, unknown> | null;
+    PreTag?: string;
+    customStyle?: React.CSSProperties;
+    children?: React.ReactNode;
+  };
+  const [Highlighter, setHighlighter] = useState<React.ComponentType<HighlighterProps> | null>(null);
+  const [registerLanguage, setRegisterLanguage] = useState<((name: string, syntax: unknown) => void) | null>(null);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const styles = await import('react-syntax-highlighter/dist/esm/styles/prism');
-      const selected = theme === Theme.DARK ? styles.oneDark : styles.oneLight;
+      const styles = await import('react-syntax-highlighter/dist/esm/styles/prism') as unknown as Record<string, unknown> & { oneDark?: Record<string, unknown>; oneLight?: Record<string, unknown> };
+      const selected = theme === Theme.DARK ? (styles.oneDark || null) : (styles.oneLight || null);
       if (mounted) setStyleTheme(selected);
       // Import PrismLight directly from ESM entry to avoid pulling highlight.js
       const prismMod = await import('react-syntax-highlighter/dist/esm/prism-light');
-      const PrismLightComp = (prismMod as any).default || (prismMod as any).PrismLight;
+      const PrismLightComp = (prismMod as { default?: React.ComponentType<unknown>; PrismLight?: React.ComponentType<unknown> }).default || (prismMod as { PrismLight?: React.ComponentType<unknown> }).PrismLight;
       if (mounted && PrismLightComp) {
-        setHighlighter(() => PrismLightComp as React.ComponentType<any>);
-        setRegisterLanguage(() => (PrismLightComp as any).registerLanguage);
+        setHighlighter(() => PrismLightComp as React.ComponentType<HighlighterProps>);
+        setRegisterLanguage(() => (PrismLightComp as unknown as { registerLanguage: (name: string, syntax: unknown) => void }).registerLanguage);
       }
     })();
     return () => { mounted = false; };
@@ -50,7 +57,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
       };
       const key = aliasMap[lang] || lang;
 
-      const importers: Record<string, () => Promise<any>> = {
+      const importers: Record<string, () => Promise<{ default: unknown }>> = {
         javascript: () => import('react-syntax-highlighter/dist/esm/languages/prism/javascript'),
         jsx: () => import('react-syntax-highlighter/dist/esm/languages/prism/jsx'),
         typescript: () => import('react-syntax-highlighter/dist/esm/languages/prism/typescript'),

@@ -60,14 +60,14 @@ const SettingsPage: React.FC = () => {
         const errorData = await response.json();
         throw new Error(errorData?.error?.message || `API error (${response.status})`);
       }
-      const data = await response.json();
-      const modelIds = data.data.map((model: any) => model.id).sort();
+      const data = await response.json() as { data: Array<{ id: string }> };
+      const modelIds = data.data.map((model) => model.id).sort();
       setAvailableModels(modelIds);
       // If current model is not in the list, set to the first one available
       if (modelIds.length > 0 && !modelIds.includes(openAiModel)) {
           setOpenAiModel(modelIds[0]);
       }
-    } catch (error: any) {
+    } catch (error) {
       const appError = handleError(error, 'api');
       setFetchError(appError.userMessage);
     } finally {
