@@ -71,6 +71,16 @@
 
 ---
 
+## 📚 Documentation
+- [Architecture Overview](ARCHITECTURE.md)
+- [Contributing Guide](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [Code Quality Report](CODE_QUALITY_REPORT.md)
+- [Work Summary](WORK_SUMMARY.md)
+- [TailwindCSS v3 → v4 Migration Guide](TailwindCSS_v3_to_v4迁移指南.md)
+
+---
+
 ## 🌿 Branch Strategy (Main ↔ Canary)
 
 We maintain two long-lived branches to balance stability and rapid iteration:
@@ -364,7 +374,7 @@ This project uses:
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines. Here's how you can help:
 
 1. **Fork the repository**
 2. **Create a feature branch**

@@ -1,6 +1,4 @@
-// FIX: Updated to newer database logic, which was previously in the wrong file (`types.ts`).
-// This version includes schema upgrades and function signatures that match their usage in the app.
-import { Message, Note, Conversation, AttachmentStored, MessageStored } from '../types';
+import { Message, Note, Conversation, AttachmentStored, MessageStored, ConversationUpdate, NoteUpdate } from '../types';
 import { handleError } from './errorHandler';
 
 const DB_NAME = 'HeyMeanDB';
@@ -12,6 +10,51 @@ const SETTINGS_STORE = 'settings';
 const CONVERSATIONS_STORE = 'conversations';
 
 let db: IDBDatabase;
+
+const ensureDate = (value: unknown, fallback: Date = new Date()): Date => {
+    if (value instanceof Date) return value;
+    if (typeof value === 'number') return new Date(value);
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (!Number.isNaN(parsed)) return new Date(parsed);
+    }
+    return fallback;
+};
+
+const hydrateConversation = (record: Record<string, unknown>): Conversation => ({
+    id: String(record.id ?? ''),
+    title: typeof record.title === 'string' && record.title.trim().length > 0 ? record.title : 'New Conversation',
+    createdAt: ensureDate(record.createdAt),
+    updatedAt: ensureDate(record.updatedAt),
+    isPinned: record.isPinned === true,
+});
+
+const hydrateNote = (record: Record<string, unknown>): Note => ({
+    id: typeof record.id === 'number' ? record.id : Number(record.id ?? Date.now()),
+    title: typeof record.title === 'string' && record.title.trim().length > 0 ? record.title : 'New Note',
+    content: typeof record.content === 'string' ? record.content : '',
+    createdAt: ensureDate(record.createdAt),
+    updatedAt: ensureDate(record.updatedAt),
+    isPinned: record.isPinned === true,
+});
+
+const prepareConversationForStore = (conversation: Conversation): Conversation => ({
+    ...conversation,
+    createdAt: ensureDate(conversation.createdAt),
+    updatedAt: ensureDate(conversation.updatedAt),
+    isPinned: conversation.isPinned ?? false,
+});
+
+const prepareNoteForStore = <T extends { createdAt: unknown; updatedAt: unknown; isPinned?: boolean }>(note: T): T & {
+    createdAt: Date;
+    updatedAt: Date;
+    isPinned: boolean;
+} => ({
+    ...note,
+    createdAt: ensureDate(note.createdAt),
+    updatedAt: ensureDate(note.updatedAt),
+    isPinned: note.isPinned ?? false,
+});
 
 export const initDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -225,8 +268,7 @@ export const addConversation = async (conversation: Conversation): Promise<void>
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(CONVERSATIONS_STORE, 'readwrite');
         const store = transaction.objectStore(CONVERSATIONS_STORE);
-        const conversationWithDefault = { ...conversation, isPinned: false };
-        const request = store.add(conversationWithDefault);
+        const request = store.add(prepareConversationForStore(conversation));
         request.onsuccess = () => resolve();
         request.onerror = () => reject(handleError(request.error, 'db'));
     });
@@ -240,15 +282,15 @@ export const getConversations = async (): Promise<Conversation[]> => {
         const index = store.index('updatedAt');
         const request = index.getAll();
         request.onsuccess = () => {
-            const conversations = request.result.reverse() as Conversation[];
-            // Sort by pinned status first, then by date.
-            // Since the list is already sorted by date, we just need to bring pinned items to the top.
-            conversations.sort((a, b) => {
-                if (a.isPinned && !b.isPinned) return -1;
-                if (!a.isPinned && b.isPinned) return 1;
-                return 0; // Keep original date-based order for items with same pinned status
+            const raw = (request.result || []) as Record<string, unknown>[];
+            const hydrated = raw.map(hydrateConversation);
+            hydrated.sort((a, b) => {
+                if ((a.isPinned === true) !== (b.isPinned === true)) {
+                    return a.isPinned ? -1 : 1;
+                }
+                return b.updatedAt.getTime() - a.updatedAt.getTime();
             });
-            resolve(conversations);
+            resolve(hydrated);
         };
         request.onerror = () => reject(handleError(request.error, 'db'));
     });
@@ -256,15 +298,13 @@ export const getConversations = async (): Promise<Conversation[]> => {
 
 export const getLatestConversation = async (): Promise<Conversation | undefined> => {
     const conversations = await getConversations();
-    // After sorting, the latest unpinned conversation might not be at index 0 if there are pins.
-    // So we need to find the one with the most recent updatedAt timestamp.
     if (conversations.length === 0) return undefined;
     return conversations.reduce((latest, current) => {
-        return latest.updatedAt > current.updatedAt ? latest : current;
+        return current.updatedAt.getTime() > latest.updatedAt.getTime() ? current : latest;
     });
 };
 
-export const updateConversation = async (id: string, updates: Partial<Omit<Conversation, 'id' | 'createdAt'>>): Promise<void> => {
+export const updateConversation = async (id: string, updates: ConversationUpdate): Promise<void> => {
     const db = await initDB();
     const transaction = db.transaction(CONVERSATIONS_STORE, 'readwrite');
     const store = transaction.objectStore(CONVERSATIONS_STORE);
@@ -272,15 +312,23 @@ export const updateConversation = async (id: string, updates: Partial<Omit<Conve
 
     return new Promise((resolve, reject) => {
         getRequest.onsuccess = () => {
-            const conversation = getRequest.result;
-            if (conversation) {
-                const updatedConversation = { ...conversation, ...updates };
-                const putRequest = store.put(updatedConversation);
-                putRequest.onsuccess = () => resolve();
-                putRequest.onerror = () => reject(handleError(putRequest.error, 'db'));
-            } else {
+            const conversationRecord = getRequest.result as Record<string, unknown> | undefined;
+            if (!conversationRecord) {
                 reject(new Error("Conversation not found"));
+                return;
             }
+
+            const conversation = hydrateConversation(conversationRecord);
+            const merged: Conversation = {
+                ...conversation,
+                ...updates,
+                updatedAt: ensureDate((updates?.updatedAt as Date | undefined) ?? conversation.updatedAt),
+                isPinned: updates?.isPinned ?? conversation.isPinned,
+            };
+
+            const putRequest = store.put(prepareConversationForStore(merged));
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(handleError(putRequest.error, 'db'));
         };
         getRequest.onerror = () => reject(handleError(getRequest.error, 'db'));
     });
@@ -348,16 +396,15 @@ export const getNotes = async (): Promise<Note[]> => {
             request = store.getAll() as IDBRequest<Note[]>;
         }
         request.onsuccess = () => {
-            const all = (request.result || []) as Note[];
-            // Sort by updatedAt desc
-            const sortedByDate = all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-            // Then bring pinned to top, keep date order within groups
-            sortedByDate.sort((a, b) => {
-                if (a.isPinned && !b.isPinned) return -1;
-                if (!a.isPinned && b.isPinned) return 1;
-                return 0;
+            const raw = (request.result || []) as Record<string, unknown>[];
+            const hydrated = raw.map(hydrateNote);
+            hydrated.sort((a, b) => {
+                if ((a.isPinned === true) !== (b.isPinned === true)) {
+                    return a.isPinned ? -1 : 1;
+                }
+                return b.updatedAt.getTime() - a.updatedAt.getTime();
             });
-            resolve(sortedByDate);
+            resolve(hydrated);
         };
         request.onerror = () => reject(handleError(request.error, 'db'));
     });
@@ -383,7 +430,7 @@ export const addNote = async (title: string = 'New Note', content: string = ''):
     });
 };
 
-export const updateNote = async (id: number, updates: Partial<Omit<Note, 'id' | 'createdAt'>>): Promise<void> => {
+export const updateNote = async (id: number, updates: NoteUpdate): Promise<void> => {
     const db = await initDB();
     const transaction = db.transaction(NOTES_STORE, 'readwrite');
     const store = transaction.objectStore(NOTES_STORE);
@@ -391,16 +438,22 @@ export const updateNote = async (id: number, updates: Partial<Omit<Note, 'id' | 
 
     return new Promise((resolve, reject) => {
         getRequest.onsuccess = () => {
-            const note = getRequest.result;
-            if (note) {
-                // Always update timestamp on any change
-                const updatedNote = { ...note, ...updates, updatedAt: new Date() };
-                const putRequest = store.put(updatedNote);
-                putRequest.onsuccess = () => resolve();
-                putRequest.onerror = () => reject(handleError(putRequest.error, 'db'));
-            } else {
+            const noteRecord = getRequest.result as Record<string, unknown> | undefined;
+            if (!noteRecord) {
                 reject(new Error("Note not found"));
+                return;
             }
+
+            const note = hydrateNote(noteRecord);
+            const merged: Note = {
+                ...note,
+                ...updates,
+                updatedAt: new Date(),
+            };
+
+            const putRequest = store.put(prepareNoteForStore(merged));
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(handleError(putRequest.error, 'db'));
         };
         getRequest.onerror = () => reject(handleError(getRequest.error, 'db'));
     });
