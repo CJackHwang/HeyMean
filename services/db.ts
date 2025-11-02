@@ -321,7 +321,10 @@ export const clearAllData = async (): Promise<void> => {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([MESSAGES_STORE, NOTES_STORE, SETTINGS_STORE, CONVERSATIONS_STORE], 'readwrite');
         transaction.onerror = (event) => reject(handleError((event.target as IDBRequest).error, 'db'));
-        transaction.oncomplete = () => resolve();
+        transaction.oncomplete = () => {
+            try { window.dispatchEvent(new Event('hm:data-cleared')); } catch {}
+            resolve();
+        };
 
         transaction.objectStore(MESSAGES_STORE).clear();
         transaction.objectStore(NOTES_STORE).clear();

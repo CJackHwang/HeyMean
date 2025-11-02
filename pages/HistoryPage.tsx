@@ -3,12 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import { Conversation } from '../types';
 import { getConversations, deleteConversation, updateConversation } from '../services/db';
+import { getPayload, clearPayload } from '../utils/preloadPayload';
 import ListItemMenu from '../components/ListItemMenu';
 import Modal from '../components/Modal';
 import { useToast } from '../hooks/useToast';
 import { useLongPress } from '../hooks/useLongPress';
 import { formatDateTime } from '../utils/dateHelpers';
 import { handleError } from '../services/errorHandler';
+import { useConversation } from '../hooks/useConversation';
 
 const ConversationList: React.FC<{ 
     conversations: Conversation[]; 
@@ -63,8 +65,10 @@ const HistoryPage: React.FC = () => {
 
   const loadConversations = async () => {
     try {
-      // Fetch in background without showing spinner
-      const convs = await getConversations();
+      // Prefer preloaded payload if present
+      const pre = getPayload<Conversation[]>('history:list');
+      const convs = pre || await getConversations();
+      if (pre) clearPayload('history:list');
       setConversations(convs);
     } catch (error) {
       const appError = handleError(error, 'db');
@@ -76,12 +80,21 @@ const HistoryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    // Load without blocking UI
+    // Preload ASAP on mount
     loadConversations();
+    // Preload conversations when coming from boot splash
+    const handler = () => loadConversations();
+    window.addEventListener('hm:settings-ready', handler);
+    return () => window.removeEventListener('hm:settings-ready', handler);
   }, []);
 
+  const { preloadConversation } = useConversation(null);
+
   const handleSelectConversation = (conversation: Conversation) => {
-    navigate('/chat', { state: { conversationId: conversation.id } });
+    // 预加载目标会话消息，然后再导航，配合覆盖式动画避免进入后刷新
+    preloadConversation(conversation.id).finally(() => {
+      navigate('/chat', { state: { conversationId: conversation.id } });
+    });
   };
 
   const handleLongPress = (conversationId: string, position: { x: number, y: number }) => {

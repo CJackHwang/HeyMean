@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '../types';
 import { getNotes, addNote, updateNote, deleteNote } from '../services/db';
+import { getPayload, clearPayload } from '../utils/preloadPayload';
 import Modal from './Modal';
 import { useTranslation } from '../hooks/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -159,7 +160,20 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     }, [showToast]);
 
     useEffect(() => {
-        loadNotes();
+        // 首次挂载：优先使用路由预载载荷，避免动画收尾后再刷新
+        const pre = getPayload<Note[]>('notes:list');
+        if (pre && pre.length >= 0) {
+            setNotes(pre);
+            clearPayload('notes:list');
+        } else {
+            loadNotes();
+        }
+        // 启动就绪事件：仅在没有预载的情况下再加载一次
+        const handler = () => {
+            if (!pre) loadNotes();
+        };
+        window.addEventListener('hm:settings-ready', handler);
+        return () => window.removeEventListener('hm:settings-ready', handler);
     }, [loadNotes]);
 
     const transitionTo = (action: { type: 'back' | 'select' | 'new', note?: Note } | null) => {

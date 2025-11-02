@@ -3,6 +3,10 @@ import { Message, Conversation, Attachment, MessageSender } from '../types';
 import { getMessages, addMessage, deleteMessage, batchDeleteMessages, addConversation, updateConversation, initDB } from '../services/db';
 import { useToast } from './useToast';
 import { handleError } from '../services/errorHandler';
+import { getCache } from '../utils/preload';
+
+// 全局预加载缓存，通过 util 管理，跨组件与过渡层复用
+const conversationCache = getCache<string, Message[]>('conversation');
 
 export const useConversation = (initialConversationId: string | null) => {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -23,9 +27,18 @@ export const useConversation = (initialConversationId: string | null) => {
         };
     }, []); // Empty dependency array ensures this runs only on mount and unmount
 
+    const preloadConversation = useCallback(async (id: string) => {
+        try {
+            await conversationCache.preload(id, getMessages);
+        } catch (error) {
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
+        }
+    }, [showToast]);
+
     const loadConversation = useCallback(async (id: string) => {
         try {
-            const history = await getMessages(id);
+            const history = await conversationCache.load(id, getMessages);
             const historyWithPreviews = await Promise.all(history.map(async (m) => {
                 if (m.attachments && m.attachments.length > 0) {
                     m.attachments = await Promise.all(m.attachments.map(async (att) => {
@@ -45,6 +58,7 @@ export const useConversation = (initialConversationId: string | null) => {
             }));
             setMessages(historyWithPreviews);
             setCurrentConversationId(id);
+            // 按需保留缓存提高后退体验；如需释放内存可调用 conversationCache.delete(id)
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
@@ -145,6 +159,7 @@ export const useConversation = (initialConversationId: string | null) => {
         messages,
         setMessages,
         currentConversationId,
+        preloadConversation,
         loadConversation,
         startNewConversation,
         addMessageToConversation,

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Message, MessageSender, Attachment } from '../types';
 import { useConversation } from '../hooks/useConversation';
+import { getPayload, clearPayload } from '../utils/preloadPayload';
 import { useChatStream } from '../hooks/useChatStream';
 import { useMessageActions } from '../hooks/useMessageActions';
 import { useTranslation } from '../hooks/useTranslation';
@@ -44,7 +45,7 @@ const ChatPage: React.FC = () => {
     // --- EFFECT TO SYNC STREAMED MESSAGE ---
 
     useEffect(() => {
-        if (streamedAiMessage) {
+    if (streamedAiMessage) {
             const exists = messages.some(m => m.id === streamedAiMessage.id);
             if (exists) {
                 setMessages(prev => prev.map(m => m.id === streamedAiMessage.id ? streamedAiMessage : m));
@@ -106,10 +107,18 @@ const ChatPage: React.FC = () => {
             }
 
             if (stateConversationId) {
-                // Load conversation in the background and render UI immediately
-                loadConversation(stateConversationId).then(() => {
+                // Guard: if conversation already active and messages present, skip reload to avoid post-animation refresh
+                if (currentConversationId === stateConversationId && messages.length > 0) {
                     shouldForceScroll.current = true;
-                });
+                } else {
+                    // Prefer preloaded payload hint; otherwise load
+                    const preId = getPayload<string>('chat:conversationId');
+                    clearPayload('chat:conversationId');
+                    const id = preId || stateConversationId;
+                    loadConversation(id).then(() => {
+                        shouldForceScroll.current = true;
+                    });
+                }
             } else if (newChat) {
                 // Render immediately
                 setMessages([]);
@@ -248,12 +257,12 @@ const ChatPage: React.FC = () => {
             <div className="flex-1 flex flex-col relative">
                 <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 shrink-0">
                     <button onClick={handleBack} aria-label={t('modal.cancel')} className="flex size-10 shrink-0 items-center justify-center">
-                        <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
+                        <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
                     </button>
                     <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('chat.header_title')}</h2>
                     <div className="flex w-10 items-center justify-end">
                         <button onClick={() => navigate('/settings')} aria-label={t('settings.header_title')} className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 bg-transparent text-primary-text-light dark:text-primary-text-dark gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
-                            <span className="material-symbols-outlined !text-2xl">more_vert</span>
+                            <span className="material-symbols-outlined text-2xl!">more_vert</span>
                         </button>
                     </div>
                 </header>
@@ -311,20 +320,20 @@ const ChatPage: React.FC = () => {
                     <p>{t('modal.delete_message_content')}</p>
                 </Modal>
 
-                <input className="hidden" id="notes-drawer" type="checkbox" />
+                <input className="sr-only" id="notes-drawer" type="checkbox" />
                 <div>
                     <label className="xl:hidden flex items-center justify-between p-3 gap-2.5 bg-heymean-l dark:bg-heymean-d border-t border-b border-gray-200 dark:border-neutral-700 cursor-pointer" htmlFor="notes-drawer" id="notes-tab">
                         <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-xl text-primary-text-light dark:text-primary-text-dark">description</span>
+                            <span className="material-symbols-outlined text-xl! text-primary-text-light dark:text-primary-text-dark">description</span>
                             <span className="text-sm font-medium text-primary-text-light dark:text-primary-text-dark">{t('chat.notes_tab')}</span>
                         </div>
-                        <span className="material-symbols-outlined !text-xl text-primary-text-light dark:text-primary-text-dark transform rotate-180">expand_less</span>
+                        <span className="material-symbols-outlined text-xl! text-primary-text-light dark:text-primary-text-dark transform rotate-180">expand_less</span>
                     </label>
                     <footer className="p-3 bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-neutral-700">
                         <ChatInput onSend={handleSend} isThinking={isThinking} onStop={cancel} />
                     </footer>
                 </div>
-                <div className="xl:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col transition-transform transform translate-y-full opacity-0 pointer-events-none z-10" id="notes-content">
+                <div className="xl:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col opacity-0 pointer-events-none z-40" id="notes-content">
                     <NotesView />
                 </div>
             </div>

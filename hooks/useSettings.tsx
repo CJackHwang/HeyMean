@@ -93,6 +93,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           // Keep default state on error
       } finally {
         setIsLoading(false);
+        try {
+          window.dispatchEvent(new Event('hm:settings-ready'));
+        } catch {}
       }
     };
     loadSettings();
