@@ -119,11 +119,11 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
         <span className="font-mono text-neutral-600 dark:text-neutral-300 truncate">{language || 'code'}</span>
         <div className="flex items-center gap-2">
           {isCollapsible && (
-            <button className="px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600" onClick={() => setExpanded(s => !s)} aria-label={expanded ? 'Collapse code' : 'Expand code'}>
+            <button className="px-2 py-1 rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600" onClick={() => setExpanded(s => !s)} aria-label={expanded ? 'Collapse code' : 'Expand code'}>
               {expanded ? 'Collapse' : 'Expand'}
             </button>
           )}
-          <button className="px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600" onClick={handleCopy} aria-label={copied ? 'Copied' : 'Copy code'}>
+          <button className="px-2 py-1 rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600" onClick={handleCopy} aria-label={copied ? 'Copied' : 'Copy code'}>
             {copied ? 'Copied' : 'Copy'}
           </button>
         </div>

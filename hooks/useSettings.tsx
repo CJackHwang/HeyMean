@@ -42,7 +42,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [openAiModel, setOpenAiModelState] = useState<string>('');
   const [openAiBaseUrl, setOpenAiBaseUrlState] = useState<string>('');
   const [language, setLanguageState] = useState<Language>(Language.EN);
-  const [isLoading, setIsLoading] = useState(false);
+  // Start as loading to avoid overwriting persisted theme on first paint
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -63,7 +64,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         setDefaultSystemPrompt(fetchedDefaultPrompt.trim());
 
-        const savedTheme = await getSetting<Theme>('theme') || Theme.LIGHT;
+        // Prefer localStorage for earliest persisted theme, fallback to DB
+        const lsTheme = (() => { try { return (localStorage.getItem('hm_theme') as Theme) || null; } catch { return null; } })();
+        const savedDbTheme = await getSetting<Theme>('theme');
+        const savedTheme = lsTheme || savedDbTheme || Theme.LIGHT;
         const savedPrompt = await getSetting<string>('systemPrompt') || ''; // Default to empty
         const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.GEMINI;
         const savedGeminiApiKey = await getSetting<string>('geminiApiKey') || '';
@@ -88,7 +92,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           showToast(appError.userMessage, 'error');
           // Keep default state on error
       } finally {
-        // Do not gate rendering with a loading state; initial render should be immediate
         setIsLoading(false);
       }
     };
@@ -104,6 +107,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const saveTheme = async () => {
       try {
         await setSetting('theme', theme);
+        // Mirror to localStorage for earliest boot-time theme application
+        try {
+          window.localStorage.setItem('hm_theme', theme);
+        } catch {}
       } catch (error) {
         const appError = handleError(error, 'settings');
         showToast(appError.userMessage, 'error');
@@ -115,6 +122,19 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
+    // Persist immediately to avoid race with loading flag
+    try {
+      window.localStorage.setItem('hm_theme', newTheme);
+    } catch {}
+    setSetting('theme', newTheme).catch(error => {
+      const appError = handleError(error, 'settings');
+      showToast(appError.userMessage, 'error');
+    });
+    try {
+      const root = window.document.documentElement;
+      root.classList.remove(newTheme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
+      root.classList.add(newTheme);
+    } catch {}
   };
   
   const setSystemPrompt = (prompt: string) => {

@@ -38,7 +38,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
 
   return (
     // The .prose class now only affects standard text elements, not our custom components.
-    <div className="prose prose-sm dark:prose-invert max-w-full break-words">
+    <div className="prose prose-sm dark:prose-invert max-w-full wrap-break-word">
       <ReactMarkdown
         children={content}
         remarkPlugins={[remarkGfm, remarkMath]}
@@ -53,7 +53,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
               <div className="overflow-x-auto custom-scrollbar my-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
                 <div className="flex items-center justify-end px-2 py-1 bg-neutral-50 dark:bg-white/5 border-b border-neutral-200 dark:border-neutral-700">
                   <button
-                    className="px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-xs"
+                    className="px-2 py-1 rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-xs"
                     aria-label="Copy table"
                     onClick={(e) => {
                       const container = (e.currentTarget.parentElement?.parentElement) as HTMLElement | null;
@@ -78,7 +78,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           ),
           tr: ({ node, ...props }) => (
             <tr
-              className="even:bg-black/[0.02] dark:even:bg-white/[0.02] border-b border-neutral-200 dark:border-neutral-800 last:border-b-0"
+              className="even:bg-black/2 dark:even:bg-white/2 border-b border-neutral-200 dark:border-neutral-800 last:border-b-0"
               {...props}
             />
           ),

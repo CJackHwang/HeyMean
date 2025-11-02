@@ -18,11 +18,11 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove: () => v
             {attachment.preview ? (
                  <img src={attachment.preview} alt={attachment.name} className="w-5 h-5 object-cover rounded-full"/>
             ) : (
-                <span className="material-symbols-outlined !text-base">{getFileIcon(attachment.type)}</span>
+                <span className="material-symbols-outlined text-base!">{getFileIcon(attachment.type)}</span>
             )}
             <span className="truncate max-w-28">{attachment.name}</span>
             <button onClick={onRemove} aria-label={attachment.name ? `${attachment.name}` : undefined} title={attachment.name} className="flex items-center justify-center size-5 bg-neutral-500 text-white rounded-full shrink-0 hover:bg-neutral-600">
-                <span className="material-symbols-outlined !text-sm">close</span>
+                <span className="material-symbols-outlined text-sm!">close</span>
             </button>
         </div>
     )
@@ -79,7 +79,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => 
         handleFileChange(e);
       }} className="hidden" multiple />
       <button onClick={triggerFileInput} aria-label={t('chat.attach_file_button')} className="flex items-center justify-center size-10 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
-        <span className="material-symbols-outlined !text-xl">attach_file</span>
+        <span className="material-symbols-outlined text-xl!">attach_file</span>
       </button>
       <div className="flex flex-col min-w-0 flex-1 relative bg-heymean-l dark:bg-heymean-d rounded-xl">
         {attachments.length > 0 && (
@@ -119,9 +119,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop }) => 
         ].join(' ').trim()}
       >
         {isStopState ? (
-          <span className="material-symbols-outlined !text-2xl">stop</span>
+          <span className="material-symbols-outlined text-2xl!">stop</span>
         ) : (
-          <span className="material-symbols-outlined !text-2xl">send</span>
+          <span className="material-symbols-outlined text-2xl!">send</span>
         )}
       </button>
     </div>

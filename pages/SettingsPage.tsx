@@ -158,7 +158,7 @@ const SettingsPage: React.FC = () => {
                     <textarea
                         id="system-prompt"
                         rows={4}
-                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
                         value={systemPrompt}
                         onChange={(e) => setSystemPrompt(e.target.value)}
                         placeholder={t('settings.model_system_prompt_placeholder')}
@@ -190,7 +190,7 @@ const SettingsPage: React.FC = () => {
                       id="gemini-api-key"
                       type="password"
                       placeholder={t('settings.api_key_gemini_placeholder')}
-                      className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                      className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
                       value={geminiApiKey}
                       onChange={(e) => setGeminiApiKey(e.target.value)}
                     />
@@ -219,7 +219,7 @@ const SettingsPage: React.FC = () => {
                     id="openai-api-key"
                     type="password"
                     placeholder={t('settings.api_key_openai_placeholder')}
-                    className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                    className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
                     value={openAiApiKey}
                     onChange={(e) => setOpenAiApiKey(e.target.value)}
                   />
@@ -231,7 +231,7 @@ const SettingsPage: React.FC = () => {
                     id="openai-base-url"
                     type="text"
                     placeholder={t('settings.api_base_url_placeholder')}
-                    className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                    className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
                     value={openAiBaseUrl}
                     onChange={(e) => setOpenAiBaseUrl(e.target.value)}
                   />
@@ -260,7 +260,7 @@ const SettingsPage: React.FC = () => {
                         id="openai-model"
                         type="text"
                         placeholder={t('settings.api_model_placeholder')}
-                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
                         value={openAiModel}
                         onChange={(e) => setOpenAiModel(e.target.value)}
                       />

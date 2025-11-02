@@ -40,7 +40,7 @@ const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
                 ))}
             </div>
             {message.text && (
-                <p className="text-sm font-normal leading-normal pt-2 break-words">{message.text}</p>
+                <p className="text-sm font-normal leading-normal pt-2 wrap-break-word">{message.text}</p>
             )}
         </div>
     );
@@ -71,7 +71,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                              ) : null}
                         </div>
                     </div>
-                    <div className="p-4 min-h-[3.5rem]">
+                    <div className="p-4 min-h-14">
                         <MarkdownRenderer content={message.text} />
                         {/* No pulsing or spinner while composing */}
                     </div>
@@ -112,7 +112,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
                 {(message.attachments && message.attachments.length > 0) ? (
                      <AttachmentDisplay message={message} />
                 ) : (
-                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d break-words transition-colors active:bg-neutral-900 dark:active:bg-white/20">
+                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d wrap-break-word transition-colors active:bg-neutral-900 dark:active:bg-white/20">
                         {message.text.split('\n').map((line, index) => (
                           <React.Fragment key={index}>
                             {line}

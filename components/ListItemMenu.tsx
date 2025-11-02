@@ -145,7 +145,7 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
                     : 'text-primary-text-light dark:text-primary-text-dark hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
-                <span className="material-symbols-outlined !text-base">{action.icon}</span>
+                <span className="material-symbols-outlined text-base!">{action.icon}</span>
                 <span>{action.label}</span>
               </button>
             </li>

@@ -1,6 +1,64 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4: 使用 @import 作为入口 */
+@import "tailwindcss";
+
+/* 在 v4 中，dark 变体默认基于媒体查询。如需基于类名触发（.dark），使用自定义变体定义 */
+@custom-variant dark (.dark &);
+
+/* 指定内容源，确保扫描 TSX/JSX 文件以生成正确的样式 */
+@source "../index.html";
+@source "../index.tsx";
+@source "../App.tsx";
+@source "../{pages,components,hooks,services,utils}/**/*.{ts,tsx,js,jsx}";
+
+/* 变量作为任意值：v4 使用括号语法
+   示例：.bg(--brand-color) */
+
+/* 设计令牌：将 v3 的 theme 扩展迁移到 @theme */
+@theme {
+  --color-primary: #333333;
+  --color-background-light: #ffffff;
+  --color-background-dark: #111111;
+  --color-heymean-l: #F0F0F0;
+  --color-heymean-d: #2C2C2C;
+  --color-primary-text-light: #333333;
+  --color-primary-text-dark: #ffffff;
+  --color-thinking-dark: #1A2B21;
+  --color-thinking-text-dark: #A6E0B3;
+
+  --font-display: Inter, sans-serif;
+
+  --radius: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  --duration-ultra: 150ms;
+  --duration-moderate: 220ms;
+  --duration-slow: 320ms;
+
+  --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
+  --ease-soft-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 可选：保持 v3 的默认边框颜色行为 */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* v4：示例自定义容器工具（如需）
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+}
+*/
 
 /* Custom scrollbar styles and overrides that were in index.html */
 .custom-scrollbar::-webkit-scrollbar {

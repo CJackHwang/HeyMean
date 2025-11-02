@@ -1,49 +1,6 @@
-import type { Config } from 'tailwindcss';
-
-const config: Config = {
+// Tailwind v4 不再使用 JS 配置中的 content/theme 扩展。
+// 将定制放入 CSS 中的 @theme/@utility/@custom-variant 等。
+export default {
+  // 仍然保持暗色模式选择器行为
   darkMode: 'class',
-  content: [
-    './index.html',
-    './index.tsx',
-    './App.tsx',
-    './{pages,components,hooks,services,utils}/**/*.{ts,tsx,js,jsx}',
-  ],
-  theme: {
-    extend: {
-      colors: {
-        primary: '#333333',
-        'background-light': '#ffffff',
-        'background-dark': '#111111',
-        'heymean-l': '#F0F0F0',
-        'heymean-d': '#2C2C2C',
-        'primary-text-light': '#333333',
-        'primary-text-dark': '#ffffff',
-        'thinking-dark': '#1A2B21',
-        'thinking-text-dark': '#A6E0B3',
-      },
-      fontFamily: {
-        display: ['Inter', 'sans-serif'],
-      },
-      borderRadius: {
-        DEFAULT: '0.5rem',
-        lg: '1rem',
-        xl: '1.5rem',
-        '2xl': '2rem',
-        full: '9999px',
-      },
-      transitionDuration: {
-        ultra: '150ms',
-        moderate: '220ms',
-        slow: '320ms',
-      },
-      transitionTimingFunction: {
-        'out-quad': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        'in-out-expo': 'cubic-bezier(0.87, 0, 0.13, 1)',
-        'soft-spring': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-      },
-    },
-  },
-  plugins: [],
-};
-
-export default config;
+} satisfies Record<string, unknown>;

@@ -29,13 +29,13 @@ const ConversationList: React.FC<{
     
     return (
         <div className="space-y-2">
-            {conversations.length > 0 ? conversations.map(conv => (
+                    {conversations.length > 0 ? conversations.map(conv => (
                 <div 
                     key={conv.id} 
                     className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
                     {...getLongPressHandlers(conv)}
                 >
-                    {conv.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
+                    {conv.isPinned && <span className="material-symbols-outlined text-base! text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
                     <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{conv.title}</p>
                     <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{formatDateTime(conv.updatedAt)}</p>
                 </div>
@@ -190,7 +190,7 @@ const HistoryPage: React.FC = () => {
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
         <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
-          <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
+          <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
         </button>
         <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('history.header_title')}</h2>
         <div className="w-10 shrink-0"></div>
@@ -233,7 +233,7 @@ const HistoryPage: React.FC = () => {
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full p-2 rounded-lg bg-heymean-l dark:bg-background-dark/50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                className="w-full p-2 rounded-lg bg-heymean-l dark:bg-background-dark/50 focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmRename(); } }}
                 autoFocus
             />

@@ -85,7 +85,7 @@ const Modal: React.FC<ModalProps> = ({
     >
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-moderate ease-out-quad ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-0 transition-opacity duration-moderate ease-out-quad ${isAnimatingIn ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0'}`}
         aria-hidden="true"
         onClick={onClose}
       ></div>
@@ -106,7 +106,7 @@ const Modal: React.FC<ModalProps> = ({
            {onDestructive && destructiveText && (
             <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
                 onClick={onDestructive}
             >
                 {destructiveText}
@@ -114,14 +114,14 @@ const Modal: React.FC<ModalProps> = ({
            )}
           <button
             type="button"
-            className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
+            className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
             onClick={onClose}
           >
             {cancelText}
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${confirmButtonClass}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${confirmButtonClass}`}
             onClick={onConfirm}
           >
             {confirmText}

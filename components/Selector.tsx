@@ -50,7 +50,7 @@ const SelectorModal: React.FC<{
             className="fixed inset-0 z-50 flex items-center justify-center" 
             onClick={onClose}
         >
-            <div className={`fixed inset-0 bg-black transition-opacity duration-moderate ease-out-quad ${isAnimatingIn ? 'bg-opacity-50' : 'bg-opacity-0'}`}></div>
+            <div className={`fixed inset-0 transition-opacity duration-moderate ease-out-quad ${isAnimatingIn ? 'bg-black/50' : 'bg-black/0'}`}></div>
             <div 
                 ref={modalPanelRef}
                 className={`relative w-full max-w-sm p-4 m-4 bg-background-light dark:bg-heymean-d rounded-2xl shadow-xl transform transition-all duration-moderate ease-out-quad ${isAnimatingIn ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
@@ -70,7 +70,7 @@ const SelectorModal: React.FC<{
                                     }`}
                                 >
                                     <span>{option.label}</span>
-                                    {selectedValue === option.value && <span className="material-symbols-outlined !text-base">check</span>}
+                                    {selectedValue === option.value && <span className="material-symbols-outlined text-base!">check</span>}
                                 </button>
                             </li>
                         ))}

@@ -26,7 +26,7 @@ const NotePreview: React.FC<{
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 shrink-0">
                 <button onClick={onBack} className="flex items-center gap-1 p-2 rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d text-primary-text-light dark:text-primary-text-dark">
                     <span className="material-symbols-outlined">arrow_back_ios</span>
                     {t('notes.all_notes')}
@@ -41,7 +41,7 @@ const NotePreview: React.FC<{
                 </div>
             </div>
             <div 
-                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-none overflow-y-auto custom-scrollbar"
+                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-hidden overflow-y-auto custom-scrollbar"
             >
                 <MarkdownRenderer content={note.content} />
             </div>
@@ -61,7 +61,7 @@ const NoteEditor: React.FC<{
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 shrink-0">
                 <button onClick={onBack} className="flex items-center gap-1 p-2 rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d text-primary-text-light dark:text-primary-text-dark">
                     <span className="material-symbols-outlined">arrow_back_ios</span>
                     {t('notes.all_notes')}
@@ -79,7 +79,7 @@ const NoteEditor: React.FC<{
             <textarea
                 value={note.content}
                 onChange={(e) => setNote({ ...note, content: e.target.value })}
-                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-none resize-none"
+                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-hidden resize-none"
                 placeholder={t('notes.placeholder')}
             />
         </div>
@@ -112,7 +112,7 @@ const NoteList: React.FC<{
                     className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
                     {...getLongPressHandlers(note)}
                 >
-                    {note.isPinned && <span className="material-symbols-outlined !text-base text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
+                    {note.isPinned && <span className="material-symbols-outlined text-base! text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
                     <p className="font-semibold text-sm truncate text-primary-text-light dark:text-primary-text-dark pointer-events-none pr-5">{note.title || t('notes.untitled')}</p>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 pointer-events-none">{(note.content || '').split('\n').slice(0, 2).join(' ') || t('notes.no_content')}</p>
                     <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 pointer-events-none">{formatDateTime(note.updatedAt)}</p>
@@ -407,12 +407,12 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     return (
         <div className="flex flex-col h-full w-full">
-            <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
+            <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 shrink-0">
                 <h3 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold">{t('notes.header_title')}</h3>
                 <div className="flex items-center">
-                  {!isDesktop && <label htmlFor="notes-drawer" className="flex items-center justify-center size-10 cursor-pointer text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d"><span className="material-symbols-outlined !text-2xl">close</span></label>}
+                  {!isDesktop && <label htmlFor="notes-drawer" className="flex items-center justify-center size-10 cursor-pointer text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d"><span className="material-symbols-outlined text-2xl!">close</span></label>}
                   <button onClick={handleNewNote} className="flex items-center justify-center size-10 text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d">
-                        <span className="material-symbols-outlined !text-2xl">add_circle</span>
+                        <span className="material-symbols-outlined text-2xl!">add_circle</span>
                     </button>
                 </div>
             </header>
@@ -482,7 +482,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                     type="text"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-heymean-l dark:bg-background-dark/50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                    className="w-full p-2 rounded-lg bg-heymean-l dark:bg-background-dark/50 focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmRename(); } }}
                     autoFocus
                 />

@@ -1,9 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    // Apply persisted theme as early as possible to avoid flash
+    (function() {
+      try {
+        var el = document.documentElement;
+        var t = localStorage.getItem('hm_theme');
+        if (t !== 'dark' && t !== 'light') {
+          // Fallback to system preference if no stored theme
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          t = prefersDark ? 'dark' : 'light';
+        }
+        el.classList.remove('light','dark');
+        el.classList.add(t);
+      } catch (e) {}
+    })();
+  </script>
   <title>HeyMean: AI Learning Assistant</title>
   <!-- Tailwind is bundled locally via PostCSS -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
@@ -15,7 +31,7 @@
   <!-- Global styles moved to src/index.css -->
 <!-- Import maps removed to rely on Vite bundling -->
 </head>
-<body class="bg-background-light dark:bg-background-dark font-display">
+<body class="light bg-background-light dark:bg-background-dark font-display">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
