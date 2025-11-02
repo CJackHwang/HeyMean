@@ -88,6 +88,8 @@ export const useConversation = (initialConversationId: string | null) => {
                 isLoading: false,
             };
             await addMessage(userMessage);
+            // 确保缓存不会残留旧值，避免后续路由复用旧会话数据
+            conversationCache.delete(newConversationId);
             
             setMessages([userMessage]);
             setCurrentConversationId(newConversationId);
@@ -117,6 +119,8 @@ export const useConversation = (initialConversationId: string | null) => {
             setMessages(prev => [...prev, messageWithId]);
             await addMessage(messageWithId);
             await updateConversation(currentConversationId, { updatedAt: new Date() });
+            // 使预加载缓存失效，避免返回页面时读取到旧数据
+            conversationCache.delete(currentConversationId);
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
@@ -128,6 +132,8 @@ export const useConversation = (initialConversationId: string | null) => {
             await addMessage(message);
             if (message.conversationId) {
                 await updateConversation(message.conversationId, { updatedAt: new Date() });
+                // 失效对应会话的缓存，确保后续加载从数据库读取最新消息
+                conversationCache.delete(message.conversationId);
             }
         } catch (error) {
             const appError = handleError(error, 'db');
@@ -139,21 +145,27 @@ export const useConversation = (initialConversationId: string | null) => {
         try {
             setMessages(prev => prev.filter(m => m.id !== messageId));
             await deleteMessage(messageId);
+            if (currentConversationId) {
+                conversationCache.delete(currentConversationId);
+            }
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
         }
-    }, [showToast]);
+    }, [currentConversationId, showToast]);
 
     const deleteMultipleMessagesFromConversation = useCallback(async (messageIds: string[]) => {
         try {
             setMessages(prev => prev.filter(m => !messageIds.includes(m.id)));
             await batchDeleteMessages(messageIds);
+            if (currentConversationId) {
+                conversationCache.delete(currentConversationId);
+            }
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
         }
-    }, [showToast]);
+    }, [currentConversationId, showToast]);
 
     return {
         messages,

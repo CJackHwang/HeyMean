@@ -9,6 +9,7 @@ import { useMessageActions } from '../hooks/useMessageActions';
 import { useTranslation } from '../hooks/useTranslation';
 import { useToast } from '../hooks/useToast';
 import { handleError } from '../services/errorHandler';
+import { getLatestConversation } from '../services/db';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import { NotesView } from '../components/NotesView';
@@ -102,7 +103,17 @@ const ChatPage: React.FC = () => {
             isInitialLoad.current = false;
 
             if (!newChat && !stateConversationId) {
-                navigate('/', { replace: true });
+                // Fallback：若没有路由状态，尝试加载最近会话；否则返回首页
+                try {
+                    const latest = await getLatestConversation();
+                    if (latest) {
+                        navigate(location.pathname, { replace: true, state: { conversationId: latest.id } });
+                    } else {
+                        navigate('/', { replace: true });
+                    }
+                } catch {
+                    navigate('/', { replace: true });
+                }
                 return;
             }
 
@@ -194,10 +205,78 @@ const ChatPage: React.FC = () => {
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const isUserAtBottom = useRef(true);
+    const didInitialScroll = useRef(false);
+    const [initialAnchored, setInitialAnchored] = useState(false);
+    const anchoredEventSent = useRef(false);
+    const scrollAnimIdRef = useRef<number | null>(null);
+
+    const markAnchored = useCallback(() => {
+        if (!initialAnchored) setInitialAnchored(true);
+        if (!anchoredEventSent.current) {
+            anchoredEventSent.current = true;
+            try { window.dispatchEvent(new Event('hm:chat-anchored')); } catch {}
+        }
+    }, [initialAnchored]);
+
+    const cancelScrollAnim = useCallback(() => {
+        const id = scrollAnimIdRef.current;
+        if (id != null) {
+            try { cancelAnimationFrame(id); } catch {}
+            scrollAnimIdRef.current = null;
+        }
+    }, []);
+
+    const animateToBottom = useCallback((duration = 360) => {
+        const el = chatContainerRef.current;
+        if (!el) return;
+        cancelScrollAnim();
+        const startTop = el.scrollTop;
+        const startTime = performance.now();
+        const step = (now: number) => {
+            const t = Math.min(1, (now - startTime) / duration);
+            // easeOutCubic 近似：柔和无过冲
+            const eased = 1 - Math.pow(1 - t, 3);
+            const target = el.scrollHeight - el.clientHeight;
+            el.scrollTop = startTop + (target - startTop) * eased;
+            if (t < 1) {
+                scrollAnimIdRef.current = requestAnimationFrame(step);
+            } else {
+                scrollAnimIdRef.current = null;
+            }
+        };
+        scrollAnimIdRef.current = requestAnimationFrame(step);
+    }, [cancelScrollAnim]);
+
+    // 在容器挂载瞬间尽可能把滚动定位到底部，避免首屏显示在顶部
+    const setChatContainerRef = useCallback((el: HTMLDivElement | null) => {
+        chatContainerRef.current = el;
+        if (!el) return;
+        const anyEl = el as HTMLDivElement & { __hm_init?: boolean };
+        if (!anyEl.__hm_init) {
+            anyEl.__hm_init = true;
+            // 直接将滚动条置底，随后再下一帧兜底一次
+            try { el.scrollTop = el.scrollHeight; } catch {}
+            requestAnimationFrame(() => {
+                if (!didInitialScroll.current) {
+                    try { el.scrollTop = el.scrollHeight; } catch {}
+                }
+                // 如果容器已经在底部，则标记初次锚定完成，避免用户看到从顶部滚动的过程
+                const atBottom = el.scrollHeight - el.clientHeight <= el.scrollTop + 2;
+                if (atBottom) markAnchored();
+            });
+        }
+    }, [markAnchored]);
+
+    // 切换会话时重置初次滚动标记，确保进入新会话默认定位到最后一条
+    useEffect(() => {
+        didInitialScroll.current = false;
+    }, [currentConversationId]);
 
     const rowVirtualizer = useVirtualizer({
         count: messages.length,
         getScrollElement: () => chatContainerRef.current,
+        // 初始偏移给一个极大值，确保初次挂载就在底部，不出现从顶部开始的视觉滚动
+        initialOffset: () => Number.MAX_SAFE_INTEGER,
         estimateSize: useCallback((index: number) => {
             const message = messages[index];
             if (!message) return 150;
@@ -241,14 +320,65 @@ const ChatPage: React.FC = () => {
     // Effect to scroll to bottom on new messages
     useLayoutEffect(() => {
         if (messages.length > 0) {
-            if (shouldForceScroll.current || isUserAtBottom.current) {
-                rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' });
-                if (shouldForceScroll.current) {
+            // 第一次进入当前会话：瞬间定位到底部，避免从顶部滚动到尾部
+            if (!didInitialScroll.current) {
+                const container = chatContainerRef.current;
+                // 仅当确实位于顶部附近时才进行兜底跳底，避免重复干预
+                if (!container || container.scrollTop < 10) {
+                didInitialScroll.current = true;
+                shouldForceScroll.current = false;
+                // 采用多次异步重试，确保在虚拟项完成测量与总高度稳定后最终落在底部。
+                let tries = 0;
+                const snap = () => {
+                    const container = chatContainerRef.current;
+                    // 优先使用虚拟化滚动到最后一项
+                    rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' });
+                    // 兜底：直接将 scrollTop 置为最大值
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                        const atBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 2;
+                        if (!atBottom && tries < 8) {
+                            tries++;
+                            setTimeout(snap, 0);
+                        } else {
+                            // 初次锚定完成，可以显示内容
+                            markAnchored();
+                        }
+                    }
+                };
+                requestAnimationFrame(snap);
+                return;
+                } else {
+                    didInitialScroll.current = true;
                     shouldForceScroll.current = false;
+                    markAnchored();
+                    return;
                 }
             }
+            if (shouldForceScroll.current) {
+                // 强制到底：瞬时定位，避免看到从顶到尾的动画
+                cancelScrollAnim();
+                rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' });
+                const el = chatContainerRef.current;
+                if (el) el.scrollTop = el.scrollHeight;
+                shouldForceScroll.current = false;
+            } else if (isUserAtBottom.current) {
+                // 跟随到底：使用自定义缓动动画
+                animateToBottom(360);
+            }
         }
-    }, [messages.length, rowVirtualizer]);
+    }, [messages.length, rowVirtualizer, animateToBottom, cancelScrollAnim]);
+
+    useEffect(() => {
+        return () => {
+            // 组件卸载时取消动画，防止串场
+            const id = scrollAnimIdRef.current;
+            if (id != null) {
+                try { cancelAnimationFrame(id); } catch {}
+                scrollAnimIdRef.current = null;
+            }
+        };
+    }, []);
 
     // Always render content; no blocking loaders
 
@@ -267,7 +397,7 @@ const ChatPage: React.FC = () => {
                     </div>
                 </header>
 
-                <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <main ref={setChatContainerRef} className={`flex-1 overflow-y-auto p-4 custom-scrollbar chat-scroll ${initialAnchored ? '' : 'opacity-0 pointer-events-none'}`}>
                    {messages.length > 0 && (
                         <div
                             style={{

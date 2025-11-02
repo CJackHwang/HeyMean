@@ -38,7 +38,8 @@ const AnimatedRoutes: React.FC = () => {
     }
   };
 
-  // 目标页面数据预加载，动画在预加载完成后再开始
+  // 目标页面数据预加载，动画在预加载完成后再开始。
+  // 对于 /chat：还需等待 ChatPage 完成初次锚定后再开启动画，避免动画期间列表从顶跳底的闪烁。
   useLayoutEffect(() => {
     const prev = prevRef.current;
     if (prev.pathname !== location.pathname) {
@@ -69,7 +70,20 @@ const AnimatedRoutes: React.FC = () => {
           }
         } catch {}
 
-        // 预加载完成后，开始动画
+        // 预加载完成后，对于 /chat 再等待首屏锚定事件
+        const needWaitAnchor = location.pathname === '/chat';
+        if (needWaitAnchor) {
+          await new Promise<void>((resolve) => {
+            let t: ReturnType<typeof setTimeout> | null = null;
+            const done = () => { if (t) clearTimeout(t); window.removeEventListener('hm:chat-anchored', onAnchored); resolve(); };
+            const onAnchored = () => done();
+            window.addEventListener('hm:chat-anchored', onAnchored, { once: true });
+            // 兜底：即使未触发事件，也不阻塞过久
+            t = setTimeout(done, 600);
+          });
+        }
+
+        // 等待就绪后，开始动画
         setOverlayDirection(nextDirection);
         // 每次新一轮动画开始，确保覆盖层使用动画样式
         setOverlayAsBase(false);

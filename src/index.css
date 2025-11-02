@@ -98,6 +98,12 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* Disable browser scroll anchoring to avoid unexpected jumps to top
+   when content above changes or virtualized measurements update */
+.chat-scroll {
+  overflow-anchor: none;
+}
+
 /* Global transitions */
 button, a, input, textarea, label[for] {
   transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
