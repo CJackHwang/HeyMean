@@ -110,7 +110,15 @@ const NoteList: React.FC<{
             {notes.length > 0 ? notes.map(note => (
                 <div 
                     key={note.id} 
-                    className="relative p-3 cursor-pointer rounded-xl hover:bg-heymean-l dark:hover:bg-heymean-d border border-gray-200 dark:border-neutral-700"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onSelect(note);
+                        }
+                    }}
+                    className="relative p-3 cursor-pointer rounded-xl border border-gray-200 dark:border-neutral-700 transition-colors hover:bg-heymean-l dark:hover:bg-heymean-d data-[pressing=true]:bg-black/10 dark:data-[pressing=true]:bg-white/10 active:bg-black/10 dark:active:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                     {...getLongPressHandlers(note)}
                 >
                     {note.isPinned && <span className="material-symbols-outlined text-base! text-neutral-500 dark:text-neutral-400 absolute top-2 right-2" style={{fontSize: '1rem'}}>push_pin</span>}
