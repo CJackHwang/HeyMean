@@ -128,15 +128,22 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
             <li key={index}>
               <button
                 role="menuitem"
-                onClick={async () => {
-                  // 防抖与加载态处理
-                  const btn = document.activeElement as HTMLButtonElement | null;
+                onClick={async (e) => {
+                  // Prevent event propagation and default behavior
+                  e.stopPropagation();
+                  e.preventDefault();
+
+                  const btn = e.currentTarget as HTMLButtonElement;
                   if (btn) btn.disabled = true;
+
+                  // Close menu immediately for better UX
+                  onClose();
+
+                  // Then execute the action in the background
                   try {
                     await action.onClick();
                   } finally {
                     if (btn) btn.disabled = false;
-                    onClose();
                   }
                 }}
                 className={`w-full flex items-center gap-3 text-left px-3 py-2 min-h-[44px] rounded-md text-sm transition-colors ${
