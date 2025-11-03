@@ -31,6 +31,10 @@ export const useLongPress = <T extends HTMLElement, C = unknown>(
       // Only trigger for main button (left-click)
       if (e.button !== 0) return;
       isLongPressTriggered.current = false;
+      
+      // Set data-pressing attribute for visual feedback
+      e.currentTarget.setAttribute('data-pressing', 'true');
+      
       timeout.current = window.setTimeout(() => {
         onLongPress(e, context);
         isLongPressTriggered.current = true;
@@ -38,6 +42,9 @@ export const useLongPress = <T extends HTMLElement, C = unknown>(
     };
 
     const handlePointerUp = (e: React.PointerEvent<T>) => {
+      // Remove data-pressing attribute
+      e.currentTarget.removeAttribute('data-pressing');
+      
       if (timeout.current !== null) {
         clearTimeout(timeout.current);
         timeout.current = null;
@@ -47,7 +54,20 @@ export const useLongPress = <T extends HTMLElement, C = unknown>(
       }
     };
 
-    const handlePointerLeave = () => {
+    const handlePointerLeave = (e: React.PointerEvent<T>) => {
+      // Remove data-pressing attribute when pointer leaves
+      e.currentTarget.removeAttribute('data-pressing');
+      
+      if (timeout.current !== null) {
+        clearTimeout(timeout.current);
+        timeout.current = null;
+      }
+    };
+
+    const handlePointerCancel = (e: React.PointerEvent<T>) => {
+      // Remove data-pressing attribute on pointer cancel
+      e.currentTarget.removeAttribute('data-pressing');
+      
       if (timeout.current !== null) {
         clearTimeout(timeout.current);
         timeout.current = null;
@@ -56,6 +76,11 @@ export const useLongPress = <T extends HTMLElement, C = unknown>(
 
     const handleContextMenu = (e: React.MouseEvent<T>) => {
       e.preventDefault();
+      
+      // Remove data-pressing attribute
+      const target = e.currentTarget as HTMLElement;
+      target.removeAttribute('data-pressing');
+      
       if (timeout.current !== null) {
         clearTimeout(timeout.current);
         timeout.current = null;
@@ -73,6 +98,7 @@ export const useLongPress = <T extends HTMLElement, C = unknown>(
       onPointerDown: handlePointerDown,
       onPointerUp: handlePointerUp,
       onPointerLeave: handlePointerLeave,
+      onPointerCancel: handlePointerCancel,
       onContextMenu: handleContextMenu,
     };
   }, [onLongPress, onClick, delay]);

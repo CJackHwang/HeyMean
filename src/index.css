@@ -183,3 +183,36 @@ input.collapsible-checkbox:checked ~ label .collapsible-icon {
 .route-exit.dir-forward *, .route-enter.dir-back * {
   contain: paint;
 }
+
+/* Touch feedback for list items and interactive elements */
+[data-pressing='true'] {
+  background-color: rgba(0, 0, 0, 0.08);
+  transition: background-color var(--duration-ultra, 150ms) ease-out;
+}
+
+.dark [data-pressing='true'] {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+button[role='menuitem'] {
+  transition: background-color var(--duration-ultra, 150ms) ease-out;
+}
+
+button[role='menuitem']:active {
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+.dark button[role='menuitem']:active {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+button[role='menuitem']:focus-visible,
+div[role='button']:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.38);
+  outline-offset: 2px;
+}
+
+.dark button[role='menuitem']:focus-visible,
+.dark div[role='button']:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.55);
+}
