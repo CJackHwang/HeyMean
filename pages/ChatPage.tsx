@@ -25,6 +25,7 @@ const ChatPage: React.FC = () => {
     // Removed unused isInitialized state
     const { initialPrompt, initialAttachments, newChat, conversationId: stateConversationId } = location.state || {};
     const shouldForceScroll = useRef(false);
+    const [editingMessage, setEditingMessage] = useState<Message | null>(null);
     const { showToast } = useToast();
 
     // --- CUSTOM HOOKS ---
@@ -39,6 +40,7 @@ const ChatPage: React.FC = () => {
         saveUpdatedMessage,
         deleteMessageFromConversation,
         deleteMultipleMessagesFromConversation,
+        updateMessageInConversation,
     } = useConversation(stateConversationId);
 
     const { isThinking, streamedAiMessage, streamResponse, cancel } = useChatStream();
@@ -145,6 +147,16 @@ const ChatPage: React.FC = () => {
         };
         loadAndInitialize();
     }, [stateConversationId, newChat, initialPrompt, initialAttachments, navigate, handleSend, loadConversation, setMessages]);
+
+    useEffect(() => {
+        setEditingMessage(null);
+    }, [currentConversationId]);
+
+    useEffect(() => {
+        if (editingMessage && !messages.some(m => m.id === editingMessage.id)) {
+            setEditingMessage(null);
+        }
+    }, [messages, editingMessage]);
     
     // --- MESSAGE ACTIONS (REGENERATE, RESEND, DELETE) ---
 
@@ -176,6 +188,59 @@ const ChatPage: React.FC = () => {
         await streamResponse(chatHistory, promptMessage, aiMessageToRegenerate.id);
     }, [messages, streamResponse]);
 
+    const handleEditMessage = useCallback((message: Message) => {
+        if (isThinking) {
+            cancel();
+        }
+        const target = messages.find(m => m.id === message.id) ?? message;
+        setEditingMessage(target);
+    }, [messages, isThinking, cancel]);
+
+    const handleConfirmEdit = useCallback(async (updatedText: string, updatedAttachments: Attachment[]) => {
+        if (!editingMessage) return;
+
+        const messageIndex = messages.findIndex(m => m.id === editingMessage.id);
+        if (messageIndex < 0) {
+            setEditingMessage(null);
+            return;
+        }
+
+        try {
+            if (isThinking) {
+                cancel();
+            }
+
+            const chatHistory = messages.slice(0, messageIndex);
+            const persistedMessage = await updateMessageInConversation(editingMessage.id, {
+                text: updatedText,
+                attachments: updatedAttachments,
+            });
+
+            if (!persistedMessage) {
+                return;
+            }
+
+            const subsequentMessages = messages.slice(messageIndex + 1);
+            if (subsequentMessages.length > 0) {
+                const idsToDelete = subsequentMessages.map(msg => msg.id);
+                await deleteMultipleMessagesFromConversation(idsToDelete);
+            }
+
+            setEditingMessage(null);
+            shouldForceScroll.current = true;
+
+            const aiMessageId = (Date.now() + 1).toString();
+            await streamResponse(chatHistory, { ...persistedMessage, isLoading: false }, aiMessageId);
+        } catch (error) {
+            const appError = handleError(error, 'api');
+            showToast(appError.userMessage, 'error');
+        }
+    }, [editingMessage, messages, updateMessageInConversation, deleteMultipleMessagesFromConversation, streamResponse, cancel, isThinking, showToast]);
+
+    const handleCancelEdit = useCallback(() => {
+        setEditingMessage(null);
+    }, []);
+
     const {
         menuState,
         deleteModalState,
@@ -188,6 +253,7 @@ const ChatPage: React.FC = () => {
         resend: handleResend,
         regenerate: handleRegenerate,
         delete: deleteMessageFromConversation,
+        edit: handleEditMessage,
     });
     
     const handleBack = () => {
@@ -460,7 +526,14 @@ const ChatPage: React.FC = () => {
                         <span className="material-symbols-outlined text-xl! text-primary-text-light dark:text-primary-text-dark transform rotate-180">expand_less</span>
                     </label>
                     <footer className="p-3 bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-neutral-700">
-                        <ChatInput onSend={handleSend} isThinking={isThinking} onStop={cancel} />
+                        <ChatInput 
+                            onSend={handleSend} 
+                            isThinking={isThinking} 
+                            onStop={cancel}
+                            editingMessage={editingMessage}
+                            onCancelEdit={handleCancelEdit}
+                            onConfirmEdit={handleConfirmEdit}
+                        />
                     </footer>
                 </div>
                 <div className="xl:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col opacity-0 pointer-events-none z-40" id="notes-content">
