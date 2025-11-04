@@ -33,7 +33,7 @@ const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
     if (!message.attachments || message.attachments.length === 0) return null;
 
     return (
-        <div className="bg-primary text-white dark:bg-heymean-d rounded-2xl w-full p-3 flex flex-col gap-2 transition-colors active:bg-neutral-900 dark:active:bg-white/20">
+        <div className="bg-primary text-white dark:bg-heymean-d rounded-2xl w-full p-3 flex flex-col gap-2 user-bubble">
             <div className="flex flex-col gap-2">
                 {message.attachments.map((att, index) => (
                     <AttachmentItem key={index} attachment={att} />
@@ -55,7 +55,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const showThinkingWrapper = hasThinkingProcess; // Do not show based on loading
 
     return (
-        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden transition-colors active:bg-neutral-200 dark:active:bg-white/20">
+        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden ai-bubble">
             {showThinkingWrapper ? (
                 // This is the complex bubble with a permanent thinking process section
                 <>
@@ -103,6 +103,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
     return (
         <div 
             className="flex w-full items-end gap-2.5 justify-end"
+            data-message-bubble="true"
             {...getLongPressHandlers(message)}
         >
             <div className="flex flex-col gap-1.5 items-end max-w-[80%] md:max-w-md lg:max-w-lg xl:max-w-xl min-w-0">
@@ -112,7 +113,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
                 {(message.attachments && message.attachments.length > 0) ? (
                      <AttachmentDisplay message={message} />
                 ) : (
-                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d wrap-break-word transition-colors active:bg-neutral-900 dark:active:bg-white/20">
+                    <div className="text-sm font-normal leading-normal rounded-2xl px-4 py-3 bg-primary text-white dark:bg-heymean-d wrap-break-word user-bubble">
                         {message.text.split('\n').map((line, index) => (
                           <React.Fragment key={index}>
                             {line}
@@ -130,6 +131,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
   return (
     <div 
         className="flex w-full items-start gap-2.5"
+        data-message-bubble="true"
         {...getLongPressHandlers(message)}
     >
        <div className="flex flex-col gap-1.5 w-full xl:w-3/4 min-w-0 overflow-hidden">

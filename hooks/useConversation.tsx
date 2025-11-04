@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, Conversation, Attachment, MessageSender } from '../types';
+import { Message, Conversation, Attachment, MessageSender, ConversationUpdate } from '../types';
 import { getMessages, addMessage, deleteMessage, batchDeleteMessages, addConversation, updateConversation, initDB } from '../services/db';
 import { useToast } from './useToast';
 import { handleError } from '../services/errorHandler';
@@ -188,6 +188,61 @@ export const useConversation = (initialConversationId: string | null) => {
         }
     }, [currentConversationId, showToast]);
 
+    const updateMessageInConversation = useCallback(async (messageId: string, updates: { text: string; attachments?: Attachment[] }): Promise<Message | null> => {
+        try {
+            const index = messages.findIndex(m => m.id === messageId);
+            if (index === -1) {
+                console.error("Message not found for update:", messageId);
+                return null;
+            }
+            const existingMessage = messages[index];
+
+            const updatedMessage: Message = {
+                ...existingMessage,
+                text: updates.text,
+                attachments: updates.attachments,
+            };
+
+            setMessages(prev => prev.map(m => m.id === messageId ? updatedMessage : m));
+            await addMessage(updatedMessage);
+            
+            if (currentConversationId) {
+                const conversationUpdates: ConversationUpdate = { updatedAt: new Date() };
+                const isFirstUserMessage = index === 0 && existingMessage.sender === MessageSender.USER;
+                if (isFirstUserMessage) {
+                    const trimmed = updates.text.trim();
+                    let nextTitle = '';
+                    if (trimmed.length > 0) {
+                        nextTitle = trimmed.slice(0, 50);
+                    } else {
+                        const titleAttachment = (updates.attachments && updates.attachments.length > 0
+                            ? updates.attachments[0]
+                            : existingMessage.attachments && existingMessage.attachments.length > 0
+                                ? existingMessage.attachments[0]
+                                : undefined);
+                        if (titleAttachment?.name) {
+                            const attachmentTitle = titleAttachment.name.trim();
+                            if (attachmentTitle.length > 0) {
+                                nextTitle = attachmentTitle.slice(0, 50);
+                            }
+                        }
+                    }
+                    if (nextTitle.length === 0) {
+                        nextTitle = 'New Conversation';
+                    }
+                    conversationUpdates.title = nextTitle;
+                }
+                await updateConversation(currentConversationId, conversationUpdates);
+                conversationCache.delete(currentConversationId);
+            }
+            return updatedMessage;
+        } catch (error) {
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
+            return null;
+        }
+    }, [messages, currentConversationId, showToast]);
+
     return {
         messages,
         setMessages,
@@ -199,5 +254,6 @@ export const useConversation = (initialConversationId: string | null) => {
         saveUpdatedMessage,
         deleteMessageFromConversation,
         deleteMultipleMessagesFromConversation,
+        updateMessageInConversation,
     };
 };
