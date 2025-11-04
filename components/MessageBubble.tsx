@@ -134,7 +134,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onLongPress }) =
         data-message-bubble="true"
         {...getLongPressHandlers(message)}
     >
-       <div className="flex flex-col gap-1.5 w-full xl:w-3/4 min-w-0 overflow-hidden">
+       <div className="flex flex-col gap-1.5 w-full min-w-0 max-w-[calc(100vw-48px)] sm:max-w-[calc(100vw-72px)] md:max-w-2xl lg:max-w-3xl xl:max-w-4xl overflow-visible">
             <p className="text-neutral-500 dark:text-neutral-400 text-xs font-medium leading-normal px-2">HeyMean • {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             <AiMessage message={message} />
        </div>
