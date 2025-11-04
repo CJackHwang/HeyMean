@@ -8,6 +8,7 @@ interface MessageActionHandlers {
     resend: (message: Message) => Promise<void>;
     regenerate: (message: Message) => Promise<void>;
     delete: (messageId: string) => Promise<void>;
+    edit: (message: Message) => void;
 }
 
 export const useMessageActions = (handlers: MessageActionHandlers) => {
@@ -41,11 +42,12 @@ export const useMessageActions = (handlers: MessageActionHandlers) => {
         if (message.sender === MessageSender.AI) {
             if (!message.isLoading) actions.push({ label: t('list.regenerate'), icon: 'refresh', onClick: () => handlers.regenerate(message) });
         } else {
+            actions.push({ label: t('list.edit'), icon: 'edit', onClick: () => handlers.edit(message) });
             actions.push({ label: t('list.resend'), icon: 'send', onClick: () => handlers.resend(message) });
         }
         actions.push({ label: t('list.delete'), icon: 'delete', isDestructive: true, onClick: () => requestDeleteMessage(message.id) });
         return actions;
-    }, [menuState.message, handlers.regenerate, handlers.resend, t, requestDeleteMessage]);
+    }, [menuState.message, handlers.regenerate, handlers.resend, handlers.edit, t, requestDeleteMessage]);
 
     return {
         menuState,
