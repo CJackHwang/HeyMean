@@ -236,3 +236,27 @@ div[role='button']:focus-visible {
 .dark div[role='button']:focus-visible {
   outline-color: rgba(255, 255, 255, 0.55);
 }
+
+/* Word breaking utility for long content */
+.wrap-break-word {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* KaTeX display blocks should scroll within bubbles on small screens */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding-bottom: 0.75rem;
+}
+.katex-display::-webkit-scrollbar {
+  height: 6px;
+}
+.katex-display::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+.dark .katex-display::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+}
