@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Message, MessageSender, Attachment } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
+import MarkdownSurface from './MarkdownSurface';
 import { getFileIcon, formatBytes } from '../utils/fileHelpers';
 import { useLongPress } from '../hooks/useLongPress';
 
@@ -55,7 +56,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const showThinkingWrapper = hasThinkingProcess; // Do not show based on loading
 
     return (
-        <div className="w-full rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark overflow-hidden ai-bubble">
+        <MarkdownSurface className="w-full ai-bubble">
             {showThinkingWrapper ? (
                 // This is the complex bubble with a permanent thinking process section
                 <>
@@ -71,18 +72,13 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                              ) : null}
                         </div>
                     </div>
-                    <div className="p-4 min-h-14">
-                        <MarkdownRenderer content={message.text} />
-                        {/* No pulsing or spinner while composing */}
-                    </div>
+                    <MarkdownSurface.Content content={message.text} className="min-h-14" />
                 </>
             ) : (
                 // This is a simple bubble for messages without any thinking process
-                <div className="p-4">
-                    <MarkdownRenderer content={message.text} />
-                </div>
+                <MarkdownSurface.Content content={message.text} />
             )}
-        </div>
+        </MarkdownSurface>
     );
 };
 

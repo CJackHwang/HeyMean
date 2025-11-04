@@ -210,7 +210,6 @@ const ChatPage: React.FC = () => {
                 cancel();
             }
 
-            const chatHistory = messages.slice(0, messageIndex);
             const persistedMessage = await updateMessageInConversation(editingMessage.id, {
                 text: updatedText,
                 attachments: updatedAttachments,
@@ -228,14 +227,11 @@ const ChatPage: React.FC = () => {
 
             setEditingMessage(null);
             shouldForceScroll.current = true;
-
-            const aiMessageId = (Date.now() + 1).toString();
-            await streamResponse(chatHistory, { ...persistedMessage, isLoading: false }, aiMessageId);
         } catch (error) {
             const appError = handleError(error, 'api');
             showToast(appError.userMessage, 'error');
         }
-    }, [editingMessage, messages, updateMessageInConversation, deleteMultipleMessagesFromConversation, streamResponse, cancel, isThinking, showToast]);
+    }, [editingMessage, messages, updateMessageInConversation, deleteMultipleMessagesFromConversation, cancel, isThinking, showToast]);
 
     const handleCancelEdit = useCallback(() => {
         setEditingMessage(null);

@@ -30,12 +30,15 @@
 
 ### 💬 Intelligent Chat Interface
 - **Rich Message Display** - Markdown rendering with syntax highlighting (powered by react-syntax-highlighter)
-- **Mathematical Expressions** - LaTeX/KaTeX support via remark-math and rehype-katex
+- **Responsive Markdown** - Tables with horizontal scrolling, copy table data, optimized image rendering, and mobile-friendly code blocks
+- **Mathematical Expressions** - LaTeX/KaTeX support via remark-math and rehype-katex with on-demand loading
 - **File Attachments** - Attach up to 4 files (≤5 MB each), covering images (PNG/JPG/GIF/WebP), plain-text/Markdown, and PDFs (Gemini only) with intelligent compression
 - **Thinking Process Display** - Visualize AI reasoning steps in real-time with collapsible sections
 - **Streaming Responses** - See AI responses as they're generated with real-time typing effect
-- **Message Actions** - Copy, resend, regenerate, and delete messages with context menu
-- **Long-Press Support** - Quick access to message actions on mobile devices
+- **Message Edit & Resend** - Edit and re-submit user messages with full attachment support, auto-scroll to edited position
+- **Message Actions** - Copy, edit, resend, regenerate, and delete messages with context menu
+- **Mobile-Optimized Composer** - Responsive input with flexible textarea, attachment chips, and clear edit mode indicators
+- **Long-Press Support** - Quick access to message actions on mobile devices with 500ms touch detection
 - **Smooth Animations** - Page transitions with easing and route-aware preloading
 
 ### 📝 Integrated Notes Workspace
@@ -50,7 +53,7 @@
 - **History Tracking** - All conversations automatically saved to IndexedDB
 - **Pin Conversations** - Keep important chats at the top
 - **Rename & Delete** - Organize your learning journey from the history page
-- **Long-Press Actions** - Access copy/resend/regenerate/delete from chat history
+- **Long-Press Actions** - Access copy/edit/resend/regenerate/delete from chat history
 - **Continue Where You Left Off** - Resume your last conversation instantly from the home screen
 - **Preloaded Navigation** - Instant page transitions with data preloading
 
@@ -90,39 +93,47 @@
 - Optimistic updates for better UX
 
 ### Modular Hooks Architecture
-- **useConversation** - Conversation state management and DB operations
+- **useConversation** - Conversation state management, editing/resend orchestration, and DB operations
 - **useChatStream** - AI streaming response handler with cancel support
-- **useAttachments** - File attachment handling with compression
-- **useMessageActions** - Message action handlers (resend, regenerate, delete)
+- **useAttachments** - File attachment handling with compression and validation
+- **useMessageActions** - Context menu actions for copy, edit, resend, regenerate, delete
 - **useLongPress** - Touch-friendly long-press detection
 - **useToast** - Toast notification management
 - **useSettings** - Settings context and persistence
 - **useTranslation** - i18n hooks with caching
 
+### Conversation Lifecycle & Composer
+- **ChatInput** - Unified composer with edit mode, attachment chips, and mobile-friendly layout
+- **MessageBubble** - Collapsible thinking view, responsive Markdown rendering, attachment gallery
+- **ListItemMenu + Modal** - Contextual action menu with confirmation flows and keyboard focus management
+
 ### Responsive Layout
 - **Desktop**: Chat + Notes split view with resizable panels
-- **Mobile**: Drawer-based experience with smooth transitions
+- **Mobile**: Drawer-based experience with bottom composer safe-area padding
 - **Virtualized Rendering**: Efficient message list with @tanstack/react-virtual
 - **Custom Scrollbar**: Styled scrollbars that match the theme
 
 ### Performance Optimizations
-- Route-based code splitting
-- Data preloading during navigation
-- Virtual scrolling for long message lists
-- Image compression for attachments
-- Debounced auto-save for notes
-- Smooth scroll animations with cancelable RAF
+- **Route-based code splitting** - Fine-grained vendor chunking to avoid large bundles
+- **Data preloading during navigation** - Smart caching with `preload.ts` and `preloadPayload.ts`
+- **Virtual scrolling** - Efficient message list rendering with @tanstack/react-virtual
+- **Image compression** - Automatic compression for attachments exceeding size limits
+- **Debounced auto-save** - Notes saved automatically without performance impact
+- **On-demand loading** - KaTeX CSS and rehype-katex loaded only when math expressions detected
+- **Smooth animations** - 580ms eased page transitions with wait-for-anchor logic to prevent layout shifts
+- **Blob URL management** - Automatic cleanup of object URLs to prevent memory leaks
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js** (v18 or higher recommended)
-- **npm** or **yarn**
+- **Node.js** v18 or higher (tested with Node.js 18+)
+- **npm** or **yarn** package manager
 - **API Key** from one of:
   - [Google AI Studio](https://aistudio.google.com/app/apikey) (Gemini)
   - [OpenAI Platform](https://platform.openai.com/api-keys) (OpenAI)
+  - Or any OpenAI-compatible endpoint
 
 ### Installation
 
@@ -154,7 +165,7 @@
    npm run dev
    ```
    
-   The app will be available at `http://localhost:5173`
+   The app will be available at `http://localhost:3000`
 
 5. **Build for production**
    ```bash
@@ -187,10 +198,11 @@
 ### Starting a Conversation
 
 1. **Home page**: Enter your question in the input field
-2. **Attach files** (optional): Click the 📎 icon to upload images or PDFs
+2. **Attach files** (optional): Click the 📎 icon to upload images, PDFs, or text files
 3. **Send**: Press Enter or click Send
-4. **View AI thinking**: Watch the AI's reasoning process in real-time
+4. **View AI thinking**: Watch the AI's reasoning process in real-time (collapsible section)
 5. **Continue learning**: Ask follow-up questions to dive deeper
+6. **Edit messages**: Right-click or long-press any user message to edit and re-submit
 
 ### Managing Conversations
 
@@ -211,10 +223,11 @@
 ### Message Actions
 
 - **Copy**: Copy message content to clipboard
-- **Resend** (User messages): Resend a message and delete subsequent messages
+- **Edit** (User messages): Modify your message text and attachments, then re-submit (subsequent messages are deleted)
+- **Resend** (User messages): Resend a message without editing and delete subsequent messages
 - **Regenerate** (AI messages): Generate a new response for the same prompt
 - **Delete**: Remove a message from the conversation
-- Access via context menu (right-click or long-press)
+- Access via context menu (right-click or long-press on desktop/mobile)
 
 ---
 
@@ -293,10 +306,13 @@ heymean-ai-learning-assistant/
 │   ├── textHelpers.ts         # Text processing utilities
 │   ├── preload.ts             # Resource preloading
 │   └── preloadPayload.ts      # Data preloading for navigation
-├── locales/                # Internationalization
-│   ├── en.json                # English translations
-│   ├── zh-CN.json             # Simplified Chinese
-│   └── ja.json                # Japanese
+├── public/                 # Static assets
+│   └── locales/               # Internationalization
+│       ├── en.json                # English translations
+│       ├── zh-CN.json             # Simplified Chinese
+│       └── ja.json                # Japanese
+├── src/                    # Global styles
+│   └── index.css              # Tailwind directives and custom CSS
 ├── App.tsx                 # App root with providers and router
 ├── index.tsx               # App entry point
 ├── types.ts                # TypeScript type definitions
@@ -324,10 +340,10 @@ Currently supported languages:
 | 日本語 | `ja` | ✅ Fully supported |
 
 To add a new language:
-1. Create a new JSON file in `locales/` (e.g., `locales/es.json`)
+1. Create a new JSON file in `public/locales/` (e.g., `public/locales/es.json`)
 2. Add the language to `types.ts` Language enum
 3. Update the language selector in `SettingsPage.tsx`
-4. Translate all keys from `locales/en.json`
+4. Translate all keys from `public/locales/en.json`
 
 ---
 
@@ -396,7 +412,7 @@ npm run build
 # Install dependencies
 npm install
 
-# Start development server (http://localhost:5173)
+# Start development server (http://localhost:3000)
 npm run dev
 
 # Build for production
@@ -514,12 +530,15 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 
 #### 💬 智能对话界面
 - **富文本消息** - Markdown 渲染，语法高亮（react-syntax-highlighter）
-- **数学表达式** - LaTeX/KaTeX 支持（remark-math 和 rehype-katex）
+- **响应式 Markdown** - 表格横向滚动、复制表格数据、优化图片渲染和移动端友好的代码块
+- **数学表达式** - LaTeX/KaTeX 支持（remark-math 和 rehype-katex），按需加载
 - **文件附件** - 最多支持 4 个文件（≤5 MB），涵盖图片（PNG/JPG/GIF/WebP）、纯文本/Markdown，PDF 仅限 Gemini，并自动压缩图片
 - **思考过程展示** - 可折叠的 AI 推理过程，实时查看
 - **流式响应** - 实时查看 AI 生成的回复，具有动态输出效果
-- **消息操作** - 通过上下文菜单复制、重发、重新生成或删除消息
-- **长按支持** - 移动设备上快速访问消息操作
+- **消息编辑与重发** - 编辑并重新提交用户消息，支持完整附件，自动滚动到编辑位置
+- **消息操作** - 通过上下文菜单复制、编辑、重发、重新生成或删除消息
+- **移动端优化编辑器** - 响应式输入框，灵活的文本区域、附件标签和清晰的编辑模式指示器
+- **长按支持** - 移动设备上通过 500ms 触摸检测快速访问消息操作
 - **流畅动画** - 页面过渡动画和路由感知的数据预加载
 
 #### 📝 集成笔记工作区
@@ -534,7 +553,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - **历史记录** - 所有对话自动保存到 IndexedDB
 - **置顶对话** - 将重要聊天保持在顶部
 - **重命名和删除** - 在历史页集中管理
-- **长按操作** - 快速复制、重发、重新生成或删除消息
+- **长按操作** - 快速复制、编辑、重发、重新生成或删除消息
 - **继续学习** - 在首页一键恢复上次对话
 - **预加载导航** - 数据预加载实现即时页面切换
 
@@ -572,37 +591,45 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - 乐观更新以提升用户体验
 
 #### 模块化 Hooks 架构
-- **useConversation** - 对话状态管理与数据库操作
+- **useConversation** - 对话状态管理、编辑/重发协调与数据库操作
 - **useChatStream** - AI 流式响应处理，支持取消
-- **useAttachments** - 文件附件处理，带压缩
-- **useMessageActions** - 消息操作处理器（重发、重新生成、删除）
+- **useAttachments** - 文件附件处理，带压缩与验证
+- **useMessageActions** - 上下文菜单操作（复制、编辑、重发、重新生成、删除）
 - **useLongPress** - 触摸友好的长按检测
 - **useToast** - Toast 通知管理
 - **useSettings** - 设置上下文与持久化
 - **useTranslation** - i18n hooks 与缓存
 
+#### 对话生命周期与编辑器
+- **ChatInput** - 统一的输入编辑器，支持编辑模式、附件标签和移动端友好布局
+- **MessageBubble** - 可折叠的思考视图、响应式 Markdown 渲染、附件展示
+- **ListItemMenu + Modal** - 上下文操作菜单，带有确认流程和键盘焦点管理
+
 #### 响应式布局
 - **桌面端**：聊天 + 笔记分栏，可调整大小
-- **移动端**：抽屉式体验，流畅过渡
+- **移动端**：抽屉式体验，底部编辑器带有安全区域内边距
 - **虚拟化渲染**：使用 @tanstack/react-virtual 实现高效消息列表
 - **自定义滚动条**：匹配主题的样式化滚动条
 
 #### 性能优化
-- 基于路由的代码分割
-- 导航期间数据预加载
-- 长消息列表的虚拟滚动
-- 附件图片压缩
-- 笔记自动保存防抖
-- 可取消的平滑滚动动画（RAF）
+- **基于路由的代码分割** - 细粒度的 vendor chunking 避免大包
+- **导航期间数据预加载** - 使用 `preload.ts` 和 `preloadPayload.ts` 智能缓存
+- **虚拟滚动** - 使用 @tanstack/react-virtual 高效渲染消息列表
+- **图片压缩** - 附件超过大小限制时自动压缩
+- **防抖自动保存** - 笔记自动保存，不影响性能
+- **按需加载** - 仅在检测到数学表达式时加载 KaTeX CSS 和 rehype-katex
+- **流畅动画** - 580ms 缓动页面过渡，带有等待锚定逻辑防止布局跳变
+- **Blob URL 管理** - 自动清理对象 URL 防止内存泄漏
 
 ### 🚀 快速开始
 
 #### 前置要求
-- **Node.js**（推荐 v18 或更高版本）
-- **npm** 或 **yarn**
+- **Node.js** v18 或以上（已在 Node.js 18+ 环境验证）
+- **npm** 或 **yarn** 包管理器
 - **API 密钥**（以下之一）：
   - [Google AI Studio](https://aistudio.google.com/app/apikey)（Gemini）
   - [OpenAI Platform](https://platform.openai.com/api-keys)（OpenAI）
+  - 任意 OpenAI 兼容端点
 
 #### 安装步骤
 
@@ -634,7 +661,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
    npm run dev
    ```
    
-   应用将在 `http://localhost:5173` 上运行
+   应用将在 `http://localhost:3000` 上运行
 
 5. **构建生产版本**
    ```bash
@@ -665,10 +692,11 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 #### 开始对话
 
 1. **主页**：在输入框中输入您的问题
-2. **附加文件**（可选）：点击 📎 图标上传图片或 PDF
+2. **附加文件**（可选）：点击 📎 图标上传图片、PDF 或文本文件
 3. **发送**：按 Enter 或点击发送
-4. **查看 AI 思考**：实时观察 AI 的推理过程
+4. **查看 AI 思考**：实时观察 AI 的推理过程（可折叠）
 5. **继续学习**：提出后续问题深入探讨
+6. **编辑消息**：右键或长按任意用户消息即可编辑并重新提交
 
 #### 管理对话
 
@@ -689,10 +717,11 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 #### 消息操作
 
 - **复制**：将消息内容复制到剪贴板
-- **重发**（用户消息）：重发消息并删除后续消息
+- **编辑**（用户消息）：修改消息文本和附件后重新提交（会删除后续消息）
+- **重发**（用户消息）：不做修改直接重发消息，并删除后续消息
 - **重新生成**（AI 消息）：为同一提示生成新响应
 - **删除**：从对话中删除消息
-- 通过上下文菜单访问（右键或长按）
+- 通过上下文菜单访问（桌面端右键，移动端长按）
 
 ### 🏗️ 技术栈
 
@@ -726,6 +755,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 
 #### 性能
 - **@tanstack/react-virtual 3.13** - 消息列表的虚拟滚动
+- **按需加载 KaTeX** - 仅在 Markdown 含数学表达式时加载 KaTeX 资源
 
 ### 📁 项目结构
 
@@ -767,10 +797,13 @@ heymean-ai-learning-assistant/
 │   ├── textHelpers.ts         # 文本处理工具
 │   ├── preload.ts             # 资源预加载
 │   └── preloadPayload.ts      # 导航数据预加载
-├── locales/                # 国际化
-│   ├── en.json                # 英语翻译
-│   ├── zh-CN.json             # 简体中文
-│   └── ja.json                # 日语
+├── public/                 # 静态资源
+│   └── locales/               # 国际化
+│       ├── en.json                # 英语翻译
+│       ├── zh-CN.json             # 简体中文
+│       └── ja.json                # 日语
+├── src/                    # 全局样式
+│   └── index.css              # Tailwind 指令和自定义 CSS
 ├── App.tsx                 # 带 providers 和 router 的应用根组件
 ├── index.tsx               # 应用入口点
 ├── types.ts                # TypeScript 类型定义
@@ -796,10 +829,10 @@ heymean-ai-learning-assistant/
 | 日本語 | `ja` | ✅ 完全支持 |
 
 添加新语言：
-1. 在 `locales/` 中创建新的 JSON 文件（例如 `locales/es.json`）
+1. 在 `public/locales/` 中创建新的 JSON 文件（例如 `public/locales/es.json`）
 2. 将语言添加到 `types.ts` 的 Language 枚举
 3. 更新 `SettingsPage.tsx` 中的语言选择器
-4. 翻译 `locales/en.json` 中的所有键
+4. 翻译 `public/locales/en.json` 中的所有键
 
 ### 🔧 配置
 
@@ -860,7 +893,7 @@ npm run build
 # 安装依赖
 npm install
 
-# 启动开发服务器（http://localhost:5173）
+# 启动开发服务器（http://localhost:3000）
 npm run dev
 
 # 构建生产版本
