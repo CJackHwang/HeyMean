@@ -38,7 +38,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
 
   return (
     // The .prose class now only affects standard text elements, not our custom components.
-    <div className="prose prose-sm dark:prose-invert max-w-full wrap-break-word">
+    <div className="prose prose-sm dark:prose-invert max-w-full wrap-break-word overflow-visible">
       <ReactMarkdown
         children={content}
         remarkPlugins={[remarkGfm, remarkMath]}
@@ -50,8 +50,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           table: ({ node, ...props }) => {
             // 包裹表格并提供复制整表按钮
             return (
-              <div className="overflow-x-auto custom-scrollbar my-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                <div className="flex items-center justify-end px-2 py-1 bg-neutral-50 dark:bg-white/5 border-b border-neutral-200 dark:border-neutral-700">
+              <div className="my-4 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700">
+                <div className="flex items-center justify-end px-3 py-2 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-white/5">
                   <button
                     className="px-2 py-1 rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-xs"
                     aria-label="Copy table"
@@ -65,7 +65,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
                     }}
                   >Copy table</button>
                 </div>
-                <table className="min-w-full text-sm" {...props} />
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="min-w-full w-full text-sm" {...props} />
+                </div>
               </div>
             );
           },
@@ -94,6 +96,26 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
             <img className="max-w-full rounded-lg" {...props} />
           ),
           
+          pre: ({ node, children, ...props }) => {
+            const firstChild = (node as any)?.children?.[0];
+            const classNames: string[] = Array.isArray(firstChild?.properties?.className)
+              ? (firstChild.properties.className as string[])
+              : [];
+            const hasLanguage = classNames.some((cls) => typeof cls === 'string' && cls.startsWith('language-'));
+            if (hasLanguage) {
+              return <>{children}</>;
+            }
+            const { className, ...rest } = props as { className?: string } & Record<string, unknown>;
+            const mergedClassName = [className, 'wrap-break-word bg-neutral-50 dark:bg-white/5 p-3'].filter(Boolean).join(' ');
+            return (
+              <div className="my-4 overflow-x-auto custom-scrollbar rounded-lg border border-neutral-200 dark:border-neutral-700">
+                <pre className={mergedClassName} {...rest}>
+                  {children}
+                </pre>
+              </div>
+            );
+          },
+          
           // --- Custom Code Block Component ---
           code(compProps) {
             const { inline, className, children, ...rest } = compProps as { inline?: boolean; className?: string; children?: React.ReactNode } & Record<string, unknown>;
@@ -101,7 +123,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
             return !inline && match ? (
               <CodeBlock language={match[1]} code={String(children)} />
             ) : (
-              <code className={className} {...rest}>
+              <code className={[className, 'wrap-break-word'].filter(Boolean).join(' ')} {...rest}>
                 {children}
               </code>
             );
