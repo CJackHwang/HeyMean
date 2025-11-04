@@ -4,7 +4,7 @@ import { getNotes, addNote, updateNote, deleteNote } from '../services/db';
 import { getPayload, clearPayload } from '../utils/preloadPayload';
 import Modal from './Modal';
 import { useTranslation } from '../hooks/useTranslation';
-import MarkdownRenderer from './MarkdownRenderer';
+import MarkdownSurface from './MarkdownSurface';
 import ListItemMenu from './ListItemMenu';
 import { useToast } from '../hooks/useToast';
 import { useLongPress } from '../hooks/useLongPress';
@@ -41,11 +41,11 @@ const NotePreview: React.FC<{
                     </button>
                 </div>
             </div>
-            <div 
-                className="w-full flex-1 p-4 rounded-2xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-sm focus:outline-hidden overflow-y-auto custom-scrollbar"
-            >
-                <MarkdownRenderer content={note.content} />
-            </div>
+            <MarkdownSurface
+                content={note.content}
+                className="w-full flex-1 text-sm focus:outline-hidden"
+                scrollable
+            />
         </div>
     );
 };
