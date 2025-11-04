@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect, useId } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Attachment, Message } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAttachments } from '../hooks/useAttachments';
@@ -13,19 +14,6 @@ interface ChatInputProps {
   onCancelEdit?: () => void;
   onConfirmEdit?: (text: string, attachments: Attachment[]) => void;
 }
-
-const getInitialTouchPrimary = () => {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return false;
-  }
-
-  const maxTouchPoints = 'maxTouchPoints' in navigator ? navigator.maxTouchPoints : 0;
-  const coarseMatch = typeof window.matchMedia === 'function'
-    ? window.matchMedia('(pointer: coarse)').matches
-    : false;
-
-  return maxTouchPoints > 0 || coarseMatch;
-};
 
 export const AttachmentChip: React.FC<{attachment: Attachment, onRemove?: () => void, readOnly?: boolean}> = ({ attachment, onRemove, readOnly = false }) => {
     return (
@@ -47,34 +35,20 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove?: () => 
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editingMessage, onCancelEdit, onConfirmEdit }) => {
   const [text, setText] = useState('');
-  const [isTouchPrimary, setIsTouchPrimary] = useState(getInitialTouchPrimary);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const inputHelperId = useId();
   const { t } = useTranslation();
-  const {
-      attachments,
+  const { 
+      attachments, 
       setAttachments,
-      fileInputRef,
-      handleFileChange,
-      removeAttachment,
-      triggerFileInput,
-      resetAttachments
+      fileInputRef, 
+      handleFileChange, 
+      removeAttachment, 
+      triggerFileInput, 
+      resetAttachments 
   } = useAttachments();
   const { showToast } = useToast();
 
   const isEditMode = Boolean(editingMessage);
   const lastPrefilledMessageId = useRef<string | null>(null);
-
-  const adjustTextareaSize = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }, []);
-
-  useLayoutEffect(() => {
-    adjustTextareaSize();
-  }, [text, adjustTextareaSize]);
 
   useEffect(() => {
     if (editingMessage) {
@@ -90,29 +64,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
       resetAttachments();
     }
   }, [editingMessage, setAttachments, resetAttachments]);
-
-  useEffect(() => {
-    const updateTouchPreference = () => {
-      setIsTouchPrimary(getInitialTouchPrimary());
-    };
-
-    updateTouchPreference();
-
-    let coarseQuery: MediaQueryList | null = null;
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      coarseQuery = window.matchMedia('(pointer: coarse)');
-      coarseQuery.addEventListener('change', updateTouchPreference);
-    }
-
-    return () => {
-      coarseQuery?.removeEventListener('change', updateTouchPreference);
-    };
-  }, []);
-
-  const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(event.target.value);
-    adjustTextareaSize();
-  };
 
   const handleSendClick = () => {
     const hasText = text.trim().length > 0;
@@ -135,31 +86,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
     }
   };
 
-  const handleTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== 'Enter') {
-      return;
-    }
-
-    const wantsModifierSend = event.metaKey || event.ctrlKey;
-
-    if (wantsModifierSend) {
-      event.preventDefault();
-      handleSendClick();
-      return;
-    }
-
-    if (isTouchPrimary) {
-      return;
-    }
-
-    if (event.shiftKey) {
-      return;
-    }
-
-    event.preventDefault();
-    handleSendClick();
-  };
-
   const handleCancelClick = () => {
     if (onCancelEdit) {
       onCancelEdit();
@@ -169,9 +95,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
   const canSend = !isThinking && (text.trim().length > 0 || attachments.length > 0);
   const isStopState = isThinking;
   const isDisabled = !isStopState && !canSend;
-  const helperText = isTouchPrimary
-    ? t('chat.input_helper_touch')
-    : t('chat.input_helper_desktop');
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -229,22 +152,20 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
               </div>
           )}
           <textarea
-            ref={textareaRef}
             className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent placeholder:text-neutral-500 dark:placeholder:text-neutral-400 px-4 py-3 text-sm font-normal leading-normal h-12"
             placeholder={t('chat.input_placeholder')}
             aria-label={t('chat.input_aria_label')}
-            aria-describedby={inputHelperId}
             value={text}
-            onChange={handleTextareaChange}
-            onKeyDown={handleTextareaKeyDown}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendClick();
+                }
+            }}
             rows={1}
             disabled={isThinking}
-            inputMode="text"
-            enterKeyHint={isTouchPrimary ? 'enter' : 'send'}
           />
-          <p id={inputHelperId} className="px-4 pb-3 text-xs text-neutral-500 dark:text-neutral-400 pt-1">
-            {helperText}
-          </p>
         </div>
         <button
           onClick={isStopState ? onStop : handleSendClick}
