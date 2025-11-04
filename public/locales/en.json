@@ -6,8 +6,6 @@
   "chat.notes_tab": "Notes",
   "chat.input_placeholder": "Type your message...",
   "chat.input_aria_label": "Chat input",
-  "chat.input_helper_desktop": "Press Enter to send. Shift+Enter adds a new line. Ctrl/Cmd+Enter also sends.",
-  "chat.input_helper_touch": "On touch devices, Enter adds a new line. Use the send button or Ctrl/Cmd+Enter to send.",
   "chat.attach_file_button": "Attach files",
   "chat.send_button": "Send message",
   "chat.stop_button": "Stop generation",

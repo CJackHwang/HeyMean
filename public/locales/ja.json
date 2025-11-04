@@ -6,8 +6,6 @@
   "chat.notes_tab": "ノート",
   "chat.input_placeholder": "メッセージを入力...",
   "chat.input_aria_label": "チャット入力",
-  "chat.input_helper_desktop": "Enterキーで送信。Shift+Enterで改行。Ctrl/⌘+Enterでも送信できます。",
-  "chat.input_helper_touch": "タッチデバイスではEnterで改行します。送信ボタンまたはCtrl/⌘+Enterで送信できます。",
   "chat.attach_file_button": "ファイルを添付",
   "chat.send_button": "メッセージを送信",
   "chat.stop_button": "生成を停止",

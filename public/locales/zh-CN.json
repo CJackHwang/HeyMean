@@ -6,8 +6,6 @@
   "chat.notes_tab": "笔记",
   "chat.input_placeholder": "输入你的消息...",
   "chat.input_aria_label": "聊天输入",
-  "chat.input_helper_desktop": "按 Enter 发送，Shift+Enter 换行，或 Ctrl/Cmd+Enter 发送",
-  "chat.input_helper_touch": "在触摸设备上按 Enter 换行，使用发送按钮发送（Ctrl/Cmd+Enter 也可发送）",
   "chat.attach_file_button": "添加附件",
   "chat.send_button": "发送消息",
   "chat.stop_button": "停止生成",
