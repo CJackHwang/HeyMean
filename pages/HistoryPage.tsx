@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import { Conversation } from '../types';
 import { getConversations, deleteConversation, updateConversation } from '../services/db';
@@ -11,6 +11,9 @@ import { useLongPress } from '../hooks/useLongPress';
 import { formatDateTime } from '../utils/dateHelpers';
 import { handleError } from '../services/errorHandler';
 import { useConversation } from '../hooks/useConversation';
+import DebouncedButton from '../components/common/DebouncedButton';
+import { useGuardedNavigate } from '../hooks/useGuardedNavigate';
+import { useInteractionLock } from '../hooks/useInteractionLock';
 
 const ConversationList: React.FC<{ 
     conversations: Conversation[]; 
@@ -55,8 +58,9 @@ const ConversationList: React.FC<{
 }
 
 const HistoryPage: React.FC = () => {
-  const navigate = useNavigate();
+  const navigate = useGuardedNavigate();
   const location = useLocation();
+  const { isLocked, withGuard } = useInteractionLock();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -96,12 +100,15 @@ const HistoryPage: React.FC = () => {
 
   const { preloadConversation } = useConversation(null);
 
-  const handleSelectConversation = (conversation: Conversation) => {
-    // 预加载目标会话消息，然后再导航，配合覆盖式动画避免进入后刷新
-    preloadConversation(conversation.id).finally(() => {
-      navigate('/chat', { state: { conversationId: conversation.id } });
+  const handleSelectConversation = useCallback((conversation: Conversation) => {
+    if (isLocked) return;
+    const guardedNavigate = withGuard(() => {
+      preloadConversation(conversation.id).finally(() => {
+        navigate('/chat', { state: { conversationId: conversation.id } });
+      });
     });
-  };
+    guardedNavigate();
+  }, [isLocked, withGuard, preloadConversation, navigate]);
 
   const handleLongPress = (conversationId: string, position: { x: number, y: number }) => {
     setMenuState({ isOpen: true, conversationId, position });
@@ -208,9 +215,9 @@ const HistoryPage: React.FC = () => {
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
-        <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
+        <DebouncedButton type="button" onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
-        </button>
+        </DebouncedButton>
         <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('history.header_title')}</h2>
         <div className="w-10 shrink-0"></div>
       </header>
