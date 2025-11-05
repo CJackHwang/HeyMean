@@ -7,6 +7,8 @@ import { setPayload } from './utils/preloadPayload';
 import { SettingsProvider } from './hooks/useSettings';
 import { TranslationProvider } from './hooks/useTranslation';
 import { ToastProvider } from './hooks/useToast';
+import { AppReadyProvider, useAppReady } from './src/providers/AppReadyProvider';
+import SplashScreen from './src/components/SplashScreen';
 
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
@@ -164,44 +166,29 @@ const AnimatedRoutes: React.FC = () => {
   );
 };
 
-const App: React.FC = () => {
-  const [isBooting, setIsBooting] = useState(true);
-  const [bootStartedAt] = useState(() => Date.now());
-  useEffect(() => {
-    const minDuration = 1500; // 最短 1.5s
-    let done = false;
-    const maybeFinish = () => {
-      if (done) return;
-      const elapsed = Date.now() - bootStartedAt;
-      const remain = Math.max(0, minDuration - elapsed);
-      setTimeout(() => { setIsBooting(false); }, remain);
-      done = true;
-    };
-    const onReady = () => maybeFinish();
-    window.addEventListener('hm:settings-ready', onReady);
-    // 兜底：如果 6s 还没有 ready 事件，也结束启动页
-    const fallback = setTimeout(maybeFinish, 6000);
-    return () => { window.removeEventListener('hm:settings-ready', onReady); clearTimeout(fallback); };
-  }, [bootStartedAt]);
+const AppContent: React.FC = () => {
+  const { ready, progress, error, retry, preloadedLocales } = useAppReady();
 
+  if (!ready) {
+    return <SplashScreen progress={progress} error={error} onRetry={retry} />;
+  }
+
+  return (
+    <TranslationProvider initialTranslations={preloadedLocales}>
+      <HashRouter>
+        <AnimatedRoutes />
+      </HashRouter>
+    </TranslationProvider>
+  );
+};
+
+const App: React.FC = () => {
   return (
     <ToastProvider>
       <SettingsProvider>
-        <TranslationProvider>
-          <HashRouter>
-            {isBooting ? (
-              <div className="flex items-center justify-center min-h-dvh bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
-                <div className="flex flex-col items-center gap-3 animate-pulse">
-                  <span className="material-symbols-outlined text-2xl!">hourglass_bottom</span>
-                  <p className="text-sm">HeyMean 正在准备...</p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">加载资源中，请稍候</p>
-                </div>
-              </div>
-            ) : (
-              <AnimatedRoutes />
-            )}
-          </HashRouter>
-        </TranslationProvider>
+        <AppReadyProvider>
+          <AppContent />
+        </AppReadyProvider>
       </SettingsProvider>
     </ToastProvider>
   );
