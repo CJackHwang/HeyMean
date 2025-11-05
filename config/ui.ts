@@ -1,0 +1,2 @@
+export const DEFAULT_DEBOUNCE_MS = 250;
+export const DEFAULT_TRANSITION_LOCK_MS = 350;

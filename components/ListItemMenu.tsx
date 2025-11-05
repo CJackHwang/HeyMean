@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useInteractionLock } from '../hooks/useInteractionLock';
+import { DEFAULT_DEBOUNCE_MS } from '../config/ui';
 
-// FIX: Export Action interface and allow onClick to be async
 export interface Action {
   label: string;
   icon: string;
@@ -17,6 +18,7 @@ interface ListItemMenuProps {
 
 const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, position }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const { withGuard, lock, isLocked } = useInteractionLock();
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
     opacity: 0,
@@ -92,11 +94,10 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
     }
   }, [isOpen, position]);
 
-  // ESC 关闭与焦点陷阱
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !isLocked) onClose();
       if (e.key === 'Tab') {
         const focusable = menuRef.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
         if (!focusable || focusable.length === 0) return;
@@ -111,12 +112,23 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLocked]);
 
   if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50"
+      onClick={() => {
+        if (!isLocked) onClose();
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (!isLocked) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         ref={menuRef}
         className="absolute bg-background-light dark:bg-neutral-700 rounded-lg shadow-xl p-1.5 min-w-[150px] border border-gray-200 dark:border-neutral-700 transition-[opacity,transform] duration-moderate ease-out-quad"
@@ -128,29 +140,29 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
             <li key={index}>
               <button
                 role="menuitem"
-                onClick={async (e) => {
-                  // Prevent event propagation and default behavior
+                disabled={isLocked}
+                onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  if (isLocked) return;
 
-                  const btn = e.currentTarget as HTMLButtonElement;
-                  if (btn) btn.disabled = true;
+                  const guarded = withGuard(async () => {
+                    const release = lock(DEFAULT_DEBOUNCE_MS);
+                    try {
+                      onClose();
+                      await action.onClick();
+                    } finally {
+                      release();
+                    }
+                  }, { skipLock: true });
 
-                  // Close menu immediately for better UX
-                  onClose();
-
-                  // Then execute the action in the background
-                  try {
-                    await action.onClick();
-                  } finally {
-                    if (btn) btn.disabled = false;
-                  }
+                  void guarded();
                 }}
                 className={`w-full flex items-center gap-3 text-left px-3 py-2 min-h-[44px] rounded-md text-sm transition-colors ${
                   action.isDestructive
                     ? 'text-red-500 hover:bg-red-500/10 active:bg-red-500/15'
                     : 'text-primary-text-light dark:text-primary-text-dark hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10'
-                }`}
+                } ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <span className="material-symbols-outlined text-base!">{action.icon}</span>
                 <span>{action.label}</span>
