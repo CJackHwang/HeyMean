@@ -7,9 +7,6 @@ import { setPayload } from './utils/preloadPayload';
 import { SettingsProvider } from './hooks/useSettings';
 import { TranslationProvider } from './hooks/useTranslation';
 import { ToastProvider } from './hooks/useToast';
-import { InteractionGuardProvider, useInteractionLock } from './hooks/useInteractionLock';
-import ErrorBoundary from './components/common/ErrorBoundary';
-import { DEFAULT_TRANSITION_LOCK_MS } from './config/ui';
 
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
@@ -22,7 +19,6 @@ const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
   const navType = useNavigationType();
   const { preloadConversation } = useConversation(null);
-  const { lock } = useInteractionLock();
   const prevRef = useRef(location);
   const [isAnimating, setIsAnimating] = useState(false);
   const [overlayDirection, setOverlayDirection] = useState<'forward' | 'back'>('forward');
@@ -92,10 +88,6 @@ const AnimatedRoutes: React.FC = () => {
         setOverlayAsBase(false);
         setIsAnimating(true);
 
-        const transitionDuration = 580;
-        const lockDuration = Math.max(transitionDuration, DEFAULT_TRANSITION_LOCK_MS);
-        const unlock = lock(lockDuration);
-
         let t: ReturnType<typeof setTimeout> | null = null;
         if (nextDirection === 'back') {
           // 后退：先提交底层为新页面，再让上层旧页面滑出
@@ -105,8 +97,7 @@ const AnimatedRoutes: React.FC = () => {
           t = setTimeout(() => {
             setOverlayExitLoc(null);
             setIsAnimating(false);
-            unlock();
-          }, transitionDuration);
+          }, 580);
         } else {
           // 前进：底层保留旧页面，上层新页面滑入覆盖；动画结束后再提交底层为新页面并卸载旧页面
           // 若上一轮 push 尚处于“overlay 已成为基层”的状态，保留现有基层，继续在其上叠加新覆盖层
@@ -118,9 +109,8 @@ const AnimatedRoutes: React.FC = () => {
             setTimeout(() => {
               setCommittedLocation(null);
               setIsAnimating(false);
-              unlock();
             }, 0);
-          }, transitionDuration);
+          }, 580);
         }
         return () => { if (t) clearTimeout(t); };
       };
@@ -195,29 +185,25 @@ const App: React.FC = () => {
   }, [bootStartedAt]);
 
   return (
-    <ErrorBoundary>
-      <ToastProvider>
-        <SettingsProvider>
-          <TranslationProvider>
-            <InteractionGuardProvider>
-              <HashRouter>
-                {isBooting ? (
-                  <div className="flex items-center justify-center min-h-dvh bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
-                    <div className="flex flex-col items-center gap-3 animate-pulse">
-                      <span className="material-symbols-outlined text-2xl!">hourglass_bottom</span>
-                      <p className="text-sm">HeyMean 正在准备...</p>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400">加载资源中，请稍候</p>
-                    </div>
-                  </div>
-                ) : (
-                  <AnimatedRoutes />
-                )}
-              </HashRouter>
-            </InteractionGuardProvider>
-          </TranslationProvider>
-        </SettingsProvider>
-      </ToastProvider>
-    </ErrorBoundary>
+    <ToastProvider>
+      <SettingsProvider>
+        <TranslationProvider>
+          <HashRouter>
+            {isBooting ? (
+              <div className="flex items-center justify-center min-h-dvh bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
+                <div className="flex flex-col items-center gap-3 animate-pulse">
+                  <span className="material-symbols-outlined text-2xl!">hourglass_bottom</span>
+                  <p className="text-sm">HeyMean 正在准备...</p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">加载资源中，请稍候</p>
+                </div>
+              </div>
+            ) : (
+              <AnimatedRoutes />
+            )}
+          </HashRouter>
+        </TranslationProvider>
+      </SettingsProvider>
+    </ToastProvider>
   );
 };
 

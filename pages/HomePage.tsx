@@ -1,16 +1,15 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import { getLatestConversation } from '../services/db';
 import { useAttachments } from '../hooks/useAttachments';
-import { AttachmentChip } from '../components/ChatInput';
+import { AttachmentChip } from '../components/ChatInput'; // Re-using the chip component
 import { useToast } from '../hooks/useToast';
 import { handleError } from '../services/errorHandler';
-import DebouncedButton from '../components/common/DebouncedButton';
-import { useGuardedNavigate } from '../hooks/useGuardedNavigate';
 
 const HomePage: React.FC = () => {
-    const navigate = useGuardedNavigate();
+    const navigate = useNavigate();
     const { t } = useTranslation();
     const { showToast } = useToast();
     const [prompt, setPrompt] = useState('');
@@ -92,29 +91,15 @@ const HomePage: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex px-4 py-3 w-full gap-3">
-                            <DebouncedButton
-                                type="button"
-                                onClick={handleContinue}
-                                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 flex-1 bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-base font-bold leading-normal tracking-[0.015em]"
-                            >
+                            <button onClick={handleContinue} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 flex-1 bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-base font-bold leading-normal tracking-[0.015em]">
                                 <span className="truncate">{t('home.button_continue')}</span>
-                            </DebouncedButton>
-                            <DebouncedButton
-                                type="button"
-                                onClick={() => navigate('/history')}
-                                aria-label={t('history.header_title')}
-                                className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0"
-                            >
+                            </button>
+                             <button onClick={() => navigate('/history')} aria-label={t('history.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
                                 <span className="material-symbols-outlined !text-xl">history</span>
-                            </DebouncedButton>
-                            <DebouncedButton
-                                type="button"
-                                onClick={() => navigate('/settings')}
-                                aria-label={t('settings.header_title')}
-                                className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0"
-                            >
+                            </button>
+                             <button onClick={() => navigate('/settings')} aria-label={t('settings.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
                                 <span className="material-symbols-outlined !text-xl">settings</span>
-                            </DebouncedButton>
+                            </button>
                         </div>
                     </div>
                 </div>
