@@ -1,7 +1,5 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import DebouncedButton from './common/DebouncedButton';
-import { useInteractionLock } from '../hooks/useInteractionLock';
 
 interface ModalProps {
   isOpen: boolean;
@@ -35,7 +33,6 @@ const Modal: React.FC<ModalProps> = ({
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
   const modalPanelRef = useRef<HTMLDivElement>(null);
-  const { isLocked } = useInteractionLock();
 
   // Effect to manage mounting/unmounting and exit animation
   useEffect(() => {
@@ -65,7 +62,7 @@ const Modal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isLocked) {
+      if (event.key === 'Escape') {
         onClose();
       }
     };
@@ -75,7 +72,7 @@ const Modal: React.FC<ModalProps> = ({
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [isOpen, onClose, isLocked]);
+  }, [isOpen, onClose]);
 
   if (!shouldRender) return null;
 
@@ -90,11 +87,7 @@ const Modal: React.FC<ModalProps> = ({
       <div
         className={`fixed inset-0 transition-opacity duration-moderate ease-out-quad ${isAnimatingIn ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0'}`}
         aria-hidden="true"
-        onClick={() => {
-          if (!isLocked) {
-            onClose();
-          }
-        }}
+        onClick={onClose}
       ></div>
 
       {/* Modal Panel */}
@@ -111,28 +104,28 @@ const Modal: React.FC<ModalProps> = ({
         </div>
         <div className="mt-6 flex justify-end gap-3">
            {onDestructive && destructiveText && (
-            <DebouncedButton
+            <button
                 type="button"
                 className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
                 onClick={onDestructive}
             >
                 {destructiveText}
-            </DebouncedButton>
+            </button>
            )}
-          <DebouncedButton
+          <button
             type="button"
             className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
             onClick={onClose}
           >
             {cancelText}
-          </DebouncedButton>
-          <DebouncedButton
+          </button>
+          <button
             type="button"
             className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${confirmButtonClass}`}
             onClick={onConfirm}
           >
             {confirmText}
-          </DebouncedButton>
+          </button>
         </div>
       </div>
     </div>
