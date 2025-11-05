@@ -7,9 +7,11 @@ import { useAttachments } from '../hooks/useAttachments';
 import { AttachmentChip } from '../components/ChatInput'; // Re-using the chip component
 import { useToast } from '../hooks/useToast';
 import { handleError } from '../services/errorHandler';
+import { DebouncedButton } from '../components/common/DebouncedButton';
+import { useGuardedNavigate } from '../hooks/useGuardedNavigate';
 
 const HomePage: React.FC = () => {
-    const navigate = useNavigate();
+    const { navigate: guardedNavigate } = useGuardedNavigate();
     const { t } = useTranslation();
     const { showToast } = useToast();
     const [prompt, setPrompt] = useState('');
@@ -27,7 +29,7 @@ const HomePage: React.FC = () => {
         if (hasText || hasAttachments) {
             // Do not revoke object URLs here.
             // The ChatPage component is responsible for handling their lifecycle.
-            navigate('/chat', { state: { initialPrompt: prompt, initialAttachments: attachments, newChat: true } });
+            guardedNavigate('/chat', { state: { initialPrompt: prompt, initialAttachments: attachments, newChat: true } });
         } else {
             showToast(t('toast.input_required'), 'error');
         }
@@ -37,15 +39,15 @@ const HomePage: React.FC = () => {
         try {
             const latestConversation = await getLatestConversation();
             if (latestConversation) {
-                navigate('/chat', { state: { conversationId: latestConversation.id } });
+                guardedNavigate('/chat', { state: { conversationId: latestConversation.id } });
             } else {
-                navigate('/chat', { state: { newChat: true } });
+                guardedNavigate('/chat', { state: { newChat: true } });
             }
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
             // Fallback to a new chat if there's an error
-            navigate('/chat', { state: { newChat: true } });
+            guardedNavigate('/chat', { state: { newChat: true } });
         }
     };
 
@@ -82,24 +84,24 @@ const HomePage: React.FC = () => {
 
                             <div className="absolute bottom-4 left-4 flex items-center gap-2">
                                 <input type="file" accept="image/*,application/pdf,text/plain,text/markdown,.md,.txt" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple/>
-                                <button onClick={triggerFileInput} className="flex size-8 items-center justify-center rounded-lg bg-white dark:bg-neutral-700 text-primary-text-light dark:text-primary-text-dark">
+                                <DebouncedButton onClick={triggerFileInput} className="flex size-8 items-center justify-center rounded-lg bg-white dark:bg-neutral-700 text-primary-text-light dark:text-primary-text-dark">
                                     <span className="material-symbols-outlined text-base">attach_file</span>
-                                </button>
+                                </DebouncedButton>
                             </div>
-                            <button onClick={handleSend} className="absolute bottom-4 right-4 text-primary-text-light dark:text-primary-text-dark">
+                            <DebouncedButton onClick={handleSend} className="absolute bottom-4 right-4 text-primary-text-light dark:text-primary-text-dark">
                                 <span className="material-symbols-outlined">send</span>
-                            </button>
+                            </DebouncedButton>
                         </div>
                         <div className="flex px-4 py-3 w-full gap-3">
-                            <button onClick={handleContinue} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 flex-1 bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-base font-bold leading-normal tracking-[0.015em]">
+                            <DebouncedButton onClick={handleContinue} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 flex-1 bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark text-base font-bold leading-normal tracking-[0.015em]">
                                 <span className="truncate">{t('home.button_continue')}</span>
-                            </button>
-                             <button onClick={() => navigate('/history')} aria-label={t('history.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+                            </DebouncedButton>
+                             <DebouncedButton onClick={() => guardedNavigate('/history')} aria-label={t('history.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
                                 <span className="material-symbols-outlined !text-xl">history</span>
-                            </button>
-                             <button onClick={() => navigate('/settings')} aria-label={t('settings.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
+                            </DebouncedButton>
+                             <DebouncedButton onClick={() => guardedNavigate('/settings')} aria-label={t('settings.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
                                 <span className="material-symbols-outlined !text-xl">settings</span>
-                            </button>
+                            </DebouncedButton>
                         </div>
                     </div>
                 </div>

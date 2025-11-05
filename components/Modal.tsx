@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
+import { DebouncedButton } from './common/DebouncedButton';
 
 interface ModalProps {
   isOpen: boolean;
@@ -104,28 +105,28 @@ const Modal: React.FC<ModalProps> = ({
         </div>
         <div className="mt-6 flex justify-end gap-3">
            {onDestructive && destructiveText && (
-            <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
-                onClick={onDestructive}
-            >
-                {destructiveText}
-            </button>
-           )}
-          <button
-            type="button"
-            className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
-            onClick={onClose}
-          >
-            {cancelText}
-          </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${confirmButtonClass}`}
-            onClick={onConfirm}
-          >
-            {confirmText}
-          </button>
+            <DebouncedButton
+               type="button"
+               className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
+               onClick={onDestructive}
+           >
+               {destructiveText}
+           </DebouncedButton>
+          )}
+         <DebouncedButton
+           type="button"
+           className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
+           onClick={onClose}
+         >
+           {cancelText}
+         </DebouncedButton>
+         <DebouncedButton
+           type="button"
+           className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${confirmButtonClass}`}
+           onClick={onConfirm}
+         >
+           {confirmText}
+         </DebouncedButton>
         </div>
       </div>
     </div>

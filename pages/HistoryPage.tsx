@@ -11,6 +11,8 @@ import { useLongPress } from '../hooks/useLongPress';
 import { formatDateTime } from '../utils/dateHelpers';
 import { handleError } from '../services/errorHandler';
 import { useConversation } from '../hooks/useConversation';
+import { useGuardedNavigate } from '../hooks/useGuardedNavigate';
+import { DebouncedButton } from '../components/common/DebouncedButton';
 
 const ConversationList: React.FC<{ 
     conversations: Conversation[]; 
@@ -55,7 +57,7 @@ const ConversationList: React.FC<{
 }
 
 const HistoryPage: React.FC = () => {
-  const navigate = useNavigate();
+  const { navigate: guardedNavigate } = useGuardedNavigate();
   const location = useLocation();
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -99,7 +101,7 @@ const HistoryPage: React.FC = () => {
   const handleSelectConversation = (conversation: Conversation) => {
     // 预加载目标会话消息，然后再导航，配合覆盖式动画避免进入后刷新
     preloadConversation(conversation.id).finally(() => {
-      navigate('/chat', { state: { conversationId: conversation.id } });
+      guardedNavigate('/chat', { state: { conversationId: conversation.id } });
     });
   };
 
@@ -198,19 +200,19 @@ const HistoryPage: React.FC = () => {
     // The initial location in the history stack has the key "default".
     // If we are not on the initial location, we can safely go back.
     if (location.key !== 'default') {
-        navigate(-1);
+        guardedNavigate(-1);
     } else {
-        // Otherwise, navigate to the home page as a fallback.
-        navigate('/');
+      // Otherwise, navigate to the home page as a fallback.
+      guardedNavigate('/');
     }
   };
 
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
-        <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
+        <DebouncedButton onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
-        </button>
+        </DebouncedButton>
         <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('history.header_title')}</h2>
         <div className="w-10 shrink-0"></div>
       </header>

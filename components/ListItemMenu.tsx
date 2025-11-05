@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DebouncedButton } from './common/DebouncedButton';
 
 // FIX: Export Action interface and allow onClick to be async
 export interface Action {
@@ -126,7 +127,7 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
         <ul role="menu" aria-label="Context menu">
           {actions.map((action, index) => (
             <li key={index}>
-              <button
+              <DebouncedButton
                 role="menuitem"
                 onClick={async (e) => {
                   // Prevent event propagation and default behavior
@@ -154,7 +155,7 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
               >
                 <span className="material-symbols-outlined text-base!">{action.icon}</span>
                 <span>{action.label}</span>
-              </button>
+              </DebouncedButton>
             </li>
           ))}
         </ul>

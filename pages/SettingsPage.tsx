@@ -8,9 +8,11 @@ import { clearAllData } from '../services/db';
 import Selector from '../components/Selector';
 import { useToast } from '../hooks/useToast';
 import { handleError } from '../services/errorHandler';
+import { DebouncedButton } from '../components/common/DebouncedButton';
+import { useGuardedNavigate } from '../hooks/useGuardedNavigate';
 
 const SettingsPage: React.FC = () => {
-  const navigate = useNavigate();
+  const { navigate: guardedNavigate } = useGuardedNavigate();
   const location = useLocation();
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -82,7 +84,7 @@ const SettingsPage: React.FC = () => {
       resetSettings();
       // Use the router's navigate function to safely return to the home page.
       showToast(t('modal.clear_data_success'), 'success');
-      navigate('/', { replace: true });
+      guardedNavigate('/', { replace: true });
     } catch (error) {
       const appError = handleError(error, 'db');
       showToast(appError.userMessage, 'error');
@@ -100,10 +102,10 @@ const SettingsPage: React.FC = () => {
     // The initial location in the history stack has the key "default".
     // If we are not on the initial location, we can safely go back.
     if (location.key !== 'default') {
-        navigate(-1);
+        guardedNavigate(-1);
     } else {
-        // Otherwise, navigate to the home page as a fallback.
-        navigate('/');
+      // Otherwise, navigate to the home page as a fallback.
+      guardedNavigate('/');
     }
   };
 
@@ -111,9 +113,9 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
-        <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
+        <DebouncedButton onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined !text-2xl text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
-        </button>
+        </DebouncedButton>
         <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('settings.header_title')}</h2>
         <div className="w-10 shrink-0"></div>
       </header>
@@ -131,8 +133,8 @@ const SettingsPage: React.FC = () => {
               </div>
               <div className="shrink-0">
                 <div className="flex items-center bg-background-light dark:bg-background-dark rounded-full p-1 text-sm font-medium">
-                  <button onClick={() => setTheme(Theme.LIGHT)} className={`px-4 py-1.5 rounded-full ${theme === Theme.LIGHT ? 'bg-primary text-white' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_light')}</button>
-                  <button onClick={() => setTheme(Theme.DARK)} className={`px-4 py-1.5 rounded-full ${theme === Theme.DARK ? 'bg-primary dark:bg-white dark:text-black' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_dark')}</button>
+                  <DebouncedButton onClick={() => setTheme(Theme.LIGHT)} className={`px-4 py-1.5 rounded-full ${theme === Theme.LIGHT ? 'bg-primary text-white' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_light')}</DebouncedButton>
+                  <DebouncedButton onClick={() => setTheme(Theme.DARK)} className={`px-4 py-1.5 rounded-full ${theme === Theme.DARK ? 'bg-primary dark:bg-white dark:text-black' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_dark')}</DebouncedButton>
                 </div>
               </div>
             </div>
@@ -240,13 +242,13 @@ const SettingsPage: React.FC = () => {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                       <label htmlFor="openai-model" className="block text-sm font-medium">{t('settings.api_model_name')}</label>
-                      <button 
+                      <DebouncedButton 
                         onClick={handleFetchModels}
                         disabled={isFetchingModels || !openAiApiKey}
                         className="text-sm font-medium text-primary dark:text-white hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isFetchingModels ? t('settings.api_fetching_models') : t('settings.api_fetch_models')}
-                      </button>
+                      </DebouncedButton>
                   </div>
                   {availableModels.length > 0 ? (
                       <Selector
@@ -281,7 +283,7 @@ const SettingsPage: React.FC = () => {
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_about')}</h2>
            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
-            <div onClick={() => navigate('/about')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
+            <DebouncedButton onClick={() => guardedNavigate('/about')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 w-full text-left">
                 <div className="flex items-center gap-4 min-w-0">
                     <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
                         <span className="material-symbols-outlined">info</span>
@@ -289,7 +291,7 @@ const SettingsPage: React.FC = () => {
                     <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.about_app')}</p>
                 </div>
                  <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">chevron_right</span>
-            </div>
+            </DebouncedButton>
           </div>
         </section>
         
@@ -297,9 +299,9 @@ const SettingsPage: React.FC = () => {
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_account')}</h2>
            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
-            <div onClick={() => setIsClearDataModalOpen(true)} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-red-500/10">
+            <DebouncedButton onClick={() => setIsClearDataModalOpen(true)} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-red-500/10 w-full text-left">
                 <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate">{t('settings.account_clear_data')}</p>
-            </div>
+            </DebouncedButton>
           </div>
         </section>
       </div>

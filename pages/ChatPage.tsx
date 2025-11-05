@@ -15,10 +15,12 @@ import ChatInput from '../components/ChatInput';
 import { NotesView } from '../components/NotesView';
 import ListItemMenu from '../components/ListItemMenu';
 import Modal from '../components/Modal';
+import { useGuardedNavigate } from '../hooks/useGuardedNavigate';
+import { DebouncedButton } from '../components/common/DebouncedButton';
 // Remove full-screen loading UI for seamless entry
 
 const ChatPage: React.FC = () => {
-    const navigate = useNavigate();
+    const { navigate: guardedNavigate } = useGuardedNavigate();
     const location = useLocation();
     const { t } = useTranslation();
     const isInitialLoad = useRef(true);
@@ -78,7 +80,7 @@ const ChatPage: React.FC = () => {
             convId = newConvId;
             userMessage = newUserMessage;
             chatHistory = []; // History is empty for a new conversation
-            navigate(location.pathname, { replace: true, state: { conversationId: newConvId } });
+            guardedNavigate(location.pathname, { replace: true, state: { conversationId: newConvId } });
         } else { // Existing conversation
             userMessage = {
                 id: Date.now().toString(),
@@ -94,7 +96,7 @@ const ChatPage: React.FC = () => {
 
         const aiMessageId = (Date.now() + 1).toString();
         await streamResponse(chatHistory, userMessage, aiMessageId);
-    }, [currentConversationId, messages, navigate, location.pathname, startNewConversation, addMessageToConversation, streamResponse]);
+    }, [currentConversationId, messages, guardedNavigate, location.pathname, startNewConversation, addMessageToConversation, streamResponse]);
 
 
     // --- INITIALIZATION EFFECT ---
@@ -109,12 +111,12 @@ const ChatPage: React.FC = () => {
                 try {
                     const latest = await getLatestConversation();
                     if (latest) {
-                        navigate(location.pathname, { replace: true, state: { conversationId: latest.id } });
+                        guardedNavigate(location.pathname, { replace: true, state: { conversationId: latest.id } });
                     } else {
-                        navigate('/', { replace: true });
+                        guardedNavigate('/', { replace: true });
                     }
                 } catch {
-                    navigate('/', { replace: true });
+                    guardedNavigate('/', { replace: true });
                 }
                 return;
             }
@@ -256,10 +258,10 @@ const ChatPage: React.FC = () => {
         // The initial location in the history stack has the key "default".
         // If we are not on the initial location, we can safely go back.
         if (location.key !== 'default') {
-            navigate(-1);
+            guardedNavigate(-1);
         } else {
             // Otherwise, navigate to the home page as a fallback.
-            navigate('/');
+            guardedNavigate('/');
         }
     };
 
@@ -448,14 +450,14 @@ const ChatPage: React.FC = () => {
         <div className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
             <div className="flex-1 flex flex-col relative">
                 <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 shrink-0">
-                    <button onClick={handleBack} aria-label={t('modal.cancel')} className="flex size-10 shrink-0 items-center justify-center">
+                    <DebouncedButton onClick={handleBack} aria-label={t('modal.cancel')} className="flex size-10 shrink-0 items-center justify-center">
                         <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
-                    </button>
+                    </DebouncedButton>
                     <h2 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{t('chat.header_title')}</h2>
                     <div className="flex w-10 items-center justify-end">
-                        <button onClick={() => navigate('/settings')} aria-label={t('settings.header_title')} className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 bg-transparent text-primary-text-light dark:text-primary-text-dark gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
+                        <DebouncedButton onClick={() => guardedNavigate('/settings')} aria-label={t('settings.header_title')} className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 bg-transparent text-primary-text-light dark:text-primary-text-dark gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
                             <span className="material-symbols-outlined text-2xl!">more_vert</span>
-                        </button>
+                        </DebouncedButton>
                     </div>
                 </header>
 
