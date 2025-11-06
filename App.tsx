@@ -170,18 +170,82 @@ const App: React.FC = () => {
   useEffect(() => {
     const minDuration = 1500; // 最短 1.5s
     let done = false;
+    let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+    let isUnmounted = false;
+
+    const typedWindow = window as Window & {
+      __hmSettingsReady?: boolean;
+      __hmTranslationsReady?: boolean;
+      __hmIconsReady?: boolean;
+    };
+    const unsubscribes: Array<() => void> = [];
+
     const maybeFinish = () => {
-      if (done) return;
+      if (done || isUnmounted) return;
       const elapsed = Date.now() - bootStartedAt;
       const remain = Math.max(0, minDuration - elapsed);
-      setTimeout(() => { setIsBooting(false); }, remain);
+      releaseTimer = setTimeout(() => {
+        if (!isUnmounted) {
+          setIsBooting(false);
+        }
+      }, remain);
       done = true;
     };
-    const onReady = () => maybeFinish();
-    window.addEventListener('hm:settings-ready', onReady);
-    // 兜底：如果 6s 还没有 ready 事件，也结束启动页
-    const fallback = setTimeout(maybeFinish, 6000);
-    return () => { window.removeEventListener('hm:settings-ready', onReady); clearTimeout(fallback); };
+
+    type ReadyFlag = '__hmSettingsReady' | '__hmTranslationsReady';
+    const waitForEventOrFlag = (eventName: string, flagKey: ReadyFlag) => new Promise<void>((resolve) => {
+      if (typedWindow[flagKey]) {
+        resolve();
+        return;
+      }
+      const handler = () => {
+        typedWindow[flagKey] = true;
+        resolve();
+      };
+      window.addEventListener(eventName, handler, { once: true });
+      unsubscribes.push(() => window.removeEventListener(eventName, handler));
+    });
+
+    const waitForMaterialSymbols = async () => {
+      if (typedWindow.__hmIconsReady) {
+        return;
+      }
+      if (!('fonts' in document) || typeof document.fonts?.load !== 'function') {
+        typedWindow.__hmIconsReady = true;
+        return;
+      }
+      try {
+        await document.fonts.load('1em "Material Symbols Outlined"');
+      } catch {}
+      typedWindow.__hmIconsReady = true;
+    };
+
+    const run = async () => {
+      try {
+        await Promise.all([
+          waitForEventOrFlag('hm:settings-ready', '__hmSettingsReady'),
+          waitForEventOrFlag('hm:translations-ready', '__hmTranslationsReady'),
+          waitForMaterialSymbols(),
+        ]);
+      } finally {
+        maybeFinish();
+      }
+    };
+
+    run();
+
+    const fallback = setTimeout(() => {
+      maybeFinish();
+    }, 6000);
+
+    return () => {
+      isUnmounted = true;
+      unsubscribes.forEach((unsub) => unsub());
+      if (releaseTimer) {
+        clearTimeout(releaseTimer);
+      }
+      clearTimeout(fallback);
+    };
   }, [bootStartedAt]);
 
   return (
