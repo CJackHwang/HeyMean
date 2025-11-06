@@ -243,7 +243,7 @@
 - **TailwindCSS 4.0** - Utility-first CSS framework
 - **@tailwindcss/vite 4.0** - Vite plugin for Tailwind
 - **@tailwindcss/postcss 4.0** - PostCSS plugin
-- **Material Symbols** - Icon font (via CDN)
+- **Material Symbols** - Icon font (self-hosted via `@fontsource/material-symbols-outlined`)
 
 ### Markdown & Code Rendering
 - **react-markdown 10.1** - Markdown rendering

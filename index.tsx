@@ -1,6 +1,7 @@
 
 import React from 'react';
 import './src/index.css';
+import '@fontsource/material-symbols-outlined/400.css';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
