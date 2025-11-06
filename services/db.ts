@@ -221,6 +221,55 @@ export const getMessages = async (conversationId: string): Promise<Message[]> =>
     });
 };
 
+// Get messages with pagination - loads latest messages first
+export const getMessagesPaginated = async (
+    conversationId: string,
+    limit: number,
+    beforeMessageId?: string
+): Promise<{ messages: Message[]; hasMore: boolean }> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(MESSAGES_STORE, 'readonly');
+        const store = transaction.objectStore(MESSAGES_STORE);
+        const index = store.index('conversationId');
+        const request = index.getAll(conversationId);
+        request.onsuccess = () => {
+            const raw = (request.result || []) as MessageStored[];
+            const sorted = raw.sort((a, b) => a.id.localeCompare(b.id));
+            
+            let startIndex = 0;
+            if (beforeMessageId) {
+                const beforeIndex = sorted.findIndex(m => m.id === beforeMessageId);
+                if (beforeIndex > 0) {
+                    startIndex = Math.max(0, beforeIndex - limit);
+                } else {
+                    // beforeMessageId not found, return empty
+                    resolve({ messages: [], hasMore: false });
+                    return;
+                }
+            } else {
+                // Load from the end (latest messages)
+                startIndex = Math.max(0, sorted.length - limit);
+            }
+            
+            const endIndex = beforeMessageId 
+                ? sorted.findIndex(m => m.id === beforeMessageId)
+                : sorted.length;
+            
+            const slice = sorted.slice(startIndex, endIndex);
+            const withDate: Message[] = slice.map((m) => {
+                const parsed = Date.parse(m.timestamp);
+                const ts = isNaN(parsed) ? new Date(Number(m.id)) : new Date(parsed);
+                return { ...m, timestamp: ts } as Message;
+            });
+            
+            const hasMore = startIndex > 0;
+            resolve({ messages: withDate, hasMore });
+        };
+        request.onerror = () => reject(handleError(request.error, 'db'));
+    });
+};
+
 export const addMessage = async (message: Message): Promise<void> => {
     const db = await initDB();
     return new Promise((resolve, reject) => {

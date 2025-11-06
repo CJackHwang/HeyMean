@@ -1,16 +1,25 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, Conversation, Attachment, MessageSender, ConversationUpdate } from '../types';
-import { getMessages, addMessage, deleteMessage, batchDeleteMessages, addConversation, updateConversation, initDB } from '../services/db';
+import { getMessagesPaginated, addMessage, deleteMessage, batchDeleteMessages, addConversation, updateConversation, initDB } from '../services/db';
 import { useToast } from './useToast';
 import { handleError } from '../services/errorHandler';
 import { getCache } from '../utils/preload';
 
+type ConversationCacheEntry = {
+    messages: Message[];
+    hasMore: boolean;
+};
+
 // 全局预加载缓存，通过 util 管理，跨组件与过渡层复用
-const conversationCache = getCache<string, Message[]>('conversation');
+const conversationCache = getCache<string, ConversationCacheEntry>('conversation');
+
+const MESSAGE_PAGE_SIZE = 50;
 
 export const useConversation = (initialConversationId: string | null) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversationId);
+    const [hasMoreMessages, setHasMoreMessages] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const urlsToRevoke = useRef(new Set<string>());
     const { showToast } = useToast();
 
@@ -29,7 +38,13 @@ export const useConversation = (initialConversationId: string | null) => {
 
     const preloadConversation = useCallback(async (id: string) => {
         try {
-            await conversationCache.preload(id, getMessages);
+            await conversationCache.preload(id, async (conversationId: string) => {
+                const result = await getMessagesPaginated(conversationId, MESSAGE_PAGE_SIZE);
+                return {
+                    messages: result.messages,
+                    hasMore: result.hasMore,
+                };
+            });
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
@@ -38,13 +53,19 @@ export const useConversation = (initialConversationId: string | null) => {
 
     const loadConversation = useCallback(async (id: string) => {
         try {
-            const history = await conversationCache.load(id, getMessages);
+            const cached = await conversationCache.load(id, async (conversationId: string) => {
+                const result = await getMessagesPaginated(conversationId, MESSAGE_PAGE_SIZE);
+                return {
+                    messages: result.messages,
+                    hasMore: result.hasMore,
+                };
+            });
 
             const urlsToRelease: string[] = [];
             urlsToRevoke.current.forEach((url) => urlsToRelease.push(url));
             urlsToRevoke.current.clear();
 
-            const historyWithPreviews = await Promise.all(history.map(async (message) => {
+            const historyWithPreviews = await Promise.all(cached.messages.map(async (message) => {
                 if (!message.attachments || message.attachments.length === 0) {
                     return message;
                 }
@@ -70,6 +91,7 @@ export const useConversation = (initialConversationId: string | null) => {
             }));
             setMessages(historyWithPreviews);
             setCurrentConversationId(id);
+            setHasMoreMessages(cached.hasMore);
 
             urlsToRelease.forEach((url) => {
                 try {
@@ -81,6 +103,60 @@ export const useConversation = (initialConversationId: string | null) => {
             showToast(appError.userMessage, 'error');
         }
     }, [showToast]);
+
+    const loadMoreMessages = useCallback(async () => {
+        if (!currentConversationId || isLoadingMore || !hasMoreMessages) return;
+        
+        try {
+            setIsLoadingMore(true);
+            const oldestMessage = messages[0];
+            if (!oldestMessage) return;
+            
+            const result = await getMessagesPaginated(
+                currentConversationId,
+                MESSAGE_PAGE_SIZE,
+                oldestMessage.id
+            );
+            
+            if (result.messages.length === 0) {
+                setHasMoreMessages(false);
+                return;
+            }
+            
+            const historyWithPreviews = await Promise.all(result.messages.map(async (message) => {
+                if (!message.attachments || message.attachments.length === 0) {
+                    return message;
+                }
+
+                const attachmentsWithPreview = await Promise.all(message.attachments.map(async (attachment) => {
+                    if (!attachment.data || !attachment.type.startsWith('image/')) {
+                        return attachment;
+                    }
+
+                    try {
+                        const response = await fetch(attachment.data);
+                        const blob = await response.blob();
+                        const previewUrl = URL.createObjectURL(blob);
+                        urlsToRevoke.current.add(previewUrl);
+                        return { ...attachment, preview: previewUrl };
+                    } catch (error) {
+                        console.error("Error creating blob from data URL:", error);
+                        return attachment;
+                    }
+                }));
+
+                return { ...message, attachments: attachmentsWithPreview };
+            }));
+            
+            setMessages(prev => [...historyWithPreviews, ...prev]);
+            setHasMoreMessages(result.hasMore);
+        } catch (error) {
+            const appError = handleError(error, 'db');
+            showToast(appError.userMessage, 'error');
+        } finally {
+            setIsLoadingMore(false);
+        }
+    }, [currentConversationId, messages, isLoadingMore, hasMoreMessages, showToast]);
 
     const startNewConversation = useCallback(async (text: string, attachments: Attachment[]): Promise<{ userMessage: Message, conversationId: string }> => {
         try {
@@ -247,8 +323,11 @@ export const useConversation = (initialConversationId: string | null) => {
         messages,
         setMessages,
         currentConversationId,
+        hasMoreMessages,
+        isLoadingMore,
         preloadConversation,
         loadConversation,
+        loadMoreMessages,
         startNewConversation,
         addMessageToConversation,
         saveUpdatedMessage,
