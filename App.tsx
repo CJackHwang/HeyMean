@@ -42,6 +42,10 @@ const AnimatedRoutes: React.FC = () => {
   useLayoutEffect(() => {
     const prev = prevRef.current;
     if (prev.pathname !== location.pathname) {
+      let isCancelled = false;
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      let cancelAnchorWait: (() => void) | null = null;
+
       const run = async () => {
         const newIdx = getHistoryIdx();
         const oldIdx = prevIdxRef.current;
@@ -69,18 +73,28 @@ const AnimatedRoutes: React.FC = () => {
           }
         } catch {}
 
+        if (isCancelled) return;
+
         // 预加载完成后，对于 /chat 再等待首屏锚定事件
         const needWaitAnchor = location.pathname === '/chat';
         if (needWaitAnchor) {
           await new Promise<void>((resolve) => {
             let t: ReturnType<typeof setTimeout> | null = null;
-            const done = () => { if (t) clearTimeout(t); window.removeEventListener('hm:chat-anchored', onAnchored); resolve(); };
+            const done = () => {
+              if (t) clearTimeout(t);
+              window.removeEventListener('hm:chat-anchored', onAnchored);
+              cancelAnchorWait = null;
+              resolve();
+            };
             const onAnchored = () => done();
             window.addEventListener('hm:chat-anchored', onAnchored, { once: true });
             // 兜底：即使未触发事件，也不阻塞过久
             t = setTimeout(done, 600);
+            cancelAnchorWait = done;
           });
         }
+
+        if (isCancelled) return;
 
         // 等待就绪后，开始动画
         setOverlayDirection(nextDirection);
@@ -88,34 +102,45 @@ const AnimatedRoutes: React.FC = () => {
         setOverlayAsBase(false);
         setIsAnimating(true);
 
-        let t: ReturnType<typeof setTimeout> | null = null;
         if (nextDirection === 'back') {
           // 后退：先提交底层为新页面，再让上层旧页面滑出
           setCommittedLocation(location);
           setOverlayExitLoc(prev);
           setOverlayEnterLoc(null);
-          t = setTimeout(() => {
+          const t = setTimeout(() => {
+            if (isCancelled) return;
             setOverlayExitLoc(null);
             setIsAnimating(false);
           }, 580);
+          timers.push(t);
         } else {
           // 前进：底层保留旧页面，上层新页面滑入覆盖；动画结束后再提交底层为新页面并卸载旧页面
           // 若上一轮 push 尚处于“overlay 已成为基层”的状态，保留现有基层，继续在其上叠加新覆盖层
           setOverlayEnterLoc(location);
           setOverlayExitLoc(null);
-          t = setTimeout(() => {
+          const t1 = setTimeout(() => {
+            if (isCancelled) return;
             // 两阶段：先将覆盖层转为基层，下一帧卸载旧基层，避免重新挂载导致页面数据刷新
             setOverlayAsBase(true);
-            setTimeout(() => {
+            const t2 = setTimeout(() => {
+              if (isCancelled) return;
+              // 只有当覆盖层已经成为基层后，才卸载旧基层
               setCommittedLocation(null);
               setIsAnimating(false);
             }, 0);
+            timers.push(t2);
           }, 580);
+          timers.push(t1);
         }
-        return () => { if (t) clearTimeout(t); };
       };
-      const cleanup = run();
-      return () => { /* 如果 run 返回清理函数，忽略即可 */ };
+
+      run();
+
+      return () => {
+        isCancelled = true;
+        timers.forEach((t) => clearTimeout(t));
+        if (cancelAnchorWait) cancelAnchorWait();
+      };
     }
   }, [location]);
 
@@ -123,6 +148,13 @@ const AnimatedRoutes: React.FC = () => {
     prevRef.current = location;
     prevIdxRef.current = getHistoryIdx();
   }, [location]);
+
+  // 防白屏兜底：确保当没有覆盖层时，始终有一个已提交的页面显示
+  useEffect(() => {
+    if (!overlayEnterLoc && !overlayExitLoc && !committedLocation) {
+      setCommittedLocation(location);
+    }
+  }, [overlayEnterLoc, overlayExitLoc, committedLocation, location]);
 
   const renderRoutes = (loc: typeof location) => (
     <Routes location={loc}>
@@ -170,18 +202,82 @@ const App: React.FC = () => {
   useEffect(() => {
     const minDuration = 1500; // 最短 1.5s
     let done = false;
+    let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+    let isUnmounted = false;
+
+    const typedWindow = window as Window & {
+      __hmSettingsReady?: boolean;
+      __hmTranslationsReady?: boolean;
+      __hmIconsReady?: boolean;
+    };
+    const unsubscribes: Array<() => void> = [];
+
     const maybeFinish = () => {
-      if (done) return;
+      if (done || isUnmounted) return;
       const elapsed = Date.now() - bootStartedAt;
       const remain = Math.max(0, minDuration - elapsed);
-      setTimeout(() => { setIsBooting(false); }, remain);
+      releaseTimer = setTimeout(() => {
+        if (!isUnmounted) {
+          setIsBooting(false);
+        }
+      }, remain);
       done = true;
     };
-    const onReady = () => maybeFinish();
-    window.addEventListener('hm:settings-ready', onReady);
-    // 兜底：如果 6s 还没有 ready 事件，也结束启动页
-    const fallback = setTimeout(maybeFinish, 6000);
-    return () => { window.removeEventListener('hm:settings-ready', onReady); clearTimeout(fallback); };
+
+    type ReadyFlag = '__hmSettingsReady' | '__hmTranslationsReady';
+    const waitForEventOrFlag = (eventName: string, flagKey: ReadyFlag) => new Promise<void>((resolve) => {
+      if (typedWindow[flagKey]) {
+        resolve();
+        return;
+      }
+      const handler = () => {
+        typedWindow[flagKey] = true;
+        resolve();
+      };
+      window.addEventListener(eventName, handler, { once: true });
+      unsubscribes.push(() => window.removeEventListener(eventName, handler));
+    });
+
+    const waitForMaterialSymbols = async () => {
+      if (typedWindow.__hmIconsReady) {
+        return;
+      }
+      if (!('fonts' in document) || typeof document.fonts?.load !== 'function') {
+        typedWindow.__hmIconsReady = true;
+        return;
+      }
+      try {
+        await document.fonts.load('1em "Material Symbols Outlined"');
+      } catch {}
+      typedWindow.__hmIconsReady = true;
+    };
+
+    const run = async () => {
+      try {
+        await Promise.all([
+          waitForEventOrFlag('hm:settings-ready', '__hmSettingsReady'),
+          waitForEventOrFlag('hm:translations-ready', '__hmTranslationsReady'),
+          waitForMaterialSymbols(),
+        ]);
+      } finally {
+        maybeFinish();
+      }
+    };
+
+    run();
+
+    const fallback = setTimeout(() => {
+      maybeFinish();
+    }, 6000);
+
+    return () => {
+      isUnmounted = true;
+      unsubscribes.forEach((unsub) => unsub());
+      if (releaseTimer) {
+        clearTimeout(releaseTimer);
+      }
+      clearTimeout(fallback);
+    };
   }, [bootStartedAt]);
 
   return (

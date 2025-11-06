@@ -95,6 +95,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } finally {
         setIsLoading(false);
         try {
+          window.__hmSettingsReady = true;
           window.dispatchEvent(new Event('hm:settings-ready'));
         } catch {}
       }
