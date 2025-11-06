@@ -14,26 +14,10 @@ const TranslationContext = createContext<TranslationContextType | undefined>(und
 // A simple cache for translations
 const translationsCache: Record<string, Record<string, string>> = {};
 
-// Exposed function to prime the cache from AppReadyProvider
-export const primeTranslationsCache = (lang: string, data: Record<string, string>): void => {
-  translationsCache[lang] = data;
-};
-
-interface TranslationProviderProps {
-  children: React.ReactNode;
-  initialTranslations?: Record<string, Record<string, string>>;
-}
-
-export const TranslationProvider: React.FC<TranslationProviderProps> = ({ children, initialTranslations }) => {
+export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { language } = useSettings();
   const { showToast } = useToast();
-  const [translations, setTranslations] = useState<Record<string, string>>(() => {
-    if (initialTranslations?.[language]) {
-      translationsCache[language] = initialTranslations[language];
-      return initialTranslations[language];
-    }
-    return translationsCache[language] || {};
-  });
+  const [translations, setTranslations] = useState<Record<string, string>>({});
 
   const fetchTranslations = useCallback(async (lang: string) => {
     if (translationsCache[lang]) {
@@ -51,6 +35,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({ childr
       setTranslations(data);
     } catch (error) {
       console.error(error);
+      // Fallback to English if the selected language file fails to load
       if (lang !== 'en') {
         showToast(t('toast.translation_fallback', lang), 'error');
         await fetchTranslations('en');
@@ -59,26 +44,8 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({ childr
   }, [showToast]);
 
   useEffect(() => {
-    if (initialTranslations) {
-      Object.entries(initialTranslations).forEach(([lang, data]) => {
-        translationsCache[lang] = data;
-      });
-    }
-  }, [initialTranslations]);
-
-  useEffect(() => {
-    if (initialTranslations?.[language]) {
-      const data = initialTranslations[language];
-      translationsCache[language] = data;
-      setTranslations(data);
-      return;
-    }
-    if (translationsCache[language]) {
-      setTranslations(translationsCache[language]);
-      return;
-    }
     fetchTranslations(language);
-  }, [language, fetchTranslations, initialTranslations]);
+  }, [language, fetchTranslations]);
 
   const t = (key: string, ...args: (string | number)[]): string => {
     let translation = translations[key] || key;
