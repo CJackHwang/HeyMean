@@ -42,10 +42,11 @@ const NotePreview: React.FC<{
                 </div>
             </div>
             <MarkdownSurface
-                content={note.content}
                 className="w-full flex-1 text-sm focus:outline-hidden"
                 scrollable
-            />
+            >
+                <MarkdownSurface.Content content={note.content} />
+            </MarkdownSurface>
         </div>
     );
 };
@@ -139,6 +140,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const [viewState, setViewState] = useState<ViewState>('list');
     const { t } = useTranslation();
     const { showToast } = useToast();
+    const saveStatusResetTimeoutRef = useRef<number | null>(null);
     
     // State for modals & context menu
     const [menuState, setMenuState] = useState<{ isOpen: boolean; position: { x: number; y: number }; noteId: number | null }>({ isOpen: false, position: { x: 0, y: 0 }, noteId: null });
@@ -183,6 +185,15 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         window.addEventListener('hm:settings-ready', handler);
         return () => window.removeEventListener('hm:settings-ready', handler);
     }, [loadNotes]);
+
+    useEffect(() => {
+        return () => {
+            if (saveStatusResetTimeoutRef.current !== null) {
+                clearTimeout(saveStatusResetTimeoutRef.current);
+                saveStatusResetTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     const transitionTo = (action: { type: 'back' | 'select' | 'new', note?: Note } | null) => {
         if (action?.type === 'select' && action.note) {
@@ -253,13 +264,14 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 setSaveStatus('saved');
                 setIsNewNote(false); // A new note is no longer "new" after the first save.
 
-                // After a short delay to show "Saved!", transition back to list for better discoverability.
-                setTimeout(() => {
-                    setViewState('list');
-                    setActiveNote(null);
-                    setOriginalNoteContent(null);
-                    setSaveStatus('idle'); // Reset for the next time the editor opens.
-                }, 800);
+                // Reset save status after a short delay to show "Saved!" feedback
+                if (saveStatusResetTimeoutRef.current !== null) {
+                    clearTimeout(saveStatusResetTimeoutRef.current);
+                }
+                saveStatusResetTimeoutRef.current = window.setTimeout(() => {
+                    setSaveStatus('idle');
+                    saveStatusResetTimeoutRef.current = null;
+                }, 1500);
             } catch (error) {
                 const appError = handleError(error, 'db');
                 showToast(appError.userMessage, 'error');
