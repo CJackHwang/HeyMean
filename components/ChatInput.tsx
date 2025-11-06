@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Attachment, Message } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAttachments } from '../hooks/useAttachments';
@@ -33,8 +33,12 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove?: () => 
     )
 }
 
+const MIN_TEXTAREA_HEIGHT = 48;
+const MAX_TEXTAREA_HEIGHT = 240;
+
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editingMessage, onCancelEdit, onConfirmEdit }) => {
   const [text, setText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useTranslation();
   const { 
       attachments, 
@@ -49,6 +53,22 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
 
   const isEditMode = Boolean(editingMessage);
   const lastPrefilledMessageId = useRef<string | null>(null);
+
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    const nextHeight = Math.min(
+      Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT),
+      MAX_TEXTAREA_HEIGHT
+    );
+    textarea.style.height = `${nextHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [text, adjustTextareaHeight]);
 
   useEffect(() => {
     if (editingMessage) {
@@ -95,6 +115,18 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
   const canSend = !isThinking && (text.trim().length > 0 || attachments.length > 0);
   const isStopState = isThinking;
   const isDisabled = !isStopState && !canSend;
+  const actionButtonClassName = [
+    'flex items-center justify-center size-12 rounded-full shrink-0 transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70',
+    isStopState
+      ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-200 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-800 focus-visible:outline-red-400 shadow-inner'
+      : '',
+    !isStopState && canSend
+      ? 'bg-primary text-white hover:bg-primary/90 focus-visible:outline-primary shadow-sm'
+      : '',
+    !isStopState && !canSend
+      ? 'bg-neutral-400 dark:bg-neutral-600 text-neutral-100'
+      : ''
+  ].filter(Boolean).join(' ');
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -138,10 +170,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
           }
           handleFileChange(e);
         }} className="hidden" multiple />
-        <button onClick={triggerFileInput} aria-label={t('chat.attach_file_button')} className="flex items-center justify-center size-10 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isEditMode}>
+        <button onClick={triggerFileInput} aria-label={t('chat.attach_file_button')} className="flex items-center justify-center size-12 rounded-full bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors duration-200 shadow-sm" disabled={isEditMode}>
           <span className="material-symbols-outlined text-xl!">attach_file</span>
         </button>
-        <div className="flex flex-col min-w-0 flex-1 relative bg-heymean-l dark:bg-heymean-d rounded-xl">
+        <div className="flex flex-col min-w-0 flex-1 relative bg-heymean-l dark:bg-heymean-d rounded-xl min-h-12">
           {attachments.length > 0 && (
               <div className="p-2 border-b border-gray-300 dark:border-white/20">
                   <div className="flex flex-wrap gap-2">
@@ -152,17 +184,13 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
               </div>
           )}
           <textarea
-            className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent placeholder:text-neutral-500 dark:placeholder:text-neutral-400 px-4 py-3 text-sm font-normal leading-normal h-12"
+            ref={textareaRef}
+            className="form-input flex w-full min-w-0 flex-1 resize-none overflow-y-auto text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent placeholder:text-neutral-500 dark:placeholder:text-neutral-400 px-4 py-3 text-sm font-normal leading-normal"
+            style={{ minHeight: `${MIN_TEXTAREA_HEIGHT}px`, maxHeight: `${MAX_TEXTAREA_HEIGHT}px` }}
             placeholder={t('chat.input_placeholder')}
             aria-label={t('chat.input_aria_label')}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendClick();
-                }
-            }}
             rows={1}
             disabled={isThinking}
           />
@@ -171,15 +199,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
           onClick={isStopState ? onStop : handleSendClick}
           disabled={isDisabled}
           aria-label={isStopState ? t('chat.stop_button') : (isEditMode ? t('chat.confirm_edit') : t('chat.send_button'))}
-          className={[
-            'flex items-center justify-center size-12 rounded-xl text-white shrink-0',
-            isStopState ? 'bg-red-600 hover:bg-red-700' : '',
-            canSend && !isStopState ? 'bg-primary hover:bg-primary/90' : '',
-            isDisabled ? 'bg-neutral-400 dark:bg-neutral-600 cursor-not-allowed' : ''
-          ].join(' ').trim()}
+          className={actionButtonClassName}
         >
           {isStopState ? (
-            <span className="material-symbols-outlined text-2xl!">stop</span>
+            <span className="material-symbols-outlined text-2xl!">stop_circle</span>
           ) : isEditMode ? (
             <span className="material-symbols-outlined text-2xl!">check</span>
           ) : (
