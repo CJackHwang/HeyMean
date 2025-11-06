@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Attachment, Message } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAttachments } from '../hooks/useAttachments';
@@ -66,7 +66,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
     textarea.style.height = `${nextHeight}px`;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     adjustTextareaHeight();
   }, [text, adjustTextareaHeight]);
 
@@ -186,7 +186,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
           <textarea
             ref={textareaRef}
             className="form-input flex w-full min-w-0 flex-1 resize-none overflow-y-auto text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent placeholder:text-neutral-500 dark:placeholder:text-neutral-400 px-4 py-3 text-sm font-normal leading-normal"
-            style={{ minHeight: `${MIN_TEXTAREA_HEIGHT}px`, maxHeight: `${MAX_TEXTAREA_HEIGHT}px` }}
             placeholder={t('chat.input_placeholder')}
             aria-label={t('chat.input_aria_label')}
             value={text}
