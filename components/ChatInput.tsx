@@ -33,8 +33,9 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove?: () => 
     )
 }
 
-const MIN_TEXTAREA_HEIGHT = 48;
-const MAX_TEXTAREA_HEIGHT = 240;
+const SEND_BUTTON_SIZE = 48;
+const MIN_TEXTAREA_HEIGHT = SEND_BUTTON_SIZE;
+const MAX_TEXTAREA_HEIGHT = SEND_BUTTON_SIZE * 2;
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editingMessage, onCancelEdit, onConfirmEdit }) => {
   const [text, setText] = useState('');
