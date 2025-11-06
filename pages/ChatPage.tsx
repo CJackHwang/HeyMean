@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Message, MessageSender, Attachment } from '../types';
@@ -34,7 +34,10 @@ const ChatPage: React.FC = () => {
         messages,
         setMessages,
         currentConversationId,
+        hasMoreMessages,
+        isLoadingMore,
         loadConversation,
+        loadMoreMessages,
         startNewConversation,
         addMessageToConversation,
         saveUpdatedMessage,
@@ -47,18 +50,25 @@ const ChatPage: React.FC = () => {
 
     // --- EFFECT TO SYNC STREAMED MESSAGE ---
 
+    const streamedMessageIdRef = useRef<string | null>(null);
+    
     useEffect(() => {
-    if (streamedAiMessage) {
+        if (streamedAiMessage) {
             const exists = messages.some(m => m.id === streamedAiMessage.id);
             if (exists) {
                 setMessages(prev => prev.map(m => m.id === streamedAiMessage.id ? streamedAiMessage : m));
             } else {
                 setMessages(prev => [...prev, streamedAiMessage]);
             }
+            
+            // Track the streamed message ID for scroll-follow
+            streamedMessageIdRef.current = streamedAiMessage.id;
+            
             if (!streamedAiMessage.isLoading && !streamedAiMessage.isThinkingComplete) { // Stream has just begun
                 // Placeholder added
             } else if (!streamedAiMessage.isLoading) { // Stream finished
                 saveUpdatedMessage(streamedAiMessage);
+                streamedMessageIdRef.current = null;
             }
         }
     }, [streamedAiMessage, setMessages, saveUpdatedMessage]);
@@ -266,6 +276,8 @@ const ChatPage: React.FC = () => {
     // --- UI & RENDER ---
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const topSentinelRef = useRef<HTMLDivElement | null>(null);
+    const pendingTopLoad = useRef<{ prevScrollHeight: number; prevScrollTop: number; prevFirstId: string | null } | null>(null);
     const isUserAtBottom = useRef(true);
     const didInitialScroll = useRef(false);
     const [initialAnchored, setInitialAnchored] = useState(false);
@@ -379,14 +391,87 @@ const ChatPage: React.FC = () => {
         };
     }, []);
 
-    // Effect to scroll to bottom on new messages
+    // Intersection observer for loading more messages when scrolling up
+    useEffect(() => {
+        const sentinel = topSentinelRef.current;
+        if (!sentinel || !hasMoreMessages || isLoadingMore) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (entry && entry.isIntersecting && hasMoreMessages && !isLoadingMore) {
+                    const container = chatContainerRef.current;
+                    if (container && messages.length > 0) {
+                        // Save scroll position before loading
+                        pendingTopLoad.current = {
+                            prevScrollHeight: container.scrollHeight,
+                            prevScrollTop: container.scrollTop,
+                            prevFirstId: messages[0]?.id || null,
+                        };
+                        loadMoreMessages();
+                    }
+                }
+            },
+            { threshold: 0.1, root: chatContainerRef.current }
+        );
+
+        observer.observe(sentinel);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [hasMoreMessages, isLoadingMore, messages, loadMoreMessages]);
+
+    // Restore scroll position after loading more messages
+    useEffect(() => {
+        if (pendingTopLoad.current) {
+            const container = chatContainerRef.current;
+            if (container) {
+                const { prevScrollHeight, prevScrollTop } = pendingTopLoad.current;
+                const newScrollHeight = container.scrollHeight;
+                const heightDiff = newScrollHeight - prevScrollHeight;
+                
+                // Restore scroll position to maintain visual continuity
+                if (heightDiff > 0) {
+                    container.scrollTop = prevScrollTop + heightDiff;
+                }
+                
+                pendingTopLoad.current = null;
+            }
+        }
+    }, [messages]);
+
+    // Effect to manage scroll positioning for new messages and history loads
     useLayoutEffect(() => {
-        if (messages.length > 0) {
-            // 第一次进入当前会话：瞬间定位到底部，避免从顶部滚动到尾部
-            if (!didInitialScroll.current) {
-                const container = chatContainerRef.current;
-                // 仅当确实位于顶部附近时才进行兜底跳底，避免重复干预
-                if (!container || container.scrollTop < 10) {
+        if (messages.length === 0) return;
+
+        // Maintain scroll offset when older history is prepended
+        if (pendingTopLoad.current) {
+            const snapshot = pendingTopLoad.current;
+            const container = chatContainerRef.current;
+            if (container) {
+                requestAnimationFrame(() => {
+                    const newHeight = container.scrollHeight;
+                    const heightDiff = newHeight - snapshot.prevScrollHeight;
+                    if (heightDiff !== 0) {
+                        container.scrollTop = snapshot.prevScrollTop + heightDiff;
+                    } else {
+                        container.scrollTop = snapshot.prevScrollTop;
+                    }
+                });
+            }
+            pendingTopLoad.current = null;
+            return;
+        }
+
+        const lastMessage = messages[messages.length - 1];
+        const isStreamingLastMessage = streamedMessageIdRef.current !== null && lastMessage?.id === streamedMessageIdRef.current;
+
+        // 第一次进入当前会话：瞬间定位到底部，避免从顶部滚动到尾部
+        if (!didInitialScroll.current) {
+            const container = chatContainerRef.current;
+            // 仅当确实位于顶部附近时才进行兜底跳底，避免重复干预
+            if (!container || container.scrollTop < 10) {
                 didInitialScroll.current = true;
                 shouldForceScroll.current = false;
                 // 采用多次异步重试，确保在虚拟项完成测量与总高度稳定后最终落在底部。
@@ -410,26 +495,29 @@ const ChatPage: React.FC = () => {
                 };
                 requestAnimationFrame(snap);
                 return;
-                } else {
-                    didInitialScroll.current = true;
-                    shouldForceScroll.current = false;
-                    markAnchored();
-                    return;
-                }
-            }
-            if (shouldForceScroll.current) {
-                // 强制到底：瞬时定位，避免看到从顶到尾的动画
-                cancelScrollAnim();
-                rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' });
-                const el = chatContainerRef.current;
-                if (el) el.scrollTop = el.scrollHeight;
+            } else {
+                didInitialScroll.current = true;
                 shouldForceScroll.current = false;
-            } else if (isUserAtBottom.current) {
-                // 跟随到底：使用自定义缓动动画
-                animateToBottom(360);
+                markAnchored();
+                return;
             }
         }
-    }, [messages.length, rowVirtualizer, animateToBottom, cancelScrollAnim]);
+
+        if (shouldForceScroll.current) {
+            // 强制到底：瞬时定位，避免看到从顶到尾的动画
+            cancelScrollAnim();
+            rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' });
+            const el = chatContainerRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            shouldForceScroll.current = false;
+            return;
+        }
+
+        if (isUserAtBottom.current || isStreamingLastMessage) {
+            // 跟随到底：使用自定义缓动动画
+            animateToBottom(isStreamingLastMessage ? 180 : 360);
+        }
+    }, [messages, rowVirtualizer, animateToBottom, cancelScrollAnim]);
 
     useEffect(() => {
         return () => {
@@ -468,6 +556,19 @@ const ChatPage: React.FC = () => {
                                 position: 'relative',
                             }}
                         >
+                            {hasMoreMessages && (
+                                <div
+                                    ref={topSentinelRef}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '20px',
+                                        pointerEvents: 'none',
+                                    }}
+                                />
+                            )}
                             {rowVirtualizer.getVirtualItems().map((virtualItem) => {
                                 const message = messages[virtualItem.index];
                                 if (!message) return null;
