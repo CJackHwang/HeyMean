@@ -6,3 +6,13 @@ declare module '*.css' {
 
 // Allow side-effect only CSS imports via dynamic import()
 declare module 'katex/dist/katex.min.css';
+
+declare global {
+  interface Window {
+    __hmSettingsReady?: boolean;
+    __hmTranslationsReady?: boolean;
+    __hmIconsReady?: boolean;
+  }
+}
+
+export {};

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSettings } from './useSettings';
 import { Language } from '../types';
 import { useToast } from './useToast';
@@ -18,10 +18,29 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { language } = useSettings();
   const { showToast } = useToast();
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  const hasSignaledRef = useRef(false);
+
+  const signalLocaleReady = useCallback(() => {
+    if (typeof window === 'undefined') {
+      hasSignaledRef.current = true;
+      return;
+    }
+    if (!window.__hmTranslationsReady) {
+      window.__hmTranslationsReady = true;
+    }
+    if (hasSignaledRef.current) {
+      return;
+    }
+    hasSignaledRef.current = true;
+    try {
+      window.dispatchEvent(new Event('hm:translations-ready'));
+    } catch {}
+  }, []);
 
   const fetchTranslations = useCallback(async (lang: string) => {
     if (translationsCache[lang]) {
       setTranslations(translationsCache[lang]);
+      signalLocaleReady();
       return;
     }
     try {
@@ -33,15 +52,18 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const data = await response.json();
       translationsCache[lang] = data;
       setTranslations(data);
+      signalLocaleReady();
     } catch (error) {
       console.error(error);
       // Fallback to English if the selected language file fails to load
       if (lang !== 'en') {
         showToast(t('toast.translation_fallback', lang), 'error');
         await fetchTranslations('en');
+        return;
       }
+      signalLocaleReady();
     }
-  }, [showToast]);
+  }, [showToast, signalLocaleReady]);
 
   useEffect(() => {
     fetchTranslations(language);
