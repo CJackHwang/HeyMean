@@ -128,20 +128,20 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
           </button>
         </div>
       </div>
-      <div className="relative overflow-x-auto custom-scrollbar">
+      <div className="relative overflow-x-auto custom-scrollbar" style={{ background: bgColor }}>
         {Highlighter ? (
           <div className="wrap-break-word">
             <Highlighter
               language={language}
               style={styleTheme || undefined}
               PreTag="div"
-              customStyle={{ margin: 0, borderRadius: 0, background: bgColor, color: fgColor, padding: '0.75rem' }}
+              customStyle={{ margin: 0, borderRadius: 0, background: 'transparent', color: fgColor, padding: '0.75rem' }}
             >
               {code.replace(/\n$/, '')}
             </Highlighter>
           </div>
         ) : (
-          <pre className="p-3 wrap-break-word" style={{ background: bgColor, color: fgColor, margin: 0 }}>{code}</pre>
+          <pre className="p-3 wrap-break-word" style={{ color: fgColor, margin: 0, background: 'transparent' }}>{code}</pre>
         )}
         {showCollapse && (
           <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style={{
