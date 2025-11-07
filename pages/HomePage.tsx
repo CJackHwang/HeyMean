@@ -67,7 +67,7 @@ const HomePage: React.FC = () => {
                                     </div>
                                 )}
                                 <textarea
-                                    className="w-full resize-none overflow-hidden text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent min-h-36 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 p-4 pb-14 text-base font-normal leading-normal"
+                                    className="w-full resize-none overflow-y-auto text-primary-text-light dark:text-primary-text-dark focus:outline-0 border-none bg-transparent min-h-36 max-h-60 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 pt-4 pb-16 pl-12 pr-14 text-base font-normal leading-normal"
                                     placeholder={t('home.input_placeholder')}
                                     value={prompt}
                                     onChange={(e) => setPrompt(e.target.value)}
