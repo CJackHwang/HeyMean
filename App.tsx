@@ -22,11 +22,9 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <TranslationProvider>
-      <HashRouter>
-        <AnimatedRoutes />
-      </HashRouter>
-    </TranslationProvider>
+    <HashRouter>
+      <AnimatedRoutes />
+    </HashRouter>
   );
 };
 
@@ -34,9 +32,11 @@ const App: React.FC = () => {
   return (
     <ToastProvider>
       <SettingsProvider>
-        <AppReadyProvider>
-          <AppContent />
-        </AppReadyProvider>
+        <TranslationProvider>
+          <AppReadyProvider>
+            <AppContent />
+          </AppReadyProvider>
+        </TranslationProvider>
       </SettingsProvider>
     </ToastProvider>
   );

@@ -76,10 +76,11 @@
 ## 🧱 Architecture Highlights
 
 ### Provider Composition
+- **ToastProvider** - Centralized notification system
 - **SettingsProvider** - Global settings management with persistence
 - **TranslationProvider** - i18n support with locale caching
-- **ToastProvider** - Centralized notification system
-- All providers wrap the HashRouter for global state access
+- **AppReadyProvider** - Bootstrap orchestration (waits for settings, translations, and icon fonts)
+- All providers wrap the HashRouter for optimal state access and initialization order
 
 ### Strategy Pattern
 - **apiService.ts** - Unified API interface that dispatches between Gemini and OpenAI implementations
@@ -114,8 +115,9 @@
 - **Custom Scrollbar**: Styled scrollbars that match the theme
 
 ### Performance Optimizations
+- **Bootstrap gate** - AppReadyProvider preloads critical assets (i18n + icon fonts) before app becomes interactive
 - **Route-based code splitting** - Fine-grained vendor chunking to avoid large bundles
-- **Data preloading during navigation** - Smart caching with `preload.ts` and `preloadPayload.ts`
+- **Data preloading during navigation** - Smart caching with navigation/ layer (AnimatedRoutes + preloader)
 - **Virtual scrolling** - Efficient message list rendering with @tanstack/react-virtual
 - **Image compression** - Automatic compression for attachments exceeding size limits
 - **Debounced auto-save** - Notes saved automatically without performance impact
@@ -274,6 +276,7 @@ heymean-ai-learning-assistant/
 │   ├── ChatInput.tsx          # Message input with file upload
 │   ├── MessageBubble.tsx      # Chat message display with actions
 │   ├── MarkdownRenderer.tsx   # Rich markdown rendering
+│   ├── MarkdownSurface.tsx    # Shared Markdown wrapper with consistent styling
 │   ├── CodeBlock.tsx          # Code block with syntax highlighting
 │   ├── NotesView.tsx          # Notes workspace with full CRUD
 │   ├── Modal.tsx              # Confirmation dialogs
@@ -285,6 +288,12 @@ heymean-ai-learning-assistant/
 │   ├── HistoryPage.tsx        # Conversation history management
 │   ├── SettingsPage.tsx       # Settings panel with API config
 │   └── AboutPage.tsx          # About page with app info and links
+├── navigation/             # Navigation layer
+│   ├── AnimatedRoutes.tsx     # Route transitions with preload
+│   ├── routes.tsx             # Centralized route definitions
+│   └── routePreloader.ts      # Data preloading per route
+├── providers/              # App providers
+│   └── AppReadyProvider.tsx   # Bootstrap orchestration
 ├── services/               # Business logic
 │   ├── db.ts                  # IndexedDB operations (conversations, messages, notes, settings)
 │   ├── apiService.ts          # Unified API service (Gemini + OpenAI compatible)
@@ -304,6 +313,7 @@ heymean-ai-learning-assistant/
 │   ├── dateHelpers.ts         # Date formatting utilities
 │   ├── fileHelpers.ts         # File compression and validation
 │   ├── textHelpers.ts         # Text processing utilities
+│   ├── attachmentHelpers.ts   # Unified attachment preview utilities
 │   ├── preload.ts             # Resource preloading
 │   └── preloadPayload.ts      # Data preloading for navigation
 ├── public/                 # Static assets
@@ -574,10 +584,11 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 ### 🧱 架构亮点
 
 #### Provider 组合
+- **ToastProvider** - 集中式通知系统
 - **SettingsProvider** - 全局设置管理与持久化
 - **TranslationProvider** - i18n 支持与语言缓存
-- **ToastProvider** - 集中式通知系统
-- 所有 Provider 包裹 HashRouter 以提供全局状态访问
+- **AppReadyProvider** - 启动编排，等待设置、翻译与图标字体就绪
+- 所有 Provider 包裹 HashRouter，确保最佳的状态访问和初始化顺序
 
 #### 策略模式
 - **apiService.ts** - 统一 API 接口，按配置在 Gemini 与 OpenAI 之间动态切换
@@ -612,8 +623,9 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - **自定义滚动条**：匹配主题的样式化滚动条
 
 #### 性能优化
+- **启动闸门** - AppReadyProvider 在应用可交互前预加载关键资源（i18n + 图标字体）
 - **基于路由的代码分割** - 细粒度的 vendor chunking 避免大包
-- **导航期间数据预加载** - 使用 `preload.ts` 和 `preloadPayload.ts` 智能缓存
+- **导航期间数据预加载** - 使用 navigation/ 层（AnimatedRoutes + 预加载器）智能缓存
 - **虚拟滚动** - 使用 @tanstack/react-virtual 高效渲染消息列表
 - **图片压缩** - 附件超过大小限制时自动压缩
 - **防抖自动保存** - 笔记自动保存，不影响性能
@@ -765,6 +777,7 @@ heymean-ai-learning-assistant/
 │   ├── ChatInput.tsx          # 带文件上传的消息输入
 │   ├── MessageBubble.tsx      # 带操作的聊天消息显示
 │   ├── MarkdownRenderer.tsx   # 富 Markdown 渲染
+│   ├── MarkdownSurface.tsx    # 统一样式的 Markdown 容器
 │   ├── CodeBlock.tsx          # 带语法高亮的代码块
 │   ├── NotesView.tsx          # 完整 CRUD 的笔记工作区
 │   ├── Modal.tsx              # 确认对话框
@@ -776,6 +789,12 @@ heymean-ai-learning-assistant/
 │   ├── HistoryPage.tsx        # 对话历史管理
 │   ├── SettingsPage.tsx       # 带 API 配置的设置面板
 │   └── AboutPage.tsx          # 关于页面，包含应用信息和链接
+├── navigation/             # 导航层
+│   ├── AnimatedRoutes.tsx     # 带预加载的路由过渡
+│   ├── routes.tsx             # 集中式路由定义
+│   └── routePreloader.ts      # 路由数据预加载
+├── providers/              # 应用级 provider
+│   └── AppReadyProvider.tsx   # 启动编排
 ├── services/               # 业务逻辑
 │   ├── db.ts                  # IndexedDB 操作（对话、消息、笔记、设置）
 │   ├── apiService.ts          # 统一 API 服务（Gemini + OpenAI 兼容）
@@ -795,6 +814,7 @@ heymean-ai-learning-assistant/
 │   ├── dateHelpers.ts         # 日期格式化工具
 │   ├── fileHelpers.ts         # 文件压缩和验证
 │   ├── textHelpers.ts         # 文本处理工具
+│   ├── attachmentHelpers.ts   # 统一的附件预览工具
 │   ├── preload.ts             # 资源预加载
 │   └── preloadPayload.ts      # 导航数据预加载
 ├── public/                 # 静态资源
