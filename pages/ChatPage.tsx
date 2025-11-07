@@ -229,19 +229,13 @@ const ChatPage: React.FC = () => {
                 return;
             }
 
-            const subsequentMessages = messages.slice(messageIndex + 1);
-            if (subsequentMessages.length > 0) {
-                const idsToDelete = subsequentMessages.map(msg => msg.id);
-                await deleteMultipleMessagesFromConversation(idsToDelete);
-            }
-
             setEditingMessage(null);
             shouldForceScroll.current = true;
         } catch (error) {
             const appError = handleError(error, 'api');
             showToast(appError.userMessage, 'error');
         }
-    }, [editingMessage, messages, updateMessageInConversation, deleteMultipleMessagesFromConversation, cancel, isThinking, showToast]);
+    }, [editingMessage, messages, updateMessageInConversation, cancel, isThinking, showToast]);
 
     const handleCancelEdit = useCallback(() => {
         setEditingMessage(null);
