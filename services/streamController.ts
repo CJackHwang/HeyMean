@@ -1,5 +1,5 @@
 import { Message, StreamOptions } from '../types';
-import { streamChatResponse } from './apiService';
+import { streamChatResponse, StreamChatConfig } from './apiService';
 
 export class StreamController {
   private controller: AbortController | null = null;
@@ -21,17 +21,20 @@ export class StreamController {
     this.cancel();
     this.controller = new AbortController();
 
-    const { provider, systemInstruction, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl } = options;
+    const config: StreamChatConfig = {
+      provider: options.provider,
+      systemInstruction: options.systemInstruction,
+      geminiApiKey: options.geminiApiKey,
+      geminiModel: options.geminiModel,
+      openAiApiKey: options.openAiApiKey,
+      openAiModel: options.openAiModel,
+      openAiBaseUrl: options.openAiBaseUrl,
+    };
+    
     return await streamChatResponse(
       chatHistory,
       userMessage,
-      systemInstruction,
-      provider,
-      geminiApiKey,
-      geminiModel,
-      openAiApiKey,
-      openAiModel,
-      openAiBaseUrl,
+      config,
       onChunk,
       this.controller.signal
     );
