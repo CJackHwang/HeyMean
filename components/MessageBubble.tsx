@@ -50,34 +50,77 @@ const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
 const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const { t } = useTranslation();
     const uniqueId = `thinking-toggle-${message.id}`;
-    const hasThinkingProcess = message.thinkingText && message.thinkingText.length > 0;
-    
-    // The thinking wrapper is shown if the message is loading, OR if it has completed with thinking steps.
-    const showThinkingWrapper = hasThinkingProcess; // Do not show based on loading
+    const isThinkingComplete = message.isThinkingComplete ?? true;
+    const [expanded, setExpanded] = React.useState(!isThinkingComplete);
+    const scrollRef = React.useRef<HTMLDivElement | null>(null);
+    const previousCompletionState = React.useRef(isThinkingComplete);
+
+    const thinkingContent = message.thinkingText?.trim() ?? '';
+    const shouldRenderThinking = Boolean(message.isLoading || thinkingContent);
+    const statusDetail = !isThinkingComplete
+        ? t('message.thinking')
+        : message.isLoading
+            ? t('message.synthesizing')
+            : null;
+
+    React.useEffect(() => {
+        if (previousCompletionState.current !== isThinkingComplete) {
+            previousCompletionState.current = isThinkingComplete;
+            setExpanded(!isThinkingComplete);
+        }
+    }, [isThinkingComplete]);
+
+    React.useEffect(() => {
+        if (!expanded) return;
+        const container = scrollRef.current;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }, [thinkingContent, expanded]);
+
+    const handleToggle = () => setExpanded(prev => !prev);
+
+    const bodyContentClassName = shouldRenderThinking ? 'min-h-14' : undefined;
 
     return (
         <MarkdownSurface className="w-full ai-bubble">
-            {showThinkingWrapper ? (
-                // This is the complex bubble with a permanent thinking process section
-                <>
-                    <div className="border-b border-gray-300 dark:border-white/20">
-                        <input className="collapsible-checkbox" id={uniqueId} type="checkbox" defaultChecked={!message.isThinkingComplete} />
-                        <label className="flex items-center justify-between p-3 cursor-pointer" htmlFor={uniqueId}>
-                            <span className="text-xs font-semibold">{t('message.thinking_process')}</span>
-                            <span className="material-symbols-outlined collapsible-icon transition-transform transform">expand_more</span>
-                        </label>
-                        <div className="px-3 pb-3 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-                             {hasThinkingProcess ? (
-                                <MarkdownRenderer content={message.thinkingText || ''} />
-                             ) : null}
+            {shouldRenderThinking && (
+                <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-[color:var(--color-thinking-dark)] rounded-t-2xl">
+                    <input
+                        className="collapsible-checkbox"
+                        id={uniqueId}
+                        type="checkbox"
+                        checked={expanded}
+                        onChange={handleToggle}
+                    />
+                    <label className="flex items-center justify-between px-3 py-3 sm:px-4 cursor-pointer gap-3" htmlFor={uniqueId}>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
+                                {t('message.thinking_process')}
+                            </span>
+                            {statusDetail && (
+                                <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
+                                    {statusDetail}
+                                </span>
+                            )}
                         </div>
+                        <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-500 dark:text-neutral-300">
+                            expand_more
+                        </span>
+                    </label>
+                    <div
+                        ref={scrollRef}
+                        className="px-3 pb-3 sm:px-4 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
+                    >
+                        {thinkingContent ? (
+                            <MarkdownRenderer content={thinkingContent} />
+                        ) : (
+                            <p className="text-xs text-neutral-600 dark:text-neutral-400">{t('message.thinking')}</p>
+                        )}
                     </div>
-                    <MarkdownSurface.Content content={message.text} className="min-h-14" />
-                </>
-            ) : (
-                // This is a simple bubble for messages without any thinking process
-                <MarkdownSurface.Content content={message.text} />
+                </div>
             )}
+            <MarkdownSurface.Content content={message.text} className={bodyContentClassName} />
         </MarkdownSurface>
     );
 };

@@ -212,20 +212,26 @@ const apiServices = {
 
 // --- DISPATCHER FUNCTION ---
 
+export interface StreamChatConfig {
+  systemInstruction: string;
+  provider: ApiProvider;
+  geminiApiKey: string;
+  geminiModel: string;
+  openAiApiKey: string;
+  openAiModel: string;
+  openAiBaseUrl: string;
+}
+
 export const streamChatResponse = async (
   chatHistory: Message[],
   newMessage: Message,
-  systemInstruction: string,
-  selectedApiProvider: ApiProvider,
-  geminiApiKey: string,
-  geminiModel: string,
-  openAiApiKey: string,
-  openAiModel: string,
-  openAiBaseUrl: string,
+  config: StreamChatConfig,
   onChunk: (text: string) => void,
   signal?: AbortSignal,
   retryTimes: number = 0
 ): Promise<string> => {
+    const { systemInstruction, provider: selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl } = config;
+
     let fullText = '';
     const accumulatingOnChunk = (chunk: string) => {
         fullText += chunk;
@@ -266,13 +272,7 @@ export const streamChatResponse = async (
             return await streamChatResponse(
                 chatHistory,
                 newMessage,
-                systemInstruction,
-                selectedApiProvider,
-                geminiApiKey,
-                geminiModel,
-                openAiApiKey,
-                openAiModel,
-                openAiBaseUrl,
+                config,
                 onChunk,
                 signal,
                 retryTimes + 1

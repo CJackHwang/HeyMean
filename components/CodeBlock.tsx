@@ -8,7 +8,7 @@ interface CodeBlockProps {
   code: string;
 }
 
-const MAX_COLLAPSED_LINES = 30;
+const MAX_COLLAPSED_LINES = 15;
 
 const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
   const { theme } = useSettings();

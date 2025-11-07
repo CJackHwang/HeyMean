@@ -4,6 +4,7 @@ import { getMessagesPaginated, addMessage, deleteMessage, batchDeleteMessages, a
 import { useToast } from './useToast';
 import { handleError } from '../services/errorHandler';
 import { getCache } from '../utils/preload';
+import { createMessagesPreviews, trackAttachmentPreviews, revokeUrls } from '../utils/attachmentHelpers';
 
 type ConversationCacheEntry = {
     messages: Message[];
@@ -14,6 +15,20 @@ type ConversationCacheEntry = {
 const conversationCache = getCache<string, ConversationCacheEntry>('conversation');
 
 const MESSAGE_PAGE_SIZE = 50;
+
+const fetchConversationSnapshot = async (conversationId: string): Promise<ConversationCacheEntry> => {
+    const result = await getMessagesPaginated(conversationId, MESSAGE_PAGE_SIZE);
+    return {
+        messages: result.messages,
+        hasMore: result.hasMore,
+    };
+};
+
+export const preloadConversationSnapshot = (conversationId: string) =>
+    conversationCache.preload(conversationId, fetchConversationSnapshot);
+
+export const loadConversationSnapshot = (conversationId: string) =>
+    conversationCache.load(conversationId, fetchConversationSnapshot);
 
 export const useConversation = (initialConversationId: string | null) => {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -31,20 +46,14 @@ export const useConversation = (initialConversationId: string | null) => {
         
         // Return cleanup function that runs on unmount
         return () => {
-            urlsToRevoke.current.forEach(url => URL.revokeObjectURL(url));
+            revokeUrls(Array.from(urlsToRevoke.current));
             urlsToRevoke.current.clear();
         };
     }, []); // Empty dependency array ensures this runs only on mount and unmount
 
     const preloadConversation = useCallback(async (id: string) => {
         try {
-            await conversationCache.preload(id, async (conversationId: string) => {
-                const result = await getMessagesPaginated(conversationId, MESSAGE_PAGE_SIZE);
-                return {
-                    messages: result.messages,
-                    hasMore: result.hasMore,
-                };
-            });
+            await preloadConversationSnapshot(id);
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
@@ -53,51 +62,19 @@ export const useConversation = (initialConversationId: string | null) => {
 
     const loadConversation = useCallback(async (id: string) => {
         try {
-            const cached = await conversationCache.load(id, async (conversationId: string) => {
-                const result = await getMessagesPaginated(conversationId, MESSAGE_PAGE_SIZE);
-                return {
-                    messages: result.messages,
-                    hasMore: result.hasMore,
-                };
-            });
+            const cached = await loadConversationSnapshot(id);
 
             const urlsToRelease: string[] = [];
             urlsToRevoke.current.forEach((url) => urlsToRelease.push(url));
             urlsToRevoke.current.clear();
 
-            const historyWithPreviews = await Promise.all(cached.messages.map(async (message) => {
-                if (!message.attachments || message.attachments.length === 0) {
-                    return message;
-                }
-
-                const attachmentsWithPreview = await Promise.all(message.attachments.map(async (attachment) => {
-                    if (!attachment.data || !attachment.type.startsWith('image/')) {
-                        return attachment;
-                    }
-
-                    try {
-                        const response = await fetch(attachment.data);
-                        const blob = await response.blob();
-                        const previewUrl = URL.createObjectURL(blob);
-                        urlsToRevoke.current.add(previewUrl);
-                        return { ...attachment, preview: previewUrl };
-                    } catch (error) {
-                        console.error("Error creating blob from data URL:", error);
-                        return attachment;
-                    }
-                }));
-
-                return { ...message, attachments: attachmentsWithPreview };
-            }));
+            const historyWithPreviews = await createMessagesPreviews(cached.messages, urlsToRevoke.current);
+            
             setMessages(historyWithPreviews);
             setCurrentConversationId(id);
             setHasMoreMessages(cached.hasMore);
 
-            urlsToRelease.forEach((url) => {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch {}
-            });
+            revokeUrls(urlsToRelease);
         } catch (error) {
             const appError = handleError(error, 'db');
             showToast(appError.userMessage, 'error');
@@ -123,30 +100,7 @@ export const useConversation = (initialConversationId: string | null) => {
                 return;
             }
             
-            const historyWithPreviews = await Promise.all(result.messages.map(async (message) => {
-                if (!message.attachments || message.attachments.length === 0) {
-                    return message;
-                }
-
-                const attachmentsWithPreview = await Promise.all(message.attachments.map(async (attachment) => {
-                    if (!attachment.data || !attachment.type.startsWith('image/')) {
-                        return attachment;
-                    }
-
-                    try {
-                        const response = await fetch(attachment.data);
-                        const blob = await response.blob();
-                        const previewUrl = URL.createObjectURL(blob);
-                        urlsToRevoke.current.add(previewUrl);
-                        return { ...attachment, preview: previewUrl };
-                    } catch (error) {
-                        console.error("Error creating blob from data URL:", error);
-                        return attachment;
-                    }
-                }));
-
-                return { ...message, attachments: attachmentsWithPreview };
-            }));
+            const historyWithPreviews = await createMessagesPreviews(result.messages, urlsToRevoke.current);
             
             setMessages(prev => [...historyWithPreviews, ...prev]);
             setHasMoreMessages(result.hasMore);
@@ -171,11 +125,7 @@ export const useConversation = (initialConversationId: string | null) => {
             };
             await addConversation(newConversation);
 
-            attachments.forEach(attachment => {
-                if (attachment.preview) {
-                    urlsToRevoke.current.add(attachment.preview);
-                }
-            });
+            trackAttachmentPreviews(attachments, urlsToRevoke.current);
 
             const userMessage: Message = {
                 id: (now + 1).toString(),
@@ -206,11 +156,7 @@ export const useConversation = (initialConversationId: string | null) => {
         }
         try {
             if (message.attachments) {
-                message.attachments.forEach(att => {
-                    if (att.preview) {
-                        urlsToRevoke.current.add(att.preview);
-                    }
-                });
+                trackAttachmentPreviews(message.attachments, urlsToRevoke.current);
             }
             const messageWithId = { ...message, conversationId: currentConversationId };
             setMessages(prev => [...prev, messageWithId]);
