@@ -473,8 +473,8 @@ export const getNotes = async (): Promise<Note[]> => {
             request = store.getAll() as IDBRequest<Note[]>;
         }
         request.onsuccess = () => {
-            const raw = (request.result || []) as Record<string, unknown>[];
-            const hydrated = raw.map(hydrateNote);
+            const rawUnknown = (request.result || []) as unknown[];
+            const hydrated = rawUnknown.map((rec) => hydrateNote(rec as Record<string, unknown>));
             hydrated.sort((a, b) => {
                 if ((a.isPinned === true) !== (b.isPinned === true)) {
                     return a.isPinned ? -1 : 1;

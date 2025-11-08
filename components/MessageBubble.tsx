@@ -85,7 +85,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     return (
         <MarkdownSurface className="w-full ai-bubble">
             {shouldRenderThinking && (
-                <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-[color:var(--color-thinking-dark)] rounded-t-2xl">
+                <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-thinking-dark rounded-t-2xl">
                     <input
                         className="collapsible-checkbox"
                         id={uniqueId}

@@ -95,11 +95,11 @@ const HomePage: React.FC = () => {
                                 <span className="truncate">{t('home.button_continue')}</span>
                             </button>
                              <button onClick={() => navigate('/history')} aria-label={t('history.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
-                                <span className="material-symbols-outlined !text-xl">history</span>
-                            </button>
+                                <span className="material-symbols-outlined text-xl!">history</span>
+                             </button>
                              <button onClick={() => navigate('/settings')} aria-label={t('settings.header_title')} className="flex items-center justify-center size-12 rounded-xl bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0">
-                                <span className="material-symbols-outlined !text-xl">settings</span>
-                            </button>
+                                <span className="material-symbols-outlined text-xl!">settings</span>
+                             </button>
                         </div>
                     </div>
                 </div>

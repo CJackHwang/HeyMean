@@ -61,7 +61,7 @@ const Toast: React.FC<{ toast: ToastMessage; onRemove: (id: number) => void; dur
             onTransitionEnd={() => !isVisible && onRemove(toast.id)}
             role="alert"
         >
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
                 <span className="material-symbols-outlined">{getIcon()}</span>
             </div>
             <div className="text-sm font-normal flex-1">{toast.message}</div>
@@ -72,7 +72,7 @@ const Toast: React.FC<{ toast: ToastMessage; onRemove: (id: number) => void; dur
                 aria-label="Close"
             >
                 <span className="sr-only">Close</span>
-                <span className="material-symbols-outlined !text-base">close</span>
+                <span className="material-symbols-outlined text-base!">close</span>
             </button>
         </div>
     );
@@ -95,7 +95,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-5 right-5 z-[100] space-y-3 pointer-events-none">
+      <div className="fixed top-5 right-5 z-100 space-y-3 pointer-events-none">
         <div className="pointer-events-auto flex flex-col items-end gap-3">
             {toasts.map(toast => (
               <Toast key={toast.id} toast={toast} onRemove={removeToast} duration={toast.duration} />
