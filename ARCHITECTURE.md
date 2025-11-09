@@ -117,14 +117,6 @@
 - 端到端测试（如 Playwright）放 `tests/e2e/`，覆盖：对话流、路由守卫、工具调用关键路径。
 - 类型/ESLint/构建在 CI 中强制执行，保障结构调整的安全性。
 
-**渐进迁移清单（建议顺序）**
-- 第1步：添加路径别名与骨架目录（不移动代码，先保证构建通过）。
-- 第2步：在 `app/providers` 收拢 Provider，`App.tsx` 精简为壳。
-- 第3步：将 `App.tsx` 与 `navigation/AnimatedRoutes.tsx` 迁入 `src/app`（分 `App.tsx`、`router/`）。
-- 第4步：把通用组件迁往 `shared/ui`；`utils/preloadPayload.ts` 迁往 `shared/lib`。
-- 第5步：将 `pages/chat/*` 内聚为 `features/chat/*`（ui/model/api/lib），`pages/ChatPage.tsx` 保持薄层拼装。
-- 第6步：建立 `src/ai` 目录骨架（clients/tools/mcp/agents/adapters/prompts），暂不引入到应用流程。
-- 每步后均跑构建/预览并修正导入路径，确保“随时可上线”。
 
 **Agent 预留约定（当前不开发）**
 - 目录：`src/ai`，由以下子结构组成：
