@@ -128,6 +128,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     saveTheme();
 
+    // Keep PWA/browser UI theme-color in sync with page background
+    try {
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute('content', theme === Theme.DARK ? '#111111' : '#FFFFFF');
+      }
+    } catch {}
+
   }, [theme, showToast]);
   
   const setTheme = (newTheme: Theme) => {

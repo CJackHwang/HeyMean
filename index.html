@@ -4,8 +4,12 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/heymeanlogo.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content" />
-  <meta name="theme-color" content="#111111" />
+  <!-- Theme color follows app background; updated at boot and on theme change -->
+  <meta name="theme-color" content="#FFFFFF" />
   <link rel="manifest" href="/manifest.webmanifest" />
+  <!-- iOS PWA status bar style: use light content over white background -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <!-- iOS requires raster icons; SVG is not supported for home screen icons -->
   <link rel="apple-touch-icon" href="/icons/icon-180.png" />
   <script>
@@ -21,6 +25,11 @@
         }
         el.classList.remove('light','dark');
         el.classList.add(t);
+        // Sync meta theme-color to match background tone
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+          meta.setAttribute('content', t === 'dark' ? '#111111' : '#FFFFFF');
+        }
       } catch (e) {}
     })();
   </script>
