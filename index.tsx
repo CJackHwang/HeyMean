@@ -1,10 +1,10 @@
 
 import React from 'react';
 // Preload critical fonts as early as possible
-import './src/fonts-preload';
-import './src/index.css';
+import '@app/assets/fonts-preload';
+import '@app/assets/index.css';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import App from '@app/App';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

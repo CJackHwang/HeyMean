@@ -17,11 +17,36 @@
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
+    "baseUrl": ".",
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@app/*": [
+        "./src/app/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@entities/*": [
+        "./src/entities/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
+      "@widgets/*": [
+        "./src/widgets/*"
+      ],
+      "@pages/*": [
+        "./src/pages/*"
+      ],
+      "@ai/*": [
+        "./src/ai/*"
+      ],
+      "@workers/*": [
+        "./src/workers/*"
       ]
     },
     "allowImportingTsExtensions": true,
