@@ -50,8 +50,8 @@ const HomePage: React.FC = () => {
     };
 
     return (
-        <div className="relative flex w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark h-viewport min-h-viewport max-h-viewport mobile-viewport-container">
-            <div className="flex flex-col flex-1 justify-center items-center p-4 min-h-0">
+        <div className="relative flex h-screen min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
+            <div className="flex flex-col flex-1 justify-center items-center p-4">
                 <div className="w-full max-w-[480px] flex flex-col items-center gap-8">
                     <h1 className="text-5xl font-bold text-center whitespace-pre-line">{`何意味\nHeyMean`}</h1>
                     <div className="flex flex-col gap-4 w-full">

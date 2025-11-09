@@ -3,7 +3,6 @@ import { ToastProvider } from './useToast';
 import { SettingsProvider } from './useSettings';
 import { TranslationProvider } from './useTranslation';
 import { AppReadyProvider } from './AppReadyProvider';
-import { ViewportProvider } from './ViewportProvider';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -14,11 +13,9 @@ const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     <ToastProvider>
       <SettingsProvider>
         <TranslationProvider>
-          <ViewportProvider>
-            <AppReadyProvider>
-              {children}
-            </AppReadyProvider>
-          </ViewportProvider>
+          <AppReadyProvider>
+            {children}
+          </AppReadyProvider>
         </TranslationProvider>
       </SettingsProvider>
     </ToastProvider>

@@ -133,30 +133,6 @@
   overflow-anchor: none;
 }
 
-.chat-footer-safe {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
-  background: inherit;
-  z-index: 5;
-}
-
-@supports (padding: constant(safe-area-inset-bottom)) {
-  .chat-footer-safe {
-    padding-bottom: calc(0.75rem + constant(safe-area-inset-bottom));
-  }
-}
-
-html[data-hm-keyboard="open"] .chat-footer-safe {
-  background-color: var(--color-background-light);
-}
-
-html[data-hm-keyboard="open"].dark .chat-footer-safe {
-  background-color: var(--color-background-dark);
-}
-
 /* Global transitions */
 button, a, input, textarea, label[for] {
   transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
@@ -171,59 +147,6 @@ body {
   -moz-user-select: none; /* Firefox */
   -ms-user-select: none; /* IE10+/Edge */
   user-select: none; /* Standard */
-}
-
-/* Mobile viewport optimization - handle address bar and keyboard */
-:root {
-  --hm-viewport-height: 100vh;
-  --hm-keyboard-height: 0px;
-}
-
-@supports (height: 100dvh) {
-  :root {
-    --hm-viewport-height: 100dvh;
-  }
-}
-
-.h-viewport {
-  height: var(--hm-viewport-height);
-}
-
-.min-h-viewport {
-  min-height: var(--hm-viewport-height);
-}
-
-.max-h-viewport {
-  max-height: var(--hm-viewport-height);
-}
-
-/* Mobile keyboard adaptivity - make containers adjust to visual viewport */
-@media (max-width: 768px) {
-  .mobile-viewport-container {
-    height: var(--hm-viewport-height);
-    min-height: var(--hm-viewport-height);
-    max-height: var(--hm-viewport-height);
-  }
-
-  /* When virtual keyboard is shown, allow smooth resizing */
-  html[data-hm-keyboard="open"] .mobile-viewport-container {
-    transition: height 0.18s ease-out;
-  }
-
-  @supports (-webkit-touch-callout: none) {
-    /* iOS-specific adjustments for standalone mode */
-    .mobile-viewport-container {
-      height: -webkit-fill-available;
-      min-height: -webkit-fill-available;
-      max-height: -webkit-fill-available;
-    }
-
-    html[data-hm-keyboard="open"] .mobile-viewport-container {
-      height: var(--hm-viewport-height);
-      min-height: var(--hm-viewport-height);
-      max-height: var(--hm-viewport-height);
-    }
-  }
 }
 
 /* Removed skeleton shimmer styles for instant render experience */
