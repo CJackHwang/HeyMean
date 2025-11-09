@@ -1,5 +1,7 @@
 
 import React from 'react';
+// Preload critical fonts as early as possible
+import './src/fonts-preload';
 import './src/index.css';
 import ReactDOM from 'react-dom/client';
 import App from './App';
