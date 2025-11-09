@@ -15,6 +15,14 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          '@app': path.resolve(__dirname, './src/app'),
+          '@shared': path.resolve(__dirname, './src/shared'),
+          '@entities': path.resolve(__dirname, './src/entities'),
+          '@features': path.resolve(__dirname, './src/features'),
+          '@widgets': path.resolve(__dirname, './src/widgets'),
+          '@pages': path.resolve(__dirname, './src/pages'),
+          '@ai': path.resolve(__dirname, './src/ai'),
+          '@workers': path.resolve(__dirname, './src/workers'),
         }
       },
       build: {

@@ -1,0 +1,98 @@
+
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useSettings } from './useSettings';
+import { Language } from '@shared/types';
+import { useToast } from './useToast';
+
+interface TranslationContextType {
+  t: (key: string, ...args: (string | number)[]) => string;
+  language: Language;
+}
+
+const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
+
+// A simple cache for translations
+const translationsCache: Record<string, Record<string, string>> = {};
+
+export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { language } = useSettings();
+  const { showToast } = useToast();
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const hasSignaledRef = useRef(false);
+
+  const signalLocaleReady = useCallback(() => {
+    if (typeof window === 'undefined') {
+      hasSignaledRef.current = true;
+      return;
+    }
+    if (!window.__hmTranslationsReady) {
+      window.__hmTranslationsReady = true;
+    }
+    if (hasSignaledRef.current) {
+      return;
+    }
+    hasSignaledRef.current = true;
+    try {
+      window.dispatchEvent(new Event('hm:translations-ready'));
+    } catch {}
+  }, []);
+
+  const fetchTranslations = useCallback(async (lang: string) => {
+    if (translationsCache[lang]) {
+      setTranslations(translationsCache[lang]);
+      signalLocaleReady();
+      return;
+    }
+    try {
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const response = await fetch(`${baseUrl}locales/${lang}.json`);
+      if (!response.ok) {
+        throw new Error(`Could not load ${lang}.json`);
+      }
+      const data = await response.json();
+      translationsCache[lang] = data;
+      setTranslations(data);
+      signalLocaleReady();
+    } catch (error) {
+      console.error(error);
+      // Fallback to English if the selected language file fails to load
+      if (lang !== 'en') {
+        showToast(t('toast.translation_fallback', lang), 'error');
+        await fetchTranslations('en');
+        return;
+      }
+      signalLocaleReady();
+    }
+  }, [showToast, signalLocaleReady]);
+
+  useEffect(() => {
+    fetchTranslations(language);
+  }, [language, fetchTranslations]);
+
+  const t = (key: string, ...args: (string | number)[]): string => {
+    let translation = translations[key] || key;
+    // Simple replacement for placeholders like {0}, {1}
+    if (args.length > 0) {
+      args.forEach((arg, index) => {
+        translation = translation.replace(`{${index}}`, String(arg));
+      });
+    }
+    return translation;
+  };
+
+  const value = { t, language };
+
+  return (
+    <TranslationContext.Provider value={value}>
+      {children}
+    </TranslationContext.Provider>
+  );
+};
+
+export const useTranslation = (): TranslationContextType => {
+  const context = useContext(TranslationContext);
+  if (!context) {
+    throw new Error('useTranslation must be used within a TranslationProvider');
+  }
+  return context;
+};
