@@ -134,13 +134,27 @@
 }
 
 .chat-footer-safe {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
   padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  background: inherit;
+  z-index: 5;
 }
 
 @supports (padding: constant(safe-area-inset-bottom)) {
   .chat-footer-safe {
     padding-bottom: calc(0.75rem + constant(safe-area-inset-bottom));
   }
+}
+
+html[data-hm-keyboard="open"] .chat-footer-safe {
+  background-color: var(--color-background-light);
+}
+
+html[data-hm-keyboard="open"].dark .chat-footer-safe {
+  background-color: var(--color-background-dark);
 }
 
 /* Global transitions */
@@ -189,16 +203,25 @@ body {
     height: var(--hm-viewport-height);
     min-height: var(--hm-viewport-height);
     max-height: var(--hm-viewport-height);
-    /* Smooth transition when keyboard appears/disappears */
-    transition: height 0.2s ease-out;
   }
 
-  /* When virtual keyboard is shown, this helps maintain layout */
+  /* When virtual keyboard is shown, allow smooth resizing */
+  html[data-hm-keyboard="open"] .mobile-viewport-container {
+    transition: height 0.18s ease-out;
+  }
+
   @supports (-webkit-touch-callout: none) {
-    /* iOS-specific adjustments */
+    /* iOS-specific adjustments for standalone mode */
     .mobile-viewport-container {
       height: -webkit-fill-available;
       min-height: -webkit-fill-available;
+      max-height: -webkit-fill-available;
+    }
+
+    html[data-hm-keyboard="open"] .mobile-viewport-container {
+      height: var(--hm-viewport-height);
+      min-height: var(--hm-viewport-height);
+      max-height: var(--hm-viewport-height);
     }
   }
 }

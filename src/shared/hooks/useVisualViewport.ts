@@ -39,15 +39,19 @@ export function useVisualViewport() {
 
     const handleViewportResize = () => {
       const layoutViewportHeight = window.innerHeight;
-      const currentHeight = visualViewport.height;
+      const visualHeight = visualViewport.height;
       const offsetTop = visualViewport.offsetTop || 0;
 
-      setViewportHeight(currentHeight);
+      // The visual viewport is the portion of the screen that's actually visible
+      setViewportHeight(visualHeight);
 
       // When the keyboard is shown, the visual viewport height shrinks
-      const estimatedKeyboardHeight = Math.max(0, layoutViewportHeight - (currentHeight + offsetTop));
+      // Calculate keyboard height: layout height - (visual height + top offset)
+      const estimatedKeyboardHeight = Math.max(0, layoutViewportHeight - (visualHeight + offsetTop));
       setKeyboardHeight(estimatedKeyboardHeight);
-      setIsKeyboardVisible(estimatedKeyboardHeight > 80);
+      
+      // Consider keyboard visible if it takes up significant space (>100px)
+      setIsKeyboardVisible(estimatedKeyboardHeight > 100);
     };
 
     visualViewport.addEventListener('resize', handleViewportResize);
