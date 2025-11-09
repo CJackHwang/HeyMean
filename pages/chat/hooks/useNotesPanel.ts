@@ -103,7 +103,13 @@ export const useNotesPanel = (): UseNotesPanelResult => {
 
         if (pointerStartXRef.current != null) {
             const dx = Math.abs(event.clientX - pointerStartXRef.current);
-            if (dx > 4) didMoveRef.current = true;
+            if (dx > 4) {
+                if (!didMoveRef.current && isNotesCollapsed) {
+                    // Start dragging while collapsed: auto-expand so user can resize
+                    setIsNotesCollapsed(false);
+                }
+                didMoveRef.current = true;
+            }
         }
 
         const containerWidth = rect.width;
@@ -115,7 +121,7 @@ export const useNotesPanel = (): UseNotesPanelResult => {
 
         setNotesWidth(nextWidth);
         setNotesRatio(nextWidth / containerWidth);
-    }, []);
+    }, [isNotesCollapsed]);
 
     const onPointerUp = useCallback((event?: PointerEvent) => {
         if (!resizingRef.current) return;
