@@ -31,7 +31,7 @@
 ### 💬 Intelligent Chat Interface
 - **Rich Message Display** - Markdown rendering with syntax highlighting (powered by react-syntax-highlighter)
 - **Responsive Markdown** - Tables with horizontal scrolling, copy table data, optimized image rendering, and mobile-friendly code blocks
-- **Mathematical Expressions** - LaTeX/KaTeX support via remark-math and rehype-katex with on-demand loading
+- **Mathematical Expressions** - LaTeX/KaTeX via remark-math; rehype-katex loads on demand while KaTeX CSS is bundled globally
 - **File Attachments** - Attach up to 4 files (≤5 MB each), covering images (PNG/JPG/GIF/WebP), plain-text/Markdown, and PDFs (Gemini only) with intelligent compression
 - **Thinking Process Display** - Visualize AI reasoning steps in real-time with collapsible sections
 - **Streaming Responses** - See AI responses as they're generated with real-time typing effect
@@ -121,7 +121,7 @@
 - **Virtual scrolling** - Efficient message list rendering with @tanstack/react-virtual
 - **Image compression** - Automatic compression for attachments exceeding size limits
 - **Debounced auto-save** - Notes saved automatically without performance impact
-- **On-demand loading** - KaTeX CSS and rehype-katex loaded only when math expressions detected
+- **On-demand plugin** - rehype-katex loads only when math is detected; KaTeX CSS is bundled globally for consistent rendering
 - **Smooth animations** - 580ms eased page transitions with wait-for-anchor logic to prevent layout shifts
 - **Blob URL management** - Automatic cleanup of object URLs to prevent memory leaks
 
@@ -150,17 +150,9 @@
    npm install
    ```
 
-3. **Configure API Key (Optional)**
-   
-   You can configure your API key in the app's Settings page, or set it via environment variable:
-   
-   Create a `.env.local` file in the root directory:
-   ```bash
-   # For Gemini (optional - can also be set in app settings)
-   GEMINI_API_KEY=your_gemini_api_key_here
-   ```
-   
-   > **Note**: API keys can also be configured directly in the app's Settings page. Keys are stored securely in your browser's IndexedDB.
+3. **Configure API keys**
+
+   Set your keys in the in-app Settings page (no .env needed). Keys are stored locally in your browser (IndexedDB).
 
 4. **Run the development server**
    ```bash
@@ -245,7 +237,8 @@
 - **TailwindCSS 4.0** - Utility-first CSS framework
 - **@tailwindcss/vite 4.0** - Vite plugin for Tailwind
 - **@tailwindcss/postcss 4.0** - PostCSS plugin
-- **Material Symbols** - Icon font (via CDN)
+- **Material Symbols** - Self-hosted via npm (`material-symbols`)
+- **Inter font** - Self-hosted via `@fontsource/inter`
 
 ### Markdown & Code Rendering
 - **react-markdown 10.1** - Markdown rendering
@@ -327,12 +320,12 @@ heymean-ai-learning-assistant/
 ├── index.tsx               # App entry point
 ├── types.ts                # TypeScript type definitions
 ├── global.d.ts             # Global type declarations
-├── prompt.txt              # Default AI system prompt
+├── public/prompt.txt       # Default AI system prompt (served statically)
 ├── vite.config.ts          # Vite configuration
 ├── tailwind.config.ts      # TailwindCSS configuration
 ├── tsconfig.json           # TypeScript configuration
 ├── postcss.config.cjs      # PostCSS configuration
-├── index.html              # HTML template with CDN imports
+├── index.html              # HTML template (self-hosted fonts/icons; no external CDNs)
 ├── package.json            # Dependencies and scripts
 └── README.md               # This file
 ```
@@ -361,20 +354,12 @@ To add a new language:
 
 ### Environment Variables
 
-Create a `.env.local` file (optional):
-
-```bash
-# Gemini API Key (optional - can be set in app settings)
-GEMINI_API_KEY=your_gemini_api_key
-
-# Other Vite environment variables
-# PORT=5173
-```
+No environment variables are required for normal usage. Configure your API keys in Settings. For advanced setups, you may still use Vite envs as needed.
 
 ### Customizing the System Prompt
 
 1. **In-app**: Go to Settings → Model Settings → System Prompt
-2. **File-based**: Edit `prompt.txt` in the root directory (default prompt)
+2. **File-based**: Edit `public/prompt.txt` (served at `/prompt.txt`)
 
 ### OpenAI-Compatible Endpoints
 
@@ -747,7 +732,8 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - **TailwindCSS 4.0** - 实用优先的 CSS 框架
 - **@tailwindcss/vite 4.0** - Vite 的 Tailwind 插件
 - **@tailwindcss/postcss 4.0** - PostCSS 插件
-- **Material Symbols** - 图标字体（通过 CDN）
+- **Material Symbols** - 通过 npm 自托管（material-symbols）
+- **Inter 字体** - 通过 `@fontsource/inter` 自托管
 
 #### Markdown 与代码渲染
 - **react-markdown 10.1** - Markdown 渲染
@@ -767,7 +753,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 
 #### 性能
 - **@tanstack/react-virtual 3.13** - 消息列表的虚拟滚动
-- **按需加载 KaTeX** - 仅在 Markdown 含数学表达式时加载 KaTeX 资源
+- **按需插件** - 检测到数学表达式时按需加载 rehype-katex；KaTeX CSS 全局打包，确保一致渲染
 
 ### 📁 项目结构
 
@@ -828,12 +814,12 @@ heymean-ai-learning-assistant/
 ├── index.tsx               # 应用入口点
 ├── types.ts                # TypeScript 类型定义
 ├── global.d.ts             # 全局类型声明
-├── prompt.txt              # 默认 AI 系统提示
+├── public/prompt.txt       # 默认 AI 系统提示（静态提供）
 ├── vite.config.ts          # Vite 配置
 ├── tailwind.config.ts      # TailwindCSS 配置
 ├── tsconfig.json           # TypeScript 配置
 ├── postcss.config.cjs      # PostCSS 配置
-├── index.html              # 带 CDN 导入的 HTML 模板
+├── index.html              # HTML 模板（本地自托管字体/图标；无外部 CDN）
 ├── package.json            # 依赖和脚本
 └── README.md               # 本文件
 ```
@@ -858,20 +844,12 @@ heymean-ai-learning-assistant/
 
 #### 环境变量
 
-创建 `.env.local` 文件（可选）：
-
-```bash
-# Gemini API 密钥（可选 - 可在应用设置中配置）
-GEMINI_API_KEY=your_gemini_api_key
-
-# 其他 Vite 环境变量
-# PORT=5173
-```
+正常使用无需任何环境变量。请在应用内的设置页配置 API 密钥。仅在高级自定义场景下才需要使用 Vite 环境变量。
 
 #### 自定义系统提示
 
 1. **应用内**：进入设置 → 模型设置 → 系统提示
-2. **基于文件**：编辑根目录中的 `prompt.txt`（默认提示）
+2. **基于文件**：编辑 `public/prompt.txt`（通过 `/prompt.txt` 提供）
 
 #### OpenAI 兼容端点
 
