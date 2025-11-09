@@ -202,8 +202,8 @@ const ChatPage: React.FC = () => {
     });
 
     return (
-        <div ref={rootRef} className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
-            <div className="flex-1 flex flex-col relative">
+        <div ref={rootRef} className="relative flex h-viewport min-h-viewport max-h-viewport mobile-viewport-container w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
+            <div className="flex-1 flex flex-col relative min-h-0">
                 <ChatHeader />
 
                 <ChatMessagesArea

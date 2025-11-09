@@ -23,7 +23,7 @@ const ChatFooter: React.FC<ChatFooterProps> = ({
     const { t } = useTranslation();
 
     return (
-        <div>
+        <div className="chat-footer-safe shrink-0">
             <label
                 className="md:hidden flex items-center justify-between p-3 gap-2.5 bg-heymean-l dark:bg-heymean-d border-t border-b border-gray-200 dark:border-neutral-700 cursor-pointer"
                 htmlFor="notes-drawer"
