@@ -78,7 +78,7 @@
 - **ToastProvider** - Centralized notification system
 - **SettingsProvider** - Global settings management with persistence
 - **TranslationProvider** - i18n support with locale caching
-- **AppReadyProvider** - Bootstrap orchestration (waits for settings, translations, and icon fonts)
+- **AppReadyProvider** - Compatibility wrapper; no startup gate (renders immediately)
 - All providers wrap the HashRouter for optimal state access and initialization order
 
 ### Strategy Pattern
@@ -114,7 +114,6 @@
 - **Custom Scrollbar**: Styled scrollbars that match the theme
 
 ### Performance Optimizations
-- **Bootstrap gate** - AppReadyProvider preloads critical assets (i18n + icon fonts) before app becomes interactive
 - **Route-based code splitting** - Fine-grained vendor chunking to avoid large bundles
 - **Data preloading during navigation** - Smart caching with navigation/ layer (AnimatedRoutes + preloader)
 - **Virtual scrolling** - Efficient message list rendering with @tanstack/react-virtual
@@ -285,7 +284,7 @@ heymean-ai-learning-assistant/
 │   ├── routes.tsx             # Centralized route definitions
 │   └── routePreloader.ts      # Data preloading per route
 ├── providers/              # App providers
-│   └── AppReadyProvider.tsx   # Bootstrap orchestration
+│   └── AppReadyProvider.tsx   # Compatibility wrapper (no-op)
 ├── services/               # Business logic
 │   ├── db.ts                  # IndexedDB operations (conversations, messages, notes, settings)
 │   ├── apiService.ts          # Unified API service (Gemini + OpenAI compatible)
@@ -571,7 +570,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - **ToastProvider** - 集中式通知系统
 - **SettingsProvider** - 全局设置管理与持久化
 - **TranslationProvider** - i18n 支持与语言缓存
-- **AppReadyProvider** - 启动编排，等待设置、翻译与图标字体就绪
+- **AppReadyProvider** - 兼容性包装（无启动闸门，立即渲染）
 - 所有 Provider 包裹 HashRouter，确保最佳的状态访问和初始化顺序
 
 #### 策略模式
@@ -607,7 +606,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - **自定义滚动条**：匹配主题的样式化滚动条
 
 #### 性能优化
-- **启动闸门** - AppReadyProvider 在应用可交互前预加载关键资源（i18n + 图标字体）
+- **即时渲染** - 应用立即渲染，设置与翻译后台加载
 - **基于路由的代码分割** - 细粒度的 vendor chunking 避免大包
 - **导航期间数据预加载** - 使用 navigation/ 层（AnimatedRoutes + 预加载器）智能缓存
 - **虚拟滚动** - 使用 @tanstack/react-virtual 高效渲染消息列表
@@ -779,7 +778,7 @@ heymean-ai-learning-assistant/
 │   ├── routes.tsx             # 集中式路由定义
 │   └── routePreloader.ts      # 路由数据预加载
 ├── providers/              # 应用级 provider
-│   └── AppReadyProvider.tsx   # 启动编排
+│   └── AppReadyProvider.tsx   # 兼容性包装（no-op）
 ├── services/               # 业务逻辑
 │   ├── db.ts                  # IndexedDB 操作（对话、消息、笔记、设置）
 │   ├── apiService.ts          # 统一 API 服务（Gemini + OpenAI 兼容）

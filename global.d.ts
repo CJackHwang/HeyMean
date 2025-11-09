@@ -11,7 +11,6 @@ declare global {
   interface Window {
     __hmSettingsReady?: boolean;
     __hmTranslationsReady?: boolean;
-    __hmIconsReady?: boolean;
   }
 }
 
