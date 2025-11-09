@@ -6,5 +6,5 @@ export { default as MarkdownRenderer } from './MarkdownRenderer';
 export { default as MarkdownSurface } from './MarkdownSurface';
 export { default as MessageBubble } from './MessageBubble';
 export { default as Modal } from './Modal';
-export { default as NotesView } from './NotesView';
+export { NotesView } from './NotesView';
 export { default as Selector } from './Selector';

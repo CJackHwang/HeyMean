@@ -5,7 +5,7 @@ const MIN_NOTES = 260;
 const MIN_CHAT = 360;
 
 interface UseNotesPanelResult {
-    rootRef: RefObject<HTMLDivElement>;
+    rootRef: RefObject<HTMLDivElement | null>;
     notesWidth: number;
     isNotesCollapsed: boolean;
     onHandlePointerDown: (event: ReactPointerEvent) => void;

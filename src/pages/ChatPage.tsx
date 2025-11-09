@@ -56,11 +56,11 @@ const ChatPage: React.FC = () => {
 
     useEffect(() => {
         if (streamedAiMessage) {
-            const exists = messages.some(m => m.id === streamedAiMessage.id);
+            const exists = messages.some((m) => m.id === streamedAiMessage.id);
             if (exists) {
-                setMessages(prev => prev.map(m => m.id === streamedAiMessage.id ? streamedAiMessage : m));
+                setMessages((prev) => prev.map((m) => m.id === streamedAiMessage.id ? streamedAiMessage : m));
             } else {
-                setMessages(prev => [...prev, streamedAiMessage]);
+                setMessages((prev) => [...prev, streamedAiMessage]);
             }
             
             streamedMessageIdRef.current = streamedAiMessage.id;
