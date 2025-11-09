@@ -32,7 +32,13 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { showToast } = useToast();
-  const [theme, setThemeState] = useState<Theme>(Theme.LIGHT);
+  const [theme, setThemeState] = useState<Theme>(() => {
+    try {
+      const ls = window.localStorage.getItem('hm_theme');
+      if (ls === Theme.DARK || ls === Theme.LIGHT) return ls as Theme;
+    } catch {}
+    return Theme.LIGHT;
+  });
   const [systemPrompt, setSystemPromptState] = useState<string>(''); // User's custom prompt
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState<string>(''); // Loaded from file
   const [selectedApiProvider, setSelectedApiProviderState] = useState<ApiProvider>(ApiProvider.GEMINI);
@@ -42,8 +48,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [openAiModel, setOpenAiModelState] = useState<string>('');
   const [openAiBaseUrl, setOpenAiBaseUrlState] = useState<string>('');
   const [language, setLanguageState] = useState<Language>(Language.EN);
-  // Start as loading to avoid overwriting persisted theme on first paint
-  const [isLoading, setIsLoading] = useState(true);
+  // Render immediately; theme flash is mitigated by early index.html script
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -104,7 +110,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [showToast]);
 
   useEffect(() => {
-    if (isLoading) return;
     const root = window.document.documentElement;
     root.classList.remove(theme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
     root.classList.add(theme);
@@ -123,7 +128,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     saveTheme();
 
-  }, [theme, isLoading, showToast]);
+  }, [theme, showToast]);
   
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
@@ -257,7 +262,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <SettingsContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </SettingsContext.Provider>
   );
 };

@@ -53,7 +53,7 @@ const HomePage: React.FC = () => {
         <div className="relative flex h-screen min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
             <div className="flex flex-col flex-1 justify-center items-center p-4">
                 <div className="w-full max-w-[480px] flex flex-col items-center gap-8">
-                    <h1 className="text-5xl font-bold text-center whitespace-pre-line">{t('home.title')}</h1>
+                    <h1 className="text-5xl font-bold text-center whitespace-pre-line">{`何意味\nHeyMean`}</h1>
                     <div className="flex flex-col gap-4 w-full">
                         <div className="relative w-full">
                             <div className={`form-input flex w-full flex-col min-w-0 flex-1 bg-heymean-l dark:bg-heymean-d rounded-xl`}>
