@@ -109,7 +109,7 @@ const SettingsPage: React.FC = () => {
 
 
   return (
-    <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
+    <div className="relative flex w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark h-viewport min-h-viewport max-h-viewport mobile-viewport-container">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
         <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
@@ -118,7 +118,7 @@ const SettingsPage: React.FC = () => {
         <div className="w-10 shrink-0"></div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-8 custom-scrollbar">
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_appearance')}</h2>
           <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
