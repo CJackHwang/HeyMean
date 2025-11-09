@@ -111,6 +111,22 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* Dynamic scrollbar visibility for chat area */
+.chat-scroll.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+}
+.chat-scroll.show-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+}
+.chat-scroll.custom-scrollbar.hide-scrollbar::-webkit-scrollbar {
+  width: 0px; /* Chrome/Safari/Edge */
+  height: 0px;
+}
+.chat-scroll.custom-scrollbar.show-scrollbar::-webkit-scrollbar {
+  width: 6px; /* match default */
+  height: 6px;
+}
+
 /* Disable browser scroll anchoring to avoid unexpected jumps to top
    when content above changes or virtualized measurements update */
 .chat-scroll {

@@ -18,6 +18,131 @@ import Modal from '../components/Modal';
 // Remove full-screen loading UI for seamless entry
 
 const ChatPage: React.FC = () => {
+    const rootRef = useRef<HTMLDivElement>(null);
+    const MIN_NOTES = 260;
+    const MIN_CHAT = 360;
+
+    // Store ratio for stability across resizes; default to 35%
+    const [notesRatio, setNotesRatio] = useState<number>(() => {
+        try {
+            const r = Number(window.localStorage.getItem('hm_notes_ratio') || '');
+            if (Number.isFinite(r) && r > 0.05 && r < 0.95) return r;
+        } catch {}
+        return 0.35;
+    });
+    const [notesWidth, setNotesWidth] = useState<number>(400);
+    const [isNotesCollapsed, setIsNotesCollapsed] = useState<boolean>(() => {
+        try {
+            return window.localStorage.getItem('hm_notes_collapsed') === '1';
+        } catch {
+            return false;
+        }
+    });
+
+    const applyWidthFromRatio = useCallback(() => {
+        const el = rootRef.current;
+        if (!el) return;
+        const cw = el.clientWidth || el.getBoundingClientRect().width || 0;
+        if (!cw) return;
+        const maxNotes = Math.max(MIN_NOTES, cw - MIN_CHAT);
+        let w = Math.round(notesRatio * cw);
+        if (w < MIN_NOTES) w = MIN_NOTES;
+        if (w > maxNotes) w = maxNotes;
+        setNotesWidth(w);
+    }, [notesRatio]);
+
+    // Migrate legacy pixel width to ratio on mount if present
+    useEffect(() => {
+        const el = rootRef.current;
+        if (!el) return;
+        try {
+            const hasRatio = window.localStorage.getItem('hm_notes_ratio');
+            const legacy = window.localStorage.getItem('hm_notes_width');
+            if (!hasRatio && legacy) {
+                const cw = el.clientWidth || el.getBoundingClientRect().width || 0;
+                const px = Number(legacy);
+                if (cw && Number.isFinite(px) && px > 0) {
+                    const maxNotes = Math.max(MIN_NOTES, cw - MIN_CHAT);
+                    const clamped = Math.min(Math.max(px, MIN_NOTES), maxNotes);
+                    const r = clamped / cw;
+                    setNotesRatio(r);
+                    try { window.localStorage.setItem('hm_notes_ratio', String(r)); } catch {}
+                }
+            }
+        } catch {}
+        // Initial width apply
+        applyWidthFromRatio();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Recompute on ratio or window resize
+    useEffect(() => {
+        const onResize = () => applyWidthFromRatio();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, [applyWidthFromRatio]);
+
+    // Persist ratio
+    useEffect(() => {
+        try { window.localStorage.setItem('hm_notes_ratio', String(notesRatio)); } catch {}
+        applyWidthFromRatio();
+    }, [notesRatio, applyWidthFromRatio]);
+
+    // Persist collapsed state
+    useEffect(() => {
+        try { window.localStorage.setItem('hm_notes_collapsed', isNotesCollapsed ? '1' : '0'); } catch {}
+    }, [isNotesCollapsed]);
+
+    // Pointer-based resizing for mouse/touch/pen
+    const resizingRef = useRef(false);
+    const containerRectRef = useRef<DOMRect | null>(null);
+    const pointerStartXRef = useRef<number | null>(null);
+    const didMoveRef = useRef(false);
+    const onPointerMove = useCallback((ev: PointerEvent) => {
+        if (!resizingRef.current) return;
+        const rect = containerRectRef.current;
+        if (!rect) return;
+        if (pointerStartXRef.current != null) {
+            const dx = Math.abs(ev.clientX - pointerStartXRef.current);
+            if (dx > 4) didMoveRef.current = true;
+        }
+        const x = ev.clientX;
+        const containerWidth = rect.width;
+        const right = rect.right;
+        let next = right - x; // desired notes width in px
+        const maxNotes = Math.max(MIN_NOTES, containerWidth - MIN_CHAT);
+        if (next < MIN_NOTES) next = MIN_NOTES;
+        if (next > maxNotes) next = maxNotes;
+        setNotesWidth(next);
+        const ratio = next / containerWidth;
+        setNotesRatio(ratio);
+    }, []);
+    const onPointerUp = useCallback((ev?: PointerEvent) => {
+        if (!resizingRef.current) return;
+        resizingRef.current = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp as any);
+        containerRectRef.current = null;
+        // If pointer did not move beyond threshold, treat as a click to toggle collapse
+        const didMove = didMoveRef.current;
+        didMoveRef.current = false;
+        pointerStartXRef.current = null;
+        if (!didMove) {
+            setIsNotesCollapsed(prev => !prev);
+        }
+    }, [onPointerMove]);
+    const onHandlePointerDown = useCallback((e: React.PointerEvent) => {
+        e.preventDefault();
+        try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); } catch {}
+        resizingRef.current = true;
+        try {
+            containerRectRef.current = rootRef.current?.getBoundingClientRect() ?? null;
+        } catch { containerRectRef.current = null; }
+        try { pointerStartXRef.current = (e as any).clientX ?? null; } catch { pointerStartXRef.current = null; }
+        didMoveRef.current = false;
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp as any);
+    }, [onPointerMove, onPointerUp]);
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
@@ -526,8 +651,16 @@ const ChatPage: React.FC = () => {
 
     // Always render content; no blocking loaders
 
+    useEffect(() => {
+        const el = chatContainerRef.current;
+        if (!el) return;
+        // Start hidden to avoid visual noise; show on interaction
+        el.classList.add('hide-scrollbar');
+        el.classList.remove('show-scrollbar');
+    }, []);
+
     return (
-        <div className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
+        <div ref={rootRef} className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
             <div className="flex-1 flex flex-col relative">
                 <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 shrink-0">
                     <button onClick={handleBack} aria-label={t('modal.cancel')} className="flex size-10 shrink-0 items-center justify-center">
@@ -541,7 +674,30 @@ const ChatPage: React.FC = () => {
                     </div>
                 </header>
 
-                <main ref={setChatContainerRef} className={`flex-1 overflow-y-auto p-4 custom-scrollbar chat-scroll ${initialAnchored ? '' : 'opacity-0 pointer-events-none'}`}>
+                <main
+                  ref={setChatContainerRef}
+                  className={`flex-1 overflow-y-auto p-4 custom-scrollbar chat-scroll ${initialAnchored ? '' : 'opacity-0 pointer-events-none'}`}
+                  onMouseEnter={() => {
+                    const el = chatContainerRef.current; if (!el) return;
+                    el.classList.add('show-scrollbar');
+                    el.classList.remove('hide-scrollbar');
+                  }}
+                  onMouseLeave={() => {
+                    const el = chatContainerRef.current; if (!el) return;
+                    el.classList.add('hide-scrollbar');
+                    el.classList.remove('show-scrollbar');
+                  }}
+                  onTouchStart={() => {
+                    const el = chatContainerRef.current; if (!el) return;
+                    el.classList.add('show-scrollbar');
+                    el.classList.remove('hide-scrollbar');
+                  }}
+                  onTouchEnd={() => {
+                    const el = chatContainerRef.current; if (!el) return;
+                    el.classList.add('hide-scrollbar');
+                    el.classList.remove('show-scrollbar');
+                  }}
+                >
                    {messages.length > 0 && (
                         <div
                             style={{
@@ -609,7 +765,7 @@ const ChatPage: React.FC = () => {
 
                 <input className="sr-only" id="notes-drawer" type="checkbox" />
                 <div>
-                    <label className="xl:hidden flex items-center justify-between p-3 gap-2.5 bg-heymean-l dark:bg-heymean-d border-t border-b border-gray-200 dark:border-neutral-700 cursor-pointer" htmlFor="notes-drawer" id="notes-tab">
+                    <label className="md:hidden flex items-center justify-between p-3 gap-2.5 bg-heymean-l dark:bg-heymean-d border-t border-b border-gray-200 dark:border-neutral-700 cursor-pointer" htmlFor="notes-drawer" id="notes-tab">
                         <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-xl! text-primary-text-light dark:text-primary-text-dark">description</span>
                             <span className="text-sm font-medium text-primary-text-light dark:text-primary-text-dark">{t('chat.notes_tab')}</span>
@@ -627,11 +783,30 @@ const ChatPage: React.FC = () => {
                         />
                     </footer>
                 </div>
-                <div className="xl:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col opacity-0 pointer-events-none z-40" id="notes-content">
+                <div className="md:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col opacity-0 pointer-events-none z-40" id="notes-content">
                     <NotesView />
                 </div>
             </div>
-            <div className="hidden xl:flex flex-col w-2/5 max-w-md border-l border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
+            <div
+                id="notes-panel"
+                className="hidden md:flex flex-col relative border-l border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark"
+                style={{ width: isNotesCollapsed ? 0 : `${notesWidth}px`, minWidth: isNotesCollapsed ? 0 : 260 }}
+                aria-hidden={isNotesCollapsed}
+            >
+                <div
+                  className="absolute -left-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center"
+                  onPointerDown={onHandlePointerDown}
+                  aria-label="Resize or toggle notes panel"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-controls="notes-panel"
+                  aria-expanded={!isNotesCollapsed}
+                  style={{ touchAction: 'none' }}
+                >
+                  <span className="material-symbols-outlined text-[18px] leading-none text-neutral-500 dark:text-neutral-400 opacity-80">
+                    {isNotesCollapsed ? 'arrow_menu_open' : 'arrow_menu_close'}
+                  </span>
+                </div>
                 <NotesView isDesktop={true} />
             </div>
         </div>
