@@ -156,4 +156,3 @@
 - Agent（后期）：`const agent = await import('@ai/agents/runtime')`
 
 本规范旨在统一认知、降低协作与重构成本；如有新增特性或平台扩展（桌面/插件），可在此蓝图基础上延伸（如 Monorepo 与包内聚）。
-
