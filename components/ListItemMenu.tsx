@@ -146,7 +146,7 @@ const ListItemMenu: React.FC<ListItemMenuProps> = ({ isOpen, onClose, actions, p
                     if (btn) btn.disabled = false;
                   }
                 }}
-                className={`w-full flex items-center gap-3 text-left px-3 py-2 min-h-[44px] rounded-md text-sm transition-colors ${
+                className={`w-full flex items-center gap-3 text-left px-3 py-2 min-h-11 rounded-md text-sm transition-colors ${
                   action.isDestructive
                     ? 'text-red-500 hover:bg-red-500/10 active:bg-red-500/15'
                     : 'text-primary-text-light dark:text-primary-text-dark hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10'

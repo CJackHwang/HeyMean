@@ -30,8 +30,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
       return;
     }
     (async () => {
-      // Dynamically import KaTeX CSS and rehype-katex only when math is detected
-      await import('katex/dist/katex.min.css');
+      // Dynamically import rehype-katex only when math is detected.
+      // KaTeX CSS is now imported globally in src/index.css to satisfy TS and ensure styles are present.
       const mod = await import('rehype-katex');
       if (active) setKatexPlugin([mod.default] as PluggableList);
     })();

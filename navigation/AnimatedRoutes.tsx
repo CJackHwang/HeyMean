@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
-import type { Location } from 'history';
+import type { Location } from 'react-router';
 import { preloadRouteData } from './routePreloader';
 import { appRoutes } from './routes';
 
