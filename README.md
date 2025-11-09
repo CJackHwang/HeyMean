@@ -36,7 +36,7 @@
 - **Streaming Responses** - See AI responses as they're generated with real-time typing effect
 - **Message Edit & Resend** - Edit and re-submit user messages with full attachment support, auto-scroll to edited position
 - **Message Actions** - Copy, edit, resend, regenerate, and delete messages with context menu
-- **Mobile-Optimized Composer** - Responsive input with flexible textarea, attachment chips, and clear edit mode indicators; stays pinned to the visible viewport as the keyboard appears
+- **Mobile-Optimized Composer** - Responsive input with flexible textarea, attachment chips, and clear edit mode indicators
 - **Long-Press Support** - Quick access to message actions on mobile devices with 500ms touch detection
 - **Smooth Animations** - Page transitions with easing and route-aware preloading
 
@@ -78,9 +78,8 @@
 - **ToastProvider** - Centralized notification system
 - **SettingsProvider** - Global settings management with persistence
 - **TranslationProvider** - i18n support with locale caching
-- **ViewportProvider** - Bridges the Visual Viewport API to CSS variables, keeping mobile layouts and keyboard-safe areas perfectly aligned
 - **AppReadyProvider** - Compatibility wrapper; no startup gate (renders immediately)
-- All providers wrap the HashRouter in the order shown above for predictable initialization and mobile-safe rendering
+- All providers wrap the HashRouter for optimal state access and initialization order
 
 ### Strategy Pattern
 - **apiService.ts** - Unified API interface that dispatches between Gemini and OpenAI implementations
@@ -99,7 +98,6 @@
 - **useAttachments** - File attachment handling with compression and validation
 - **useMessageActions** - Context menu actions for copy, edit, resend, regenerate, delete
 - **useLongPress** - Touch-friendly long-press detection
-- **useVisualViewport** - Monitors viewport and keyboard heights via VisualViewport API, enabling CSS custom properties for responsive layouts
 - **useToast** - Toast notification management
 - **useSettings** - Settings context and persistence
 - **useTranslation** - i18n hooks with caching
@@ -112,7 +110,6 @@
 ### Responsive Layout
 - **Desktop**: Chat + Notes split view with resizable panels
 - **Mobile**: Drawer-based experience with bottom composer safe-area padding
-- **Dynamic Viewport Handling**: VisualViewport-driven CSS variables keep address bar and virtual keyboard changes aligned with the chat composer
 - **Virtualized Rendering**: Efficient message list with @tanstack/react-virtual
 - **Custom Scrollbar**: Styled scrollbars that match the theme
 
@@ -266,60 +263,70 @@
 
 ```
 heymean-ai-learning-assistant/
-├── public/
-│   └── locales/               # Internationalization JSON bundles (en, zh-CN, ja)
-├── src/
-│   ├── app/
-│   │   ├── App.tsx            # App shell wiring providers + router
-│   │   ├── assets/            # Global styles, font preload utilities
-│   │   ├── providers/         # Toast, Settings, Translation, Viewport, AppReady
-│   │   └── router/            # Animated routes, route definitions, preload helpers
-│   ├── shared/
-│   │   ├── ui/                # Reusable UI primitives (ChatInput, MarkdownSurface, Modal, etc.)
-│   │   ├── hooks/             # Cross-feature hooks (useLongPress, useVisualViewport, ...)
-│   │   ├── lib/               # Utility helpers (attachments, preload payloads, constants)
-│   │   ├── services/          # Platform services (IndexedDB, API gateway, error handling)
-│   │   └── types/             # Shared TypeScript definitions
-│   ├── features/
-│   │   └── chat/
-│   │       ├── ui/            # Feature-specific UI (ChatHeader, MessagesArea, NotesPanel, Footer)
-│   │       └── model/         # Chat state hooks (useConversation, useChatStream, useNotesPanel, ...)
-│   ├── pages/                 # Route-level pages (Home, Chat, History, Settings, About)
-│   ├── ai/                    # Future AI agents, tools, adapters scaffold
-│   ├── widgets/               # Reserved for cross-page composites
-│   ├── entities/              # Shared domain entities (placeholder)
-│   └── workers/               # Worker entry points (placeholder)
-├── index.html                 # HTML template with PWA meta tags
-├── vite.config.ts             # Vite configuration
-├── tailwind.config.ts         # TailwindCSS configuration
-├── tsconfig.json              # TypeScript configuration
-├── package.json               # Dependencies and scripts
-└── README.md                  # Documentation
+├── components/             # Reusable UI components
+│   ├── ChatInput.tsx          # Message input with file upload
+│   ├── MessageBubble.tsx      # Chat message display with actions
+│   ├── MarkdownRenderer.tsx   # Rich markdown rendering
+│   ├── MarkdownSurface.tsx    # Shared Markdown wrapper with consistent styling
+│   ├── CodeBlock.tsx          # Code block with syntax highlighting
+│   ├── NotesView.tsx          # Notes workspace with full CRUD
+│   ├── Modal.tsx              # Confirmation dialogs
+│   ├── ListItemMenu.tsx       # Context menu for list items
+│   └── Selector.tsx           # Dropdown selector component
+├── pages/                  # Route pages
+│   ├── HomePage.tsx           # Landing page with quick start
+│   ├── ChatPage.tsx           # Main chat interface with streaming
+│   ├── HistoryPage.tsx        # Conversation history management
+│   ├── SettingsPage.tsx       # Settings panel with API config
+│   └── AboutPage.tsx          # About page with app info and links
+├── navigation/             # Navigation layer
+│   ├── AnimatedRoutes.tsx     # Route transitions with preload
+│   ├── routes.tsx             # Centralized route definitions
+│   └── routePreloader.ts      # Data preloading per route
+├── providers/              # App providers
+│   └── AppReadyProvider.tsx   # Compatibility wrapper (no-op)
+├── services/               # Business logic
+│   ├── db.ts                  # IndexedDB operations (conversations, messages, notes, settings)
+│   ├── apiService.ts          # Unified API service (Gemini + OpenAI compatible)
+│   ├── streamController.ts    # Cross-provider streaming control (cancel/retry)
+│   └── errorHandler.ts        # Centralized error handling
+├── hooks/                  # Custom React hooks
+│   ├── useSettings.tsx        # Settings context & provider
+│   ├── useTranslation.tsx     # i18n hooks with caching
+│   ├── useConversation.tsx    # Conversation state management
+│   ├── useChatStream.tsx      # AI streaming response handler (supports cancel)
+│   ├── useAttachments.tsx     # File attachment handling
+│   ├── useMessageActions.tsx  # Message action handlers (resend, regenerate, delete)
+│   ├── useLongPress.tsx       # Long-press detection for mobile
+│   └── useToast.tsx           # Toast notification provider
+├── utils/                  # Utility functions
+│   ├── constants.ts           # App constants
+│   ├── dateHelpers.ts         # Date formatting utilities
+│   ├── fileHelpers.ts         # File compression and validation
+│   ├── textHelpers.ts         # Text processing utilities
+│   ├── attachmentHelpers.ts   # Unified attachment preview utilities
+│   ├── preload.ts             # Resource preloading
+│   └── preloadPayload.ts      # Data preloading for navigation
+├── public/                 # Static assets
+│   └── locales/               # Internationalization
+│       ├── en.json                # English translations
+│       ├── zh-CN.json             # Simplified Chinese
+│       └── ja.json                # Japanese
+├── src/                    # Global styles
+│   └── index.css              # Tailwind directives and custom CSS
+├── App.tsx                 # App root with providers and router
+├── index.tsx               # App entry point
+├── types.ts                # TypeScript type definitions
+├── global.d.ts             # Global type declarations
+├── public/prompt.txt       # Default AI system prompt (served statically)
+├── vite.config.ts          # Vite configuration
+├── tailwind.config.ts      # TailwindCSS configuration
+├── tsconfig.json           # TypeScript configuration
+├── postcss.config.cjs      # PostCSS configuration
+├── index.html              # HTML template (self-hosted fonts/icons; no external CDNs)
+├── package.json            # Dependencies and scripts
+└── README.md               # This file
 ```
-
----
-
-## 📱 Mobile & PWA Optimizations
-
-### Visual Viewport Adaptivity
-- **Dynamic Height Tracking** - Uses VisualViewport API to monitor browser chrome (address bar) and virtual keyboard visibility
-- **CSS Custom Properties** - `--hm-viewport-height` and `--hm-keyboard-height` update in real-time for perfect mobile layouts
-- **Keyboard-Aware Composer** - Input box stays pinned to the visible viewport bottom as the keyboard appears, while the header remains fixed
-- **Safe Area Support** - Proper handling of iOS notch and home indicator areas
-- **Interactive Widget Mode** - Configured with `interactive-widget=overlays-content` for modern keyboard behavior
-
-### PWA Features
-- **Standalone Display** - Runs in full-screen mode when installed as PWA
-- **Theme Color Sync** - Dynamic theme-color meta tag adapts to light/dark mode
-- **iOS Optimization** - Proper status bar styling and home screen icon configuration
-- **Offline Ready** - All assets cached for offline use after first load
-- **Portrait Lock** - Optimized for portrait orientation on mobile devices
-
-### Cross-Platform Testing
-- Tested on Chrome/Safari mobile browsers
-- PWA installation verified on Android and iOS
-- Address bar auto-hide behavior handled correctly
-- Virtual keyboard appearance properly detected and adapted
 
 ---
 
