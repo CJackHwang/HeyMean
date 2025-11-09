@@ -1,5 +1,7 @@
 
 import React from 'react';
+// Preload critical fonts as early as possible
+import './src/fonts-preload';
 import './src/index.css';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -15,3 +17,10 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Register a minimal service worker in production builds only
+if ('serviceWorker' in navigator && import.meta && (import.meta as any).env && (import.meta as any).env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeyMean 图标生成器（基于 SVG）</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; line-height: 1.6; }
+    button { padding: 10px 16px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
+    .muted { color: #666; font-size: 14px; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 6px; }
+  </style>
+  <!-- 本页需通过本项目 dev/preview 本地服务访问，确保同源加载 SVG → Canvas 不被污染 -->
+  <!-- 访问路径：/icons/generate.html -->
+  <!-- 输出文件：icon-512.png, icon-192.png, icon-180.png 以及对应 maskable 版本（同内容） -->
+</head>
+<body>
+  <h1>HeyMean 图标生成器</h1>
+  <p class="muted">使用现有 <code>/heymeanlogo.svg</code> 快速导出 PNG（192/512、maskable）与 iOS 180。</p>
+  <p>
+    <button id="gen">一键生成并下载全部</button>
+  </p>
+  <p class="muted">
+    生成后请将下载的文件放到 <code>public/icons/</code>：<br/>
+    <code>icon-192.png</code>、<code>icon-512.png</code>、<code>icon-192-maskable.png</code>、<code>icon-512-maskable.png</code>、<code>icon-180.png</code>
+  </p>
+
+  <script>
+    const SVG_PATH = '/heymeanlogo.svg';
+
+    async function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    function downloadDataURL(dataURL, filename) {
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function rasterize(img, size) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = size;
+      canvas.height = size;
+      // 直接等比铺满（SVG 为 1:1 方形，包含白底矩形）
+      ctx.drawImage(img, 0, 0, size, size);
+      return canvas.toDataURL('image/png');
+    }
+
+    async function generateAll() {
+      const img = await loadImage(SVG_PATH);
+      const plan = [
+        { size: 512, name: 'icon-512.png' },
+        { size: 192, name: 'icon-192.png' },
+        { size: 180, name: 'icon-180.png' }, // iOS touch icon
+      ];
+
+      for (const item of plan) {
+        const url = rasterize(img, item.size);
+        downloadDataURL(url, item.name);
+        // 避免部分浏览器拦截批量下载，稍作间隔
+        await new Promise(r => setTimeout(r, 120));
+      }
+
+      // maskable 版本（当前与普通版一致，便于快速可用）
+      // 如需更佳 maskable 适配，可在 SVG 外围增加透明留白再导出。
+      const url192 = rasterize(img, 192);
+      const url512 = rasterize(img, 512);
+      await new Promise(r => setTimeout(r, 120));
+      downloadDataURL(url192, 'icon-192-maskable.png');
+      await new Promise(r => setTimeout(r, 120));
+      downloadDataURL(url512, 'icon-512-maskable.png');
+    }
+
+    document.getElementById('gen').addEventListener('click', async () => {
+      try {
+        await generateAll();
+      } catch (e) {
+        alert('生成失败：' + (e && e.message ? e.message : e));
+      }
+    });
+  </script>
+</body>
+</html>
+

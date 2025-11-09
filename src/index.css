@@ -4,6 +4,16 @@
 /* Include KaTeX styles globally so math renders consistently and avoids TS CSS import issues */
 @import "katex/dist/katex.min.css";
 
+/* Self-host Material Symbols via npm package (no CDN) */
+@import "material-symbols/index.css";
+
+/* Self-host Inter via @fontsource (no CDN) */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/inter/800.css";
+
 /* 在 v4 中，dark 变体默认基于媒体查询。如需基于类名触发（.dark），使用自定义变体定义 */
 @custom-variant dark (.dark &);
 
