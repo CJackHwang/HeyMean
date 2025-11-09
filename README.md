@@ -79,7 +79,7 @@
 - **SettingsProvider** - Global settings management with persistence
 - **TranslationProvider** - i18n support with locale caching
 - **AppReadyProvider** - Compatibility wrapper; no startup gate (renders immediately)
-- All providers wrap the HashRouter for optimal state access and initialization order
+- All providers wrap the router for optimal state access and initialization order
 
 ### Strategy Pattern
 - **apiService.ts** - Unified API interface that dispatches between Gemini and OpenAI implementations
@@ -92,36 +92,54 @@
 - Transaction-based operations for data integrity
 - Optimistic updates for better UX
 
-### Modular Hooks Architecture
-- **useConversation** - Conversation state management, editing/resend orchestration, and DB operations
-- **useChatStream** - AI streaming response handler with cancel support
-- **useAttachments** - File attachment handling with compression and validation
-- **useMessageActions** - Context menu actions for copy, edit, resend, regenerate, delete
-- **useLongPress** - Touch-friendly long-press detection
-- **useToast** - Toast notification management
-- **useSettings** - Settings context and persistence
-- **useTranslation** - i18n hooks with caching
+### Feature-Based Architecture
+- **Chat Feature** (`features/chat/`) - Complete chat functionality with UI, business logic, and state management
+  - UI components: ChatHeader, ChatMessagesArea, ChatFooter, NotesPanel
+  - Model hooks: useConversation, useChatStream, useAttachments, useMessageActions
+  - Scroll management and notes panel state
+- **Shared UI Components** (`shared/ui/`) - Reusable components across features
+  - ChatInput, MessageBubble, MarkdownRenderer, Modal, ListItemMenu, etc.
+- **Global Providers** (`app/providers/`) - Application-wide state management
+  - useSettings, useTranslation, useToast, AppReadyProvider
 
-### Conversation Lifecycle & Composer
+### Hooks Architecture
+- **Business Logic Hooks** (in `features/chat/model/`)
+  - **useConversation** - Conversation state management, editing/resend orchestration, and DB operations
+  - **useChatStream** - AI streaming response handler with cancel support
+  - **useAttachments** - File attachment handling with compression and validation
+  - **useMessageActions** - Context menu actions for copy, edit, resend, regenerate, delete
+  - **useChatActions** - Chat-level actions and state management
+  - **useScrollManagement** - Automatic scrolling behavior
+  - **useNotesPanel** - Notes panel state management
+- **Shared Hooks** (in `shared/hooks/`)
+  - **useLongPress** - Touch-friendly long-press detection for mobile
+- **Provider Hooks** (in `app/providers/`)
+  - **useToast** - Toast notification management
+  - **useSettings** - Settings context and persistence
+  - **useTranslation** - i18n hooks with caching
+
+### UI Components
 - **ChatInput** - Unified composer with edit mode, attachment chips, and mobile-friendly layout
 - **MessageBubble** - Collapsible thinking view, responsive Markdown rendering, attachment gallery
 - **ListItemMenu + Modal** - Contextual action menu with confirmation flows and keyboard focus management
+- **MarkdownRenderer** - Rich markdown rendering with syntax highlighting and math support
 
 ### Responsive Layout
-- **Desktop**: Chat + Notes split view with resizable panels
-- **Mobile**: Drawer-based experience with bottom composer safe-area padding
+- **Desktop**: Chat + Notes split view with flexible panels
+- **Mobile**: Optimized mobile experience with bottom composer and safe-area padding
 - **Virtualized Rendering**: Efficient message list with @tanstack/react-virtual
 - **Custom Scrollbar**: Styled scrollbars that match the theme
 
 ### Performance Optimizations
 - **Route-based code splitting** - Fine-grained vendor chunking to avoid large bundles
-- **Data preloading during navigation** - Smart caching with navigation/ layer (AnimatedRoutes + preloader)
+- **Data preloading during navigation** - Smart caching with router layer (AnimatedRoutes + routePreloader)
 - **Virtual scrolling** - Efficient message list rendering with @tanstack/react-virtual
 - **Image compression** - Automatic compression for attachments exceeding size limits
 - **Debounced auto-save** - Notes saved automatically without performance impact
-- **On-demand plugin** - rehype-katex loads only when math is detected; KaTeX CSS is bundled globally for consistent rendering
-- **Smooth animations** - 580ms eased page transitions with wait-for-anchor logic to prevent layout shifts
+- **On-demand math rendering** - rehype-katex loads only when math is detected; KaTeX CSS is bundled globally for consistent rendering
+- **Smooth page transitions** - 580ms eased animations with wait-for-anchor logic to prevent layout shifts
 - **Blob URL management** - Automatic cleanup of object URLs to prevent memory leaks
+- **Self-hosted assets** - Fonts and icons are self-hosted (no external CDNs)
 
 ---
 
@@ -261,72 +279,120 @@
 
 ## 📁 Project Structure
 
+The project follows **Feature-Sliced Design (FSD)** architecture for better modularity, scalability, and maintainability:
+
 ```
 heymean-ai-learning-assistant/
-├── components/             # Reusable UI components
-│   ├── ChatInput.tsx          # Message input with file upload
-│   ├── MessageBubble.tsx      # Chat message display with actions
-│   ├── MarkdownRenderer.tsx   # Rich markdown rendering
-│   ├── MarkdownSurface.tsx    # Shared Markdown wrapper with consistent styling
-│   ├── CodeBlock.tsx          # Code block with syntax highlighting
-│   ├── NotesView.tsx          # Notes workspace with full CRUD
-│   ├── Modal.tsx              # Confirmation dialogs
-│   ├── ListItemMenu.tsx       # Context menu for list items
-│   └── Selector.tsx           # Dropdown selector component
-├── pages/                  # Route pages
-│   ├── HomePage.tsx           # Landing page with quick start
-│   ├── ChatPage.tsx           # Main chat interface with streaming
-│   ├── HistoryPage.tsx        # Conversation history management
-│   ├── SettingsPage.tsx       # Settings panel with API config
-│   └── AboutPage.tsx          # About page with app info and links
-├── navigation/             # Navigation layer
-│   ├── AnimatedRoutes.tsx     # Route transitions with preload
-│   ├── routes.tsx             # Centralized route definitions
-│   └── routePreloader.ts      # Data preloading per route
-├── providers/              # App providers
-│   └── AppReadyProvider.tsx   # Compatibility wrapper (no-op)
-├── services/               # Business logic
-│   ├── db.ts                  # IndexedDB operations (conversations, messages, notes, settings)
-│   ├── apiService.ts          # Unified API service (Gemini + OpenAI compatible)
-│   ├── streamController.ts    # Cross-provider streaming control (cancel/retry)
-│   └── errorHandler.ts        # Centralized error handling
-├── hooks/                  # Custom React hooks
-│   ├── useSettings.tsx        # Settings context & provider
-│   ├── useTranslation.tsx     # i18n hooks with caching
-│   ├── useConversation.tsx    # Conversation state management
-│   ├── useChatStream.tsx      # AI streaming response handler (supports cancel)
-│   ├── useAttachments.tsx     # File attachment handling
-│   ├── useMessageActions.tsx  # Message action handlers (resend, regenerate, delete)
-│   ├── useLongPress.tsx       # Long-press detection for mobile
-│   └── useToast.tsx           # Toast notification provider
-├── utils/                  # Utility functions
-│   ├── constants.ts           # App constants
-│   ├── dateHelpers.ts         # Date formatting utilities
-│   ├── fileHelpers.ts         # File compression and validation
-│   ├── textHelpers.ts         # Text processing utilities
-│   ├── attachmentHelpers.ts   # Unified attachment preview utilities
-│   ├── preload.ts             # Resource preloading
-│   └── preloadPayload.ts      # Data preloading for navigation
-├── public/                 # Static assets
-│   └── locales/               # Internationalization
-│       ├── en.json                # English translations
-│       ├── zh-CN.json             # Simplified Chinese
-│       └── ja.json                # Japanese
-├── src/                    # Global styles
-│   └── index.css              # Tailwind directives and custom CSS
-├── App.tsx                 # App root with providers and router
-├── index.tsx               # App entry point
-├── types.ts                # TypeScript type definitions
-├── global.d.ts             # Global type declarations
-├── public/prompt.txt       # Default AI system prompt (served statically)
-├── vite.config.ts          # Vite configuration
-├── tailwind.config.ts      # TailwindCSS configuration
-├── tsconfig.json           # TypeScript configuration
-├── postcss.config.cjs      # PostCSS configuration
-├── index.html              # HTML template (self-hosted fonts/icons; no external CDNs)
-├── package.json            # Dependencies and scripts
-└── README.md               # This file
+├── src/
+│   ├── app/                    # Application layer
+│   │   ├── App.tsx                # Application root component
+│   │   ├── providers/             # Global providers (Toast, Settings, Translation, AppReady)
+│   │   │   ├── AppProviders.tsx      # Provider composition
+│   │   │   ├── useSettings.tsx       # Settings context & hooks
+│   │   │   ├── useTranslation.tsx    # i18n context & hooks
+│   │   │   ├── useToast.tsx          # Toast notification provider
+│   │   │   └── AppReadyProvider.tsx  # App initialization wrapper
+│   │   ├── router/                # Routing configuration
+│   │   │   └── AppRouter.tsx         # Router setup with lazy loading
+│   │   ├── layout/                # Application layout components
+│   │   └── assets/                # Global assets and CSS
+│   │       ├── index.css             # Tailwind directives and custom styles
+│   │       └── fonts-preload.ts      # Font preloading
+│   ├── features/               # Feature modules (business logic)
+│   │   └── chat/                  # Chat feature
+│   │       ├── ui/                   # Feature-specific UI components
+│   │       │   ├── ChatHeader.tsx       # Chat page header
+│   │       │   ├── ChatMessagesArea.tsx # Message list with virtualization
+│   │       │   ├── ChatFooter.tsx       # Chat input area
+│   │       │   └── NotesPanel.tsx       # Notes side panel
+│   │       ├── model/                # Business logic and hooks
+│   │       │   ├── useConversation.tsx  # Conversation state management
+│   │       │   ├── useChatStream.tsx    # AI streaming handler
+│   │       │   ├── useAttachments.tsx   # File attachment handling
+│   │       │   ├── useMessageActions.tsx # Message actions (edit/delete/regenerate)
+│   │       │   ├── useChatActions.ts    # Chat-level actions
+│   │       │   ├── useScrollManagement.ts # Auto-scroll behavior
+│   │       │   └── useNotesPanel.ts     # Notes panel state
+│   │       ├── api/                  # Feature-specific API calls
+│   │       └── lib/                  # Feature-specific utilities
+│   ├── shared/                 # Shared/reusable resources
+│   │   ├── ui/                    # Reusable UI components
+│   │   │   ├── ChatInput.tsx         # Message input with attachments
+│   │   │   ├── MessageBubble.tsx     # Chat message display
+│   │   │   ├── MarkdownRenderer.tsx  # Markdown rendering component
+│   │   │   ├── MarkdownSurface.tsx   # Markdown wrapper with styling
+│   │   │   ├── CodeBlock.tsx         # Code syntax highlighting
+│   │   │   ├── NotesView.tsx         # Notes CRUD interface
+│   │   │   ├── Modal.tsx             # Confirmation dialogs
+│   │   │   ├── ListItemMenu.tsx      # Context menu component
+│   │   │   └── Selector.tsx          # Dropdown selector
+│   │   ├── hooks/                 # Reusable hooks
+│   │   │   └── useLongPress.tsx      # Long-press detection for mobile
+│   │   ├── services/              # Core services
+│   │   │   ├── db.ts                 # IndexedDB operations
+│   │   │   ├── apiService.ts         # Unified API service (Gemini/OpenAI)
+│   │   │   ├── streamController.ts   # Streaming control (cancel/retry)
+│   │   │   └── errorHandler.ts       # Error handling utilities
+│   │   ├── lib/                   # Utility functions
+│   │   │   ├── constants.ts          # Application constants
+│   │   │   ├── dateHelpers.ts        # Date formatting
+│   │   │   ├── fileHelpers.ts        # File compression and validation
+│   │   │   ├── textHelpers.ts        # Text processing
+│   │   │   ├── attachmentHelpers.ts  # Attachment preview utilities
+│   │   │   ├── preload.ts            # Resource preloading
+│   │   │   └── preloadPayload.ts     # Data preloading for navigation
+│   │   └── types/                 # Shared TypeScript types
+│   │       ├── index.ts              # Type definitions
+│   │       └── global.d.ts           # Global type declarations
+│   ├── pages/                  # Route-level page components
+│   │   ├── HomePage.tsx           # Landing page
+│   │   ├── ChatPage.tsx           # Main chat interface
+│   │   ├── HistoryPage.tsx        # Conversation history
+│   │   ├── SettingsPage.tsx       # Settings panel
+│   │   └── AboutPage.tsx          # About page
+│   ├── widgets/                # Complex composite components
+│   ├── entities/               # Domain entities (future use)
+│   ├── ai/                     # AI/Agent capabilities (reserved for future)
+│   └── workers/                # Web Workers (future use)
+├── public/                     # Static assets
+│   ├── locales/                   # Internationalization files
+│   │   ├── en.json                   # English translations
+│   │   ├── zh-CN.json                # Simplified Chinese
+│   │   └── ja.json                   # Japanese
+│   └── prompt.txt                 # Default AI system prompt
+├── index.tsx                   # Application entry point
+├── index.html                  # HTML template
+├── vite.config.ts              # Vite configuration with path aliases
+├── tailwind.config.ts          # TailwindCSS configuration
+├── tsconfig.json               # TypeScript configuration
+├── postcss.config.cjs          # PostCSS configuration
+├── package.json                # Dependencies and scripts
+├── ARCHITECTURE.md             # Detailed architecture documentation
+└── README.md                   # This file
 ```
+
+### Path Aliases
+
+The project uses path aliases for cleaner imports:
+
+- `@app/*` → `src/app/*`
+- `@shared/*` → `src/shared/*`
+- `@features/*` → `src/features/*`
+- `@pages/*` → `src/pages/*`
+- `@widgets/*` → `src/widgets/*`
+- `@entities/*` → `src/entities/*`
+- `@ai/*` → `src/ai/*`
+- `@workers/*` → `src/workers/*`
+
+### Architecture Principles
+
+- **Feature-First**: Business logic is organized by features, not by technical layers
+- **Shared Resources**: Common UI components, hooks, and utilities are in `shared/`
+- **Clear Dependencies**: Lower layers (`shared`) don't depend on upper layers (`features`, `pages`)
+- **Lazy Loading**: Routes and features are loaded on demand for better performance
+- **Separation of Concerns**: UI, business logic, and data access are clearly separated
+
+For detailed architecture guidelines, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -342,8 +408,8 @@ Currently supported languages:
 
 To add a new language:
 1. Create a new JSON file in `public/locales/` (e.g., `public/locales/es.json`)
-2. Add the language to `types.ts` Language enum
-3. Update the language selector in `SettingsPage.tsx`
+2. Add the language to `src/shared/types/index.ts` Language enum
+3. Update the language selector in `src/pages/SettingsPage.tsx`
 4. Translate all keys from `public/locales/en.json`
 
 ---
@@ -584,37 +650,55 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - 基于事务的操作以确保数据完整性
 - 乐观更新以提升用户体验
 
-#### 模块化 Hooks 架构
-- **useConversation** - 对话状态管理、编辑/重发协调与数据库操作
-- **useChatStream** - AI 流式响应处理，支持取消
-- **useAttachments** - 文件附件处理，带压缩与验证
-- **useMessageActions** - 上下文菜单操作（复制、编辑、重发、重新生成、删除）
-- **useLongPress** - 触摸友好的长按检测
-- **useToast** - Toast 通知管理
-- **useSettings** - 设置上下文与持久化
-- **useTranslation** - i18n hooks 与缓存
+#### 特性驱动架构
+- **Chat 特性** (`features/chat/`) - 覆盖完整聊天体验的 UI、业务逻辑与状态管理
+  - UI 组件：ChatHeader、ChatMessagesArea、ChatFooter、NotesPanel
+  - 模型层 Hooks：useConversation、useChatStream、useAttachments、useMessageActions
+  - 滚动管理与笔记面板状态管理
+- **共享 UI 组件** (`shared/ui/`) - 跨特性复用的基础组件
+  - ChatInput、MessageBubble、MarkdownRenderer、Modal、ListItemMenu 等
+- **全局 Provider** (`app/providers/`) - 应用级状态与上下文
+  - useSettings、useTranslation、useToast、AppReadyProvider
 
-#### 对话生命周期与编辑器
+#### Hooks 架构
+- **业务 Hooks**（位于 `features/chat/model/`）
+  - **useConversation** - 对话状态管理、编辑/重发协调与数据库操作
+  - **useChatStream** - AI 流式响应处理，支持取消
+  - **useAttachments** - 文件附件处理，带压缩与验证
+  - **useMessageActions** - 上下文菜单操作（复制、编辑、重发、重新生成、删除）
+  - **useChatActions** - 聊天级操作与状态管理
+  - **useScrollManagement** - 自动滚动行为
+  - **useNotesPanel** - 笔记面板状态管理
+- **共享 Hooks**（位于 `shared/hooks/`）
+  - **useLongPress** - 触摸友好的长按检测
+- **Provider Hooks**（位于 `app/providers/`）
+  - **useToast** - Toast 通知管理
+  - **useSettings** - 设置上下文与持久化
+  - **useTranslation** - i18n hooks 与缓存
+
+#### UI 组件
 - **ChatInput** - 统一的输入编辑器，支持编辑模式、附件标签和移动端友好布局
 - **MessageBubble** - 可折叠的思考视图、响应式 Markdown 渲染、附件展示
 - **ListItemMenu + Modal** - 上下文操作菜单，带有确认流程和键盘焦点管理
+- **MarkdownRenderer** - 富 Markdown 渲染，包含语法高亮与数学公式
 
 #### 响应式布局
-- **桌面端**：聊天 + 笔记分栏，可调整大小
-- **移动端**：抽屉式体验，底部编辑器带有安全区域内边距
-- **虚拟化渲染**：使用 @tanstack/react-virtual 实现高效消息列表
+- **桌面端**：聊天 + 笔记分栏，支持灵活布局
+- **移动端**：针对移动体验优化的底部输入区与安全区域留白
+- **虚拟化渲染**：使用 @tanstack/react-virtual 高效渲染消息列表
 - **自定义滚动条**：匹配主题的样式化滚动条
 
 #### 性能优化
 - **即时渲染** - 应用立即渲染，设置与翻译后台加载
 - **基于路由的代码分割** - 细粒度的 vendor chunking 避免大包
-- **导航期间数据预加载** - 使用 navigation/ 层（AnimatedRoutes + 预加载器）智能缓存
+- **导航期间数据预加载** - 使用 router 层（AnimatedRoutes + routePreloader）智能缓存
 - **虚拟滚动** - 使用 @tanstack/react-virtual 高效渲染消息列表
 - **图片压缩** - 附件超过大小限制时自动压缩
 - **防抖自动保存** - 笔记自动保存，不影响性能
-- **按需加载** - 仅在检测到数学表达式时加载 KaTeX CSS 和 rehype-katex
+- **按需数学渲染** - 检测到数学表达式时才加载 rehype-katex，KaTeX CSS 全局打包
 - **流畅动画** - 580ms 缓动页面过渡，带有等待锚定逻辑防止布局跳变
 - **Blob URL 管理** - 自动清理对象 URL 防止内存泄漏
+- **自托管资源** - 字体与图标均在本地托管，无外部 CDN
 
 ### 🚀 快速开始
 
@@ -755,72 +839,121 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 
 ### 📁 项目结构
 
+项目采用 **特性分层设计（Feature-Sliced Design, FSD）**架构，更好地实现模块化、可扩展性与可维护性：
+
 ```
 heymean-ai-learning-assistant/
-├── components/             # 可复用 UI 组件
-│   ├── ChatInput.tsx          # 带文件上传的消息输入
-│   ├── MessageBubble.tsx      # 带操作的聊天消息显示
-│   ├── MarkdownRenderer.tsx   # 富 Markdown 渲染
-│   ├── MarkdownSurface.tsx    # 统一样式的 Markdown 容器
-│   ├── CodeBlock.tsx          # 带语法高亮的代码块
-│   ├── NotesView.tsx          # 完整 CRUD 的笔记工作区
-│   ├── Modal.tsx              # 确认对话框
-│   ├── ListItemMenu.tsx       # 列表项上下文菜单
-│   └── Selector.tsx           # 下拉选择器组件
-├── pages/                  # 路由页面
-│   ├── HomePage.tsx           # 带快速启动的着陆页
-│   ├── ChatPage.tsx           # 带流式传输的主聊天界面
-│   ├── HistoryPage.tsx        # 对话历史管理
-│   ├── SettingsPage.tsx       # 带 API 配置的设置面板
-│   └── AboutPage.tsx          # 关于页面，包含应用信息和链接
-├── navigation/             # 导航层
-│   ├── AnimatedRoutes.tsx     # 带预加载的路由过渡
-│   ├── routes.tsx             # 集中式路由定义
-│   └── routePreloader.ts      # 路由数据预加载
-├── providers/              # 应用级 provider
-│   └── AppReadyProvider.tsx   # 兼容性包装（no-op）
-├── services/               # 业务逻辑
-│   ├── db.ts                  # IndexedDB 操作（对话、消息、笔记、设置）
-│   ├── apiService.ts          # 统一 API 服务（Gemini + OpenAI 兼容）
-│   ├── streamController.ts    # 跨提供商流式控制（取消/重试）
-│   └── errorHandler.ts        # 集中式错误处理
-├── hooks/                  # 自定义 React hooks
-│   ├── useSettings.tsx        # 设置上下文 & provider
-│   ├── useTranslation.tsx     # 带缓存的 i18n hooks
-│   ├── useConversation.tsx    # 对话状态管理
-│   ├── useChatStream.tsx      # AI 流式响应处理器（支持取消）
-│   ├── useAttachments.tsx     # 文件附件处理
-│   ├── useMessageActions.tsx  # 消息操作处理器（重发、重新生成、删除）
-│   ├── useLongPress.tsx       # 移动端长按检测
-│   └── useToast.tsx           # Toast 通知 provider
-├── utils/                  # 工具函数
-│   ├── constants.ts           # 应用常量
-│   ├── dateHelpers.ts         # 日期格式化工具
-│   ├── fileHelpers.ts         # 文件压缩和验证
-│   ├── textHelpers.ts         # 文本处理工具
-│   ├── attachmentHelpers.ts   # 统一的附件预览工具
-│   ├── preload.ts             # 资源预加载
-│   └── preloadPayload.ts      # 导航数据预加载
-├── public/                 # 静态资源
-│   └── locales/               # 国际化
-│       ├── en.json                # 英语翻译
-│       ├── zh-CN.json             # 简体中文
-│       └── ja.json                # 日语
-├── src/                    # 全局样式
-│   └── index.css              # Tailwind 指令和自定义 CSS
-├── App.tsx                 # 带 providers 和 router 的应用根组件
-├── index.tsx               # 应用入口点
-├── types.ts                # TypeScript 类型定义
-├── global.d.ts             # 全局类型声明
-├── public/prompt.txt       # 默认 AI 系统提示（静态提供）
-├── vite.config.ts          # Vite 配置
-├── tailwind.config.ts      # TailwindCSS 配置
-├── tsconfig.json           # TypeScript 配置
-├── postcss.config.cjs      # PostCSS 配置
-├── index.html              # HTML 模板（本地自托管字体/图标；无外部 CDN）
-├── package.json            # 依赖和脚本
-└── README.md               # 本文件
+├── src/
+│   ├── app/                    # 应用层
+│   │   ├── App.tsx                # 应用根组件
+│   │   ├── providers/             # 全局 Provider（Toast、Settings、Translation、AppReady）
+│   │   │   ├── AppProviders.tsx      # Provider 组合
+│   │   │   ├── useSettings.tsx       # 设置上下文与 hooks
+│   │   │   ├── useTranslation.tsx    # i18n 上下文与 hooks
+│   │   │   ├── useToast.tsx          # Toast 通知 provider
+│   │   │   └── AppReadyProvider.tsx  # 应用初始化包装
+│   │   ├── router/                # 路由配置
+│   │   │   └── AppRouter.tsx         # 路由设置（含懒加载）
+│   │   ├── layout/                # 应用布局组件
+│   │   └── assets/                # 全局资源与 CSS
+│   │       ├── index.css             # Tailwind 指令与自定义样式
+│   │       └── fonts-preload.ts      # 字体预加载
+│   ├── features/               # 特性模块（业务逻辑）
+│   │   └── chat/                  # 聊天特性
+│   │       ├── ui/                   # 特性专用 UI 组件
+│   │       │   ├── ChatHeader.tsx       # 聊天页头部
+│   │       │   ├── ChatMessagesArea.tsx # 消息列表（虚拟化）
+│   │       │   ├── ChatFooter.tsx       # 聊天输入区域
+│   │       │   └── NotesPanel.tsx       # 笔记侧边面板
+│   │       ├── model/                # 业务逻辑与 hooks
+│   │       │   ├── useConversation.tsx  # 对话状态管理
+│   │       │   ├── useChatStream.tsx    # AI 流式处理
+│   │       │   ├── useAttachments.tsx   # 文件附件处理
+│   │       │   ├── useMessageActions.tsx # 消息操作（编辑/删除/重新生成）
+│   │       │   ├── useChatActions.ts    # 聊天级操作
+│   │       │   ├── useScrollManagement.ts # 自动滚动行为
+│   │       │   └── useNotesPanel.ts     # 笔记面板状态
+│   │       ├── api/                  # 特性专用 API 调用
+│   │       └── lib/                  # 特性专用工具
+│   ├── shared/                 # 共享/可复用资源
+│   │   ├── ui/                    # 可复用 UI 组件
+│   │   │   ├── ChatInput.tsx         # 带附件的消息输入
+│   │   │   ├── MessageBubble.tsx     # 聊天消息显示
+│   │   │   ├── MarkdownRenderer.tsx  # Markdown 渲染组件
+│   │   │   ├── MarkdownSurface.tsx   # Markdown 包装与样式
+│   │   │   ├── CodeBlock.tsx         # 代码语法高亮
+│   │   │   ├── NotesView.tsx         # 笔记 CRUD 界面
+│   │   │   ├── Modal.tsx             # 确认对话框
+│   │   │   ├── ListItemMenu.tsx      # 上下文菜单组件
+│   │   │   └── Selector.tsx          # 下拉选择器
+│   │   ├── hooks/                 # 可复用 hooks
+│   │   │   └── useLongPress.tsx      # 移动端长按检测
+│   │   ├── services/              # 核心服务
+│   │   │   ├── db.ts                 # IndexedDB 操作
+│   │   │   ├── apiService.ts         # 统一 API 服务（Gemini/OpenAI）
+│   │   │   ├── streamController.ts   # 流式控制（取消/重试）
+│   │   │   └── errorHandler.ts       # 错误处理工具
+│   │   ├── lib/                   # 工具函数
+│   │   │   ├── constants.ts          # 应用常量
+│   │   │   ├── dateHelpers.ts        # 日期格式化
+│   │   │   ├── fileHelpers.ts        # 文件压缩与验证
+│   │   │   ├── textHelpers.ts        # 文本处理
+│   │   │   ├── attachmentHelpers.ts  # 附件预览工具
+│   │   │   ├── preload.ts            # 资源预加载
+│   │   │   └── preloadPayload.ts     # 导航数据预加载
+│   │   └── types/                 # 共享 TypeScript 类型
+│   │       ├── index.ts              # 类型定义
+│   │       └── global.d.ts           # 全局类型声明
+│   ├── pages/                  # 路由级页面组件
+│   │   ├── HomePage.tsx           # 首页
+│   │   ├── ChatPage.tsx           # 主聊天界面
+│   │   ├── HistoryPage.tsx        # 对话历史
+│   │   ├── SettingsPage.tsx       # 设置面板
+│   │   └── AboutPage.tsx          # 关于页面
+│   ├── widgets/                # 复杂复合组件
+│   ├── entities/               # 领域实体（预留）
+│   ├── ai/                     # AI/Agent 能力（预留）
+│   └── workers/                # Web Workers（预留）
+├── public/                     # 静态资源
+│   ├── locales/                   # 国际化文件
+│   │   ├── en.json                   # 英语翻译
+│   │   ├── zh-CN.json                # 简体中文
+│   │   └── ja.json                   # 日语
+│   └── prompt.txt                 # 默认 AI 系统提示
+├── index.tsx                   # 应用入口
+├── index.html                  # HTML 模板
+├── vite.config.ts              # Vite 配置（含路径别名）
+├── tailwind.config.ts          # TailwindCSS 配置
+├── tsconfig.json               # TypeScript 配置
+├── postcss.config.cjs          # PostCSS 配置
+├── package.json                # 依赖与脚本
+├── ARCHITECTURE.md             # 详细架构文档
+└── README.md                   # 本文件
 ```
+
+#### 路径别名
+
+项目使用路径别名使导入更清晰：
+
+- `@app/*` → `src/app/*`
+- `@shared/*` → `src/shared/*`
+- `@features/*` → `src/features/*`
+- `@pages/*` → `src/pages/*`
+- `@widgets/*` → `src/widgets/*`
+- `@entities/*` → `src/entities/*`
+- `@ai/*` → `src/ai/*`
+- `@workers/*` → `src/workers/*`
+
+#### 架构原则
+
+- **特性优先**：业务逻辑按特性组织，而非技术分层
+- **共享资源**：通用 UI 组件、hooks 与工具放在 `shared/`
+- **清晰依赖**：下层（`shared`）不依赖上层（`features`、`pages`）
+- **懒加载**：路由与特性按需加载以提升性能
+- **关注点分离**：UI、业务逻辑与数据访问明确分离
+
+详细架构指南请参阅 [ARCHITECTURE.md](ARCHITECTURE.md)。
+
 
 ### 🌐 国际化
 
@@ -834,8 +967,8 @@ heymean-ai-learning-assistant/
 
 添加新语言：
 1. 在 `public/locales/` 中创建新的 JSON 文件（例如 `public/locales/es.json`）
-2. 将语言添加到 `types.ts` 的 Language 枚举
-3. 更新 `SettingsPage.tsx` 中的语言选择器
+2. 将语言添加到 `src/shared/types/index.ts` 的 Language 枚举
+3. 更新 `src/pages/SettingsPage.tsx` 中的语言选择器
 4. 翻译 `public/locales/en.json` 中的所有键
 
 ### 🔧 配置
