@@ -15,3 +15,10 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Register a minimal service worker in production builds only
+if ('serviceWorker' in navigator && import.meta && (import.meta as any).env && (import.meta as any).env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

@@ -11,12 +11,12 @@ const AppContent: React.FC = () => {
 
   if (!isReady) {
     return (
-      <div className="flex items-center justify-center min-h-dvh bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
-        <div className="flex flex-col items-center gap-3 animate-pulse">
-          <span className="material-symbols-outlined text-2xl!">hourglass_bottom</span>
-          <p className="text-sm">HeyMean 正在准备...</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">加载资源中，请稍候</p>
-        </div>
+      <div className="flex items-center justify-center min-h-dvh bg-white">
+        <img
+          src="/heymeanlogo.svg"
+          alt="HeyMean"
+          className="w-56 h-56 sm:w-64 sm:h-64"
+        />
       </div>
     );
   }
