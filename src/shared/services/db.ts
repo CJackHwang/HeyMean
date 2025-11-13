@@ -487,14 +487,28 @@ export const getNotes = async (): Promise<Note[]> => {
     });
 };
 
-export const addNote = async (title: string = 'New Note', content: string = ''): Promise<Note> => {
+export const getNoteById = async (id: number): Promise<Note | undefined> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(NOTES_STORE, 'readonly');
+        const store = transaction.objectStore(NOTES_STORE);
+        const request = store.get(id);
+        request.onsuccess = () => {
+            const record = request.result as Record<string, unknown> | undefined;
+            resolve(record ? hydrateNote(record) : undefined);
+        };
+        request.onerror = () => reject(handleError(request.error, 'db'));
+    });
+};
+
+export const addNote = async (title: string = 'New Note', content: string = '', isPinned: boolean = false): Promise<Note> => {
     const db = await initDB();
     const newNote: Omit<Note, 'id'> = {
         title,
         content,
         createdAt: new Date(),
         updatedAt: new Date(),
-        isPinned: false
+        isPinned
     };
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(NOTES_STORE, 'readwrite');

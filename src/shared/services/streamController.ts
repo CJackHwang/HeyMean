@@ -1,5 +1,6 @@
 import { Message, StreamOptions } from '@shared/types';
 import { streamChatResponse, StreamChatConfig } from './apiService';
+import { injectToolInstructions, executeToolCallsFromText } from '@shared/services/tools';
 
 export class StreamController {
   private controller: AbortController | null = null;
@@ -23,7 +24,7 @@ export class StreamController {
 
     const config: StreamChatConfig = {
       provider: options.provider,
-      systemInstruction: options.systemInstruction,
+      systemInstruction: injectToolInstructions(options.systemInstruction),
       geminiApiKey: options.geminiApiKey,
       geminiModel: options.geminiModel,
       openAiApiKey: options.openAiApiKey,
@@ -31,13 +32,21 @@ export class StreamController {
       openAiBaseUrl: options.openAiBaseUrl,
     };
     
-    return await streamChatResponse(
+    const finalText = await streamChatResponse(
       chatHistory,
       userMessage,
       config,
       onChunk,
       this.controller.signal
     );
+
+    try {
+      await executeToolCallsFromText(finalText, { origin: 'ai-chat' });
+    } catch (error) {
+      console.error('[tools] Failed to execute tool calls', error);
+    }
+
+    return finalText;
   }
 }
 

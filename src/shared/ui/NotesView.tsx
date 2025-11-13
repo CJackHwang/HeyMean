@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '@shared/types';
-import { getNotes, addNote, updateNote, deleteNote } from '@shared/services/db';
+import { listNotes, createNote, updateNote as updateNoteRecord, deleteNote as deleteNoteRecord, NOTES_CHANGED_EVENT, NotesChangeEventDetail } from '@shared/services/notes';
 import { getPayload, clearPayload } from '@shared/lib/preloadPayload';
 import Modal from './Modal';
 import { useTranslation } from '@app/providers/useTranslation';
@@ -17,6 +17,8 @@ interface NotesViewProps {
 }
 
 type ViewState = 'list' | 'preview' | 'editing';
+
+const NOTE_EVENT_SOURCE = 'notes-view';
 
 const NotePreview: React.FC<{
     note: Note;
@@ -161,7 +163,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     const loadNotes = useCallback(async () => {
         try {
-            const notesFromDb = await getNotes();
+            const notesFromDb = await listNotes();
             setNotes(notesFromDb);
         } catch (error) {
             const appError = handleError(error, 'db');
@@ -184,6 +186,16 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         };
         window.addEventListener('hm:settings-ready', handler);
         return () => window.removeEventListener('hm:settings-ready', handler);
+    }, [loadNotes]);
+
+    useEffect(() => {
+        const syncHandler = (event: Event) => {
+            const detail = (event as CustomEvent<NotesChangeEventDetail>).detail;
+            if (detail?.source === NOTE_EVENT_SOURCE) return;
+            loadNotes();
+        };
+        window.addEventListener(NOTES_CHANGED_EVENT, syncHandler as EventListener);
+        return () => window.removeEventListener(NOTES_CHANGED_EVENT, syncHandler as EventListener);
     }, [loadNotes]);
 
     useEffect(() => {
@@ -214,7 +226,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
 
     const createNewNote = async () => {
         try {
-            const newNote = await addNote('New Note', '');
+            const newNote = await createNote({ title: 'New Note', content: '', source: NOTE_EVENT_SOURCE });
             await loadNotes();
             setActiveNote(newNote);
             setOriginalNoteContent(newNote.content);
@@ -256,7 +268,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
             try {
                 setSaveStatus('saving');
                 await new Promise(res => setTimeout(res, 300));
-                await updateNote(activeNote.id, { content: activeNote.content });
+                await updateNoteRecord({ id: activeNote.id, content: activeNote.content, source: NOTE_EVENT_SOURCE });
                 const updated = { ...activeNote, updatedAt: new Date() };
                 setOriginalNoteContent(updated.content);
                 setActiveNote(updated);
@@ -289,7 +301,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     const confirmDeleteNote = async () => {
         if (noteToDeleteId !== null) {
             try {
-                await deleteNote(noteToDeleteId);
+                await deleteNoteRecord({ id: noteToDeleteId, source: NOTE_EVENT_SOURCE });
                 await loadNotes();
                 setActiveNote(null);
                 setOriginalNoteContent(null);
@@ -331,7 +343,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
             }
             // A simplified save that transitions to the next state without delay effects
             try {
-                await updateNote(activeNote.id, { content: activeNote.content });
+                await updateNoteRecord({ id: activeNote.id, content: activeNote.content, source: NOTE_EVENT_SOURCE });
                 await loadNotes();
                 setIsNewNote(false);
             } catch (error) {
@@ -350,7 +362,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     
         if (isNewNote && activeNote) {
             try {
-                await deleteNote(activeNote.id);
+                await deleteNoteRecord({ id: activeNote.id, source: NOTE_EVENT_SOURCE });
                 await loadNotes();
             } catch (error) {
                 const appError = handleError(error, 'db');
@@ -385,7 +397,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
         const note = notes.find(n => n.id === id);
         if (note) {
             try {
-                await updateNote(id, { isPinned: !note.isPinned });
+                await updateNoteRecord({ id, isPinned: !note.isPinned, source: NOTE_EVENT_SOURCE });
                 await loadNotes();
             } catch (error) {
                 const appError = handleError(error, 'db');
@@ -402,7 +414,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
             return;
         }
         try {
-            await updateNote(noteToRename.id, { title: trimmed });
+            await updateNoteRecord({ id: noteToRename.id, title: trimmed, source: NOTE_EVENT_SOURCE });
             if (activeNote && activeNote.id === noteToRename.id) {
                 setActiveNote({ ...activeNote, title: trimmed, updatedAt: new Date() });
             }
