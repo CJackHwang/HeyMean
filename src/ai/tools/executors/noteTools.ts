@@ -2,6 +2,12 @@ import { ToolExecutor, ToolResult } from '../types';
 import { getNotes, addNote, updateNote as dbUpdateNote, deleteNote as dbDeleteNote } from '@shared/services/db';
 import { Note } from '@shared/types';
 
+const dispatchNotesChanged = (): void => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hm:notes-changed'));
+  }
+};
+
 /**
  * Execute createNote tool
  */
@@ -25,6 +31,7 @@ export const executeCreateNote: ToolExecutor = async (params): Promise<ToolResul
     }
 
     const newNote = await addNote(title, content);
+    dispatchNotesChanged();
     return {
       success: true,
       data: {
@@ -159,6 +166,7 @@ export const executeUpdateNote: ToolExecutor = async (params): Promise<ToolResul
     }
 
     await dbUpdateNote(id, updates);
+    dispatchNotesChanged();
 
     // Retrieve updated note
     const notes = await getNotes();
@@ -251,6 +259,7 @@ export const executeDeleteNote: ToolExecutor = async (params): Promise<ToolResul
     }
 
     await dbDeleteNote(id);
+    dispatchNotesChanged();
 
     return {
       success: true,

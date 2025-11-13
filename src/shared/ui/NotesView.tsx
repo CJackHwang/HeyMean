@@ -187,6 +187,16 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
     }, [loadNotes]);
 
     useEffect(() => {
+        const handleNotesChanged = () => {
+            loadNotes();
+        };
+        window.addEventListener('hm:notes-changed', handleNotesChanged);
+        return () => {
+            window.removeEventListener('hm:notes-changed', handleNotesChanged);
+        };
+    }, [loadNotes]);
+
+    useEffect(() => {
         return () => {
             if (saveStatusResetTimeoutRef.current !== null) {
                 clearTimeout(saveStatusResetTimeoutRef.current);
@@ -263,6 +273,7 @@ export const NotesView: React.FC<NotesViewProps> = ({ isDesktop = false }) => {
                 await loadNotes();
                 setSaveStatus('saved');
                 setIsNewNote(false); // A new note is no longer "new" after the first save.
+                setViewState('preview');
 
                 // Reset save status after a short delay to show "Saved!" feedback
                 if (saveStatusResetTimeoutRef.current !== null) {
