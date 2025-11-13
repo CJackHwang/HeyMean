@@ -144,7 +144,7 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                     config: {
                         systemInstruction,
                         thinkingConfig: { thinkingBudget: 8192 },
-                        tools: [{ functionDeclarations: tools }],
+                        tools: [{ functionDeclarations: tools as unknown as import("@google/genai").FunctionDeclaration[] }],
                         toolConfig: {
                             functionCallingConfig: {
                                 mode: FunctionCallingConfigMode.AUTO,
@@ -152,13 +152,10 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                             },
                         },
                     },
-                    safetySettings: undefined,
-                    generationConfig: undefined,
                 });
 
                 const text = response.text ?? '';
                 if (text) {
-                    aggregatedText += text;
                     onChunk(text);
                 }
 
