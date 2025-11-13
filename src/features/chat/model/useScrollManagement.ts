@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { RefObject, MutableRefObject } from 'react';
+import type { MutableRefObject } from 'react';
 import { Message } from '@shared/types';
 import { Virtualizer } from '@tanstack/react-virtual';
 
@@ -9,11 +9,11 @@ interface UseScrollManagementProps {
     rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
     streamedMessageIdRef: MutableRefObject<string | null>;
     pendingTopLoad: MutableRefObject<{ prevScrollHeight: number; prevScrollTop: number; prevFirstId: string | null } | null>;
-    chatContainerRef: RefObject<HTMLDivElement>;
+    chatContainerRef: MutableRefObject<HTMLDivElement | null>;
 }
 
 interface UseScrollManagementResult {
-    chatContainerRef: RefObject<HTMLDivElement>;
+    chatContainerRef: MutableRefObject<HTMLDivElement | null>;
     setChatContainerRef: (el: HTMLDivElement | null) => void;
     isUserAtBottom: MutableRefObject<boolean>;
     initialAnchored: boolean;
@@ -83,18 +83,18 @@ export const useScrollManagement = ({
             anyEl.__hm_init = true;
             try {
                 el.scrollTop = el.scrollHeight;
-            } catch {}
+            } catch { /* ignore */ }
             requestAnimationFrame(() => {
                 if (!didInitialScroll.current) {
                     try {
                         el.scrollTop = el.scrollHeight;
-                    } catch {}
+                    } catch { /* ignore */ }
                 }
                 const atBottom = el.scrollHeight - el.clientHeight <= el.scrollTop + 2;
                 if (atBottom) markAnchored();
             });
         }
-    }, [chatContainerRef, markAnchored]);
+    }, [markAnchored]);
 
     useEffect(() => {
         didInitialScroll.current = false;

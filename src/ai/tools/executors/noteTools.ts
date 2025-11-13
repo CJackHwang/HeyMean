@@ -1,6 +1,5 @@
 import { ToolExecutor, ToolResult } from '../types';
 import { getNotes, addNote, updateNote as dbUpdateNote, deleteNote as dbDeleteNote } from '@shared/services/db';
-import { Note } from '@shared/types';
 
 const dispatchNotesChanged = (): void => {
   if (typeof window !== 'undefined') {

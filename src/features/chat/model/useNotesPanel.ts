@@ -123,7 +123,7 @@ export const useNotesPanel = (): UseNotesPanelResult => {
         setNotesRatio(nextWidth / containerWidth);
     }, [isNotesCollapsed]);
 
-    const onPointerUp = useCallback((event?: PointerEvent) => {
+    const onPointerUp = useCallback((_event?: PointerEvent) => {
         if (!resizingRef.current) return;
         resizingRef.current = false;
         window.removeEventListener('pointermove', onPointerMove);

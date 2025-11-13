@@ -184,7 +184,7 @@ export const executeToolsParallel = async (toolCalls: ToolCall[]): Promise<ToolR
 /**
  * Check if tools are available for a provider
  */
-export const hasToolsForProvider = (provider: ApiProvider): boolean => {
+export const hasToolsForProvider = (_provider: ApiProvider): boolean => {
   return toolRegistry.getAllDefinitions().length > 0;
 };
 
