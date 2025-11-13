@@ -3,6 +3,9 @@ import { GoogleGenAI, Content, Part } from "@google/genai";
 import { Message, MessageSender, ApiProvider } from '@shared/types';
 import { getTextFromDataUrl, getInlineDataFromDataUrl } from "@shared/lib/fileHelpers";
 import { AppError, handleError } from "./errorHandler";
+import type { ToolDefinition } from '@ai/tools/types';
+import { toGeminiTools, toOpenAITools } from '@ai/tools/adapters';
+import { defaultToolRegistry, createToolContext, ToolRegistry } from '@ai/tools/registry';
 
 // --- HELPER FUNCTIONS ---
 
@@ -12,8 +15,10 @@ type OpenAIImageContentPart = { type: 'image_url'; image_url: { url: string; }; 
 type OpenAIMessageContentPart = OpenAITextContentPart | OpenAIImageContentPart;
 
 type OpenAIMessage = {
-    role: 'system' | 'user' | 'assistant';
+    role: 'system' | 'user' | 'assistant' | 'tool';
     content: string | OpenAIMessageContentPart[];
+    name?: string;
+    tool_call_id?: string;
 };
 
 
@@ -37,7 +42,9 @@ interface IChatService<T> {
         systemInstruction: string,
         config: T,
         onChunk: (text: string) => void,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        tools?: ToolDefinition[],
+        toolRegistry?: ToolRegistry
     ): Promise<void>;
 }
 
@@ -63,30 +70,87 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         return { role: msg.sender === MessageSender.USER ? 'user' : 'model', parts };
     }
 
-    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
+    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal, tools?: ToolDefinition[], toolRegistry?: ToolRegistry): Promise<void> {
         const ai = new GoogleGenAI({ apiKey: config.apiKey });
         const model = config.model || 'gemini-2.5-flash';
         
         const history: Content[] = chatHistory.map(this.messageToContent);
         const newContent = this.messageToContent(newMessage);
-        const contents: Content[] = [...history, newContent];
+        let contents: Content[] = [...history, newContent];
 
         try {
-            const response = await ai.models.generateContentStream({
-                model: model,
-                contents: contents,
-                config: {
-                    systemInstruction,
-                    thinkingConfig: { thinkingBudget: 8192 }
+            // Convert tools if provided
+            const geminiTools = tools && tools.length > 0 ? toGeminiTools(tools) : undefined;
+            const registry = toolRegistry || defaultToolRegistry;
+
+            // Function calling loop - may need multiple iterations
+            let maxIterations = 5;
+            let iteration = 0;
+
+            while (iteration < maxIterations) {
+                iteration++;
+
+                const response = await ai.models.generateContentStream({
+                    model: model,
+                    contents: contents,
+                    config: {
+                        systemInstruction,
+                        thinkingConfig: { thinkingBudget: 8192 },
+                        tools: geminiTools,
+                    }
+                });
+
+                let hasFunctionCalls = false;
+                const functionCalls: any[] = [];
+
+                for await (const chunk of response) {
+                    if (signal?.aborted) {
+                        throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                    }
+                    
+                    // Check for function calls
+                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                        hasFunctionCalls = true;
+                        functionCalls.push(...chunk.functionCalls);
+                    }
+
+                    // Output text chunks
+                    if (chunk.text) {
+                        onChunk(chunk.text);
+                    }
                 }
-            });
-            for await (const chunk of response) {
-                if (signal?.aborted) {
-                    throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+
+                // If no function calls, we're done
+                if (!hasFunctionCalls || functionCalls.length === 0) {
+                    break;
                 }
-                if (chunk.text) {
-                    onChunk(chunk.text);
+
+                // Execute function calls
+                const functionResponseParts: Part[] = [];
+                for (const fnCall of functionCalls) {
+                    const toolName = fnCall.name;
+                    const toolArgs = fnCall.args || {};
+                    
+                    const context = createToolContext();
+                    const result = await registry.execute(toolName, toolArgs, context);
+
+                    functionResponseParts.push({
+                        functionResponse: {
+                            name: toolName,
+                            response: result.success ? result.data : { error: result.error },
+                        }
+                    });
                 }
+
+                // Add model response (with function calls) and function responses to history
+                contents.push({
+                    role: 'model',
+                    parts: functionCalls.map(fc => ({ functionCall: fc }))
+                });
+                contents.push({
+                    role: 'user',
+                    parts: functionResponseParts
+                });
             }
         } catch (error) {
             const appError = handleError(error, 'api', { provider: 'gemini', model, endpoint: 'google-genai' });
@@ -145,57 +209,125 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         return openAIMessages;
     }
 
-    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
+    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal, tools?: ToolDefinition[], toolRegistry?: ToolRegistry): Promise<void> {
         const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
-        const messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
+        let messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
         const model = config.model || 'gpt-4o';
+        const registry = toolRegistry || defaultToolRegistry;
+        const openAITools = tools && tools.length > 0 ? toOpenAITools(tools) : undefined;
 
         try {
             if (model.includes('veo')) {
                 throw new AppError("CONFIG_ERROR", "Configuration Error: Video generation models are not supported in chat. Please select a text-based model in settings.");
             }
 
-            const response = await fetch(openaiEndpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
-                body: JSON.stringify({ model, messages, stream: true }),
-                signal,
-            });
+            let iteration = 0;
+            const maxIterations = 6;
 
-            if (!response.ok) {
-                if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
-                    throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
-                }
-                const errorData = await response.json();
-                const message = errorData?.error?.message || JSON.stringify(errorData);
-                throw new Error(`API error (${response.status}): ${message}`);
-            }
+            while (iteration < maxIterations) {
+                iteration++;
 
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error("Failed to get response reader for OpenAI stream.");
-            
-            const decoder = new TextDecoder('utf-8');
-            while (true) {
                 if (signal?.aborted) {
                     throw new AppError('CANCELLED', 'Request was cancelled by the user.');
                 }
-                const { value, done } = await reader.read();
-                if (done) break;
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.substring(6);
-                        if (data === '[DONE]') return;
-                        try {
-                            const json = JSON.parse(data);
-                            const content = json.choices[0].delta.content;
-                            if (content) onChunk(content);
-                        } catch (e) {
-                            console.warn("Could not parse OpenAI stream chunk:", e, data);
-                        }
-                    }
+
+                const payload: Record<string, any> = {
+                    model,
+                    messages,
+                    stream: false,
+                    temperature: 0.7,
+                };
+
+                if (openAITools) {
+                    payload.tools = openAITools;
+                    payload.tool_choice = 'auto';
                 }
+
+                const response = await fetch(openaiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+                    body: JSON.stringify(payload),
+                    signal,
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
+                        throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
+                    }
+                    const errorData = await response.json().catch(() => undefined);
+                    const message = errorData?.error?.message || JSON.stringify(errorData) || response.statusText;
+                    throw new Error(`API error (${response.status}): ${message}`);
+                }
+
+                const completion = await response.json();
+                const choice = completion?.choices?.[0];
+                const finishReason: string | undefined = choice?.finish_reason;
+                const assistantMessage = choice?.message;
+
+                if (!assistantMessage) {
+                    onChunk('[Error: Empty assistant response]');
+                    break;
+                }
+
+                // Handle tool calls
+                const toolCalls = assistantMessage.tool_calls || [];
+                if (toolCalls.length > 0 && finishReason === 'tool_calls') {
+                    messages = [...messages, assistantMessage];
+
+                    for (const toolCall of toolCalls) {
+                        const toolName = toolCall.function?.name;
+                        if (!toolName) continue;
+
+                        let parsedArgs: Record<string, any> = {};
+                        try {
+                            parsedArgs = toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : {};
+                        } catch (e) {
+                            parsedArgs = {};
+                        }
+
+                        const context = createToolContext();
+                        const result = await registry.execute(toolName, parsedArgs, context);
+
+                        const toolContent = JSON.stringify(result.success ? result : { success: false, error: result.error });
+
+                        messages = [
+                            ...messages,
+                            {
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                name: toolName,
+                                content: toolContent,
+                            },
+                        ];
+                    }
+
+                    continue;
+                }
+
+                // Handle refusal or content
+                let textContent = '';
+                if (typeof assistantMessage.content === 'string') {
+                    textContent = assistantMessage.content;
+                } else if (Array.isArray(assistantMessage.content)) {
+                    textContent = assistantMessage.content
+                        .map((part: any) => {
+                            if (typeof part === 'string') return part;
+                            if (part?.type === 'text') return part.text || '';
+                            return '';
+                        })
+                        .join('');
+                }
+
+                if (assistantMessage.refusal?.length) {
+                    textContent += `\n\n[Refusal]: ${assistantMessage.refusal.join('\n')}`;
+                }
+
+                if (textContent.trim().length === 0) {
+                    textContent = '[No content returned]';
+                }
+
+                onChunk(textContent);
+                break;
             }
         } catch (error) {
             const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: openaiEndpoint });
@@ -220,6 +352,8 @@ export interface StreamChatConfig {
   openAiApiKey: string;
   openAiModel: string;
   openAiBaseUrl: string;
+  tools?: ToolDefinition[];
+  toolRegistry?: ToolRegistry;
 }
 
 export const streamChatResponse = async (
@@ -230,7 +364,7 @@ export const streamChatResponse = async (
   signal?: AbortSignal,
   retryTimes: number = 0
 ): Promise<string> => {
-    const { systemInstruction, provider: selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl } = config;
+    const { systemInstruction, provider: selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl, tools, toolRegistry } = config;
 
     let fullText = '';
     const accumulatingOnChunk = (chunk: string) => {
@@ -239,21 +373,24 @@ export const streamChatResponse = async (
     };
 
     try {
+        const registry = toolRegistry || defaultToolRegistry;
+        const activeTools = tools && tools.length > 0 ? tools : registry.getAllDefinitions();
+
         if (selectedApiProvider === ApiProvider.GEMINI) {
             const service = apiServices[ApiProvider.GEMINI];
             const effectiveGeminiKey = geminiApiKey;
             if (!effectiveGeminiKey) {
                 throw new AppError("CONFIG_ERROR", "Error: Gemini API key is not configured. Please add it in settings.");
             }
-            const config: GeminiServiceConfig = { apiKey: effectiveGeminiKey, model: geminiModel };
-            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
+            const serviceConfig: GeminiServiceConfig = { apiKey: effectiveGeminiKey, model: geminiModel };
+            await service.stream(chatHistory, newMessage, systemInstruction, serviceConfig, accumulatingOnChunk, signal, activeTools, registry);
         } else if (selectedApiProvider === ApiProvider.OPENAI) {
             const service = apiServices[ApiProvider.OPENAI];
             if (!openAiApiKey) {
                 throw new AppError("CONFIG_ERROR", "Error: OpenAI API key is not configured in settings.");
             }
-            const config: OpenAIServiceConfig = { apiKey: openAiApiKey, model: openAiModel, baseUrl: openAiBaseUrl };
-            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
+            const serviceConfig: OpenAIServiceConfig = { apiKey: openAiApiKey, model: openAiModel, baseUrl: openAiBaseUrl };
+            await service.stream(chatHistory, newMessage, systemInstruction, serviceConfig, accumulatingOnChunk, signal, activeTools, registry);
         } else {
             throw new AppError("CONFIG_ERROR", `Error: API provider "${selectedApiProvider}" is not supported.`);
         }
