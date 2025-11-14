@@ -484,11 +484,12 @@ npm run preview
 ### Code Style
 
 This project uses:
-- **TypeScript** for type safety
+- **TypeScript** for type safety with strict mode enabled
 - **React 19** features (hooks, context, concurrent features)
 - **Functional components** with hooks (no class components)
 - **ES6+ syntax** (async/await, arrow functions, destructuring)
 - **TailwindCSS** for styling (utility-first approach)
+- **Strict TypeScript configuration** - `strict`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` enabled
 
 ### Key Development Guidelines
 

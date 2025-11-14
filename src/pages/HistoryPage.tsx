@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '@app/providers/useTranslation';
 import { Conversation } from '@shared/types';
@@ -23,7 +23,7 @@ const ConversationList: React.FC<{
         onLongPress(context.id, { x: e.clientX, y: e.clientY });
     }, [onLongPress]);
 
-    const handleClickCallback = useCallback((e: React.PointerEvent<HTMLDivElement>, context: Conversation) => {
+    const handleClickCallback = useCallback((_e: React.PointerEvent<HTMLDivElement>, context: Conversation) => {
         onSelect(context);
     }, [onSelect]);
 

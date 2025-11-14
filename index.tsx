@@ -1,9 +1,9 @@
 
-import React from 'react';
+import { StrictMode } from 'react';
 // Preload critical fonts as early as possible
 import '@app/assets/fonts-preload';
 import '@app/assets/index.css';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from '@app/App';
 
 const rootElement = document.getElementById('root');
@@ -11,15 +11,15 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
+const root = createRoot(rootElement);
 root.render(
-  <React.StrictMode>
+  <StrictMode>
     <App />
-  </React.StrictMode>
+  </StrictMode>
 );
 
 // Register a minimal service worker in production builds only
-if ('serviceWorker' in navigator && import.meta && (import.meta as any).env && (import.meta as any).env.PROD) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });

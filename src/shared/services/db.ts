@@ -1,4 +1,4 @@
-import { Message, Note, Conversation, AttachmentStored, MessageStored, ConversationUpdate, NoteUpdate } from '@shared/types';
+import { Message, Note, Conversation, MessageStored, ConversationUpdate, NoteUpdate } from '@shared/types';
 import { AppError, handleError } from './errorHandler';
 
 const DB_NAME = 'HeyMeanDB';

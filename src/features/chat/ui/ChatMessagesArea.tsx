@@ -10,7 +10,7 @@ interface ChatMessagesAreaProps {
     isLoadingMore: boolean;
     initialAnchored: boolean;
     setChatContainerRef: (el: HTMLDivElement | null) => void;
-    chatContainerRef: React.RefObject<HTMLDivElement>;
+    chatContainerRef: React.MutableRefObject<HTMLDivElement | null>;
     topSentinelRef: React.RefObject<HTMLDivElement | null>;
     handleLongPress: (message: Message, position: { x: number; y: number }) => void;
     loadMoreMessages: () => Promise<void>;

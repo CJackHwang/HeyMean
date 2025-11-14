@@ -100,7 +100,7 @@ const NoteList: React.FC<{
         onNoteLongPress(context.id, { x: e.clientX, y: e.clientY });
     }, [onNoteLongPress]);
 
-    const handleClickCallback = useCallback((e: React.PointerEvent<HTMLDivElement>, context: Note) => {
+    const handleClickCallback = useCallback((_event: React.PointerEvent<HTMLDivElement>, context: Note) => {
         onSelect(context);
     }, [onSelect]);
     

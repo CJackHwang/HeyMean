@@ -9,7 +9,7 @@ interface UseChatActionsProps {
     currentConversationId: string | null;
     streamResponse: (chatHistory: Message[], userMessage: Message, aiMessageId: string) => Promise<void>;
     deleteMultipleMessagesFromConversation: (messageIds: string[]) => Promise<void>;
-    updateMessageInConversation: (messageId: string, updates: Partial<Message>) => Promise<Message | null>;
+    updateMessageInConversation: (messageId: string, updates: { text: string; attachments?: Attachment[] }) => Promise<Message | null>;
     cancel: () => void;
     showToast: (message: string, type: 'success' | 'error' | 'info') => void;
     shouldForceScrollRef: MutableRefObject<boolean>;
