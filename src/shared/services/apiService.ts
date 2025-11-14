@@ -1,8 +1,10 @@
 
-import { GoogleGenAI, Content, Part } from "@google/genai";
+import { GoogleGenAI, Content, Part, FunctionCallingConfigMode, createPartFromFunctionResponse } from "@google/genai";
 import { Message, MessageSender, ApiProvider } from '@shared/types';
 import { getTextFromDataUrl, getInlineDataFromDataUrl } from "@shared/lib/fileHelpers";
 import { AppError, handleError } from "./errorHandler";
+import { getToolsForProvider, executeTool, formatToolResult } from "./toolService";
+import { GeminiFunctionDeclaration, OpenAIFunctionDefinition } from "./toolService";
 
 // --- HELPER FUNCTIONS ---
 
@@ -11,9 +13,20 @@ type OpenAITextContentPart = { type: 'text'; text: string; };
 type OpenAIImageContentPart = { type: 'image_url'; image_url: { url: string; }; };
 type OpenAIMessageContentPart = OpenAITextContentPart | OpenAIImageContentPart;
 
+type OpenAIToolCall = {
+    id: string;
+    type: 'function';
+    function: {
+        name: string;
+        arguments: string;
+    };
+};
+
 type OpenAIMessage = {
-    role: 'system' | 'user' | 'assistant';
+    role: 'system' | 'user' | 'assistant' | 'tool';
     content: string | OpenAIMessageContentPart[];
+    tool_calls?: OpenAIToolCall[];
+    tool_call_id?: string;
 };
 
 
@@ -22,12 +35,14 @@ type OpenAIMessage = {
 interface GeminiServiceConfig {
     apiKey: string;
     model: string;
+    tools?: GeminiFunctionDeclaration[];
 }
 
 interface OpenAIServiceConfig {
     apiKey: string;
     model: string;
     baseUrl: string;
+    tools?: OpenAIFunctionDefinition[];
 }
 
 interface IChatService<T> {
@@ -64,6 +79,11 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
     }
 
     async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
+        if (config.tools && config.tools.length > 0) {
+            await this.streamWithTools(chatHistory, newMessage, systemInstruction, config, onChunk, signal);
+            return;
+        }
+
         const ai = new GoogleGenAI({ apiKey: config.apiKey });
         const model = config.model || 'gemini-2.5-flash';
         
@@ -92,6 +112,99 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
             const appError = handleError(error, 'api', { provider: 'gemini', model, endpoint: 'google-genai' });
             if (appError.code === 'CANCELLED') return;
             onChunk(appError.userMessage);
+        }
+    }
+
+    private async streamWithTools(
+        chatHistory: Message[],
+        newMessage: Message,
+        systemInstruction: string,
+        config: GeminiServiceConfig,
+        onChunk: (text: string) => void,
+        signal?: AbortSignal
+    ): Promise<void> {
+        const ai = new GoogleGenAI({ apiKey: config.apiKey });
+        const model = config.model || 'gemini-2.5-flash';
+        const tools = config.tools ?? [];
+        const toolNames = tools.map(tool => tool.name);
+
+        const MAX_TOOL_ITERATIONS = 4;
+        const history: Content[] = chatHistory.map(this.messageToContent);
+        const conversation: Content[] = [...history, this.messageToContent(newMessage)];
+
+        for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+            if (signal?.aborted) {
+                throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+            }
+
+            try {
+                const response = await ai.models.generateContent({
+                    model,
+                    contents: conversation,
+                    config: {
+                        systemInstruction,
+                        thinkingConfig: { thinkingBudget: 8192 },
+                        tools: [{ functionDeclarations: tools as unknown as import("@google/genai").FunctionDeclaration[] }],
+                        toolConfig: {
+                            functionCallingConfig: {
+                                mode: FunctionCallingConfigMode.AUTO,
+                                allowedFunctionNames: toolNames,
+                            },
+                        },
+                    },
+                });
+
+                const text = response.text ?? '';
+                if (text) {
+                    onChunk(text);
+                }
+
+                const candidateContent = response.candidates?.[0]?.content;
+                if (candidateContent) {
+                    conversation.push(candidateContent);
+                }
+
+                const functionCalls = response.functionCalls ?? [];
+                if (functionCalls.length === 0) {
+                    break;
+                }
+
+                for (const functionCall of functionCalls) {
+                    if (signal?.aborted) {
+                        throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                    }
+
+                    const toolName = functionCall.name ?? 'unknown_tool';
+                    const toolParams = functionCall.args ?? {};
+
+                    const result = await executeTool({
+                        name: toolName,
+                        parameters: toolParams,
+                    });
+
+                    onChunk(formatToolResult(toolName, result));
+
+                    const responsePart = createPartFromFunctionResponse(
+                        functionCall.id ?? `${toolName}-${Date.now()}`,
+                        toolName,
+                        {
+                            success: result.success,
+                            data: result.data ?? null,
+                            error: result.error ?? null,
+                        }
+                    );
+
+                    conversation.push({
+                        role: 'function',
+                        parts: [responsePart],
+                    });
+                }
+            } catch (error) {
+                const appError = handleError(error, 'api', { provider: 'gemini', model, endpoint: 'google-genai' });
+                if (appError.code === 'CANCELLED') return;
+                onChunk(appError.userMessage);
+                break;
+            }
         }
     }
 }
@@ -146,6 +259,11 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
     }
 
     async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
+        if (config.tools && config.tools.length > 0) {
+            await this.streamWithTools(chatHistory, newMessage, systemInstruction, config, onChunk, signal);
+            return;
+        }
+
         const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
         const messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
         const model = config.model || 'gpt-4o';
@@ -203,6 +321,123 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
             onChunk(appError.userMessage);
         }
     }
+
+    private async streamWithTools(
+        chatHistory: Message[],
+        newMessage: Message,
+        systemInstruction: string,
+        config: OpenAIServiceConfig,
+        onChunk: (text: string) => void,
+        signal?: AbortSignal
+    ): Promise<void> {
+        const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
+        const model = config.model || 'gpt-4o';
+        const tools = config.tools ?? [];
+        const MAX_TOOL_ITERATIONS = 4;
+
+        let messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
+
+        for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+            if (signal?.aborted) {
+                throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+            }
+
+            try {
+                const response = await fetch(openaiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+                    body: JSON.stringify({
+                        model,
+                        messages,
+                        tools,
+                        tool_choice: 'auto',
+                    }),
+                    signal,
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
+                        throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
+                    }
+                    const errorData = await response.json();
+                    const message = errorData?.error?.message || JSON.stringify(errorData);
+                    throw new Error(`API error (${response.status}): ${message}`);
+                }
+
+                const data = await response.json();
+                const choice = data.choices?.[0];
+                const message = choice?.message;
+
+                if (!choice || !message) {
+                    onChunk('OpenAI returned an empty response.');
+                    break;
+                }
+
+                let textChunk = '';
+                if (typeof message.content === 'string') {
+                    textChunk = message.content;
+                } else if (Array.isArray(message.content)) {
+                    textChunk = message.content
+                        .map((part: { type?: string; text?: string }) => (part?.type === 'text' ? part.text ?? '' : ''))
+                        .join('');
+                }
+
+                if (textChunk) {
+                    onChunk(textChunk);
+                }
+
+                const assistantMessage: OpenAIMessage = {
+                    role: 'assistant',
+                    content: typeof message.content === 'string' ? message.content : '',
+                    tool_calls: message.tool_calls,
+                };
+                messages.push(assistantMessage);
+
+                const toolCalls = message.tool_calls ?? [];
+                if (toolCalls.length === 0) {
+                    break;
+                }
+
+                for (const toolCall of toolCalls) {
+                    if (signal?.aborted) {
+                        throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                    }
+
+                    const toolName = toolCall.function?.name ?? 'unknown_tool';
+                    const argsString = toolCall.function?.arguments ?? '{}';
+                    let parsedArgs: Record<string, unknown> = {};
+                    try {
+                        parsedArgs = JSON.parse(argsString || '{}');
+                    } catch (error) {
+                        parsedArgs = {};
+                    }
+
+                    const result = await executeTool({
+                        name: toolName,
+                        parameters: parsedArgs,
+                    });
+
+                    onChunk(formatToolResult(toolName, result));
+
+                    const toolMessage: OpenAIMessage = {
+                        role: 'tool',
+                        content: JSON.stringify({
+                            success: result.success,
+                            data: result.data ?? null,
+                            error: result.error ?? null,
+                        }),
+                        tool_call_id: toolCall.id,
+                    };
+                    messages.push(toolMessage);
+                }
+            } catch (error) {
+                const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: openaiEndpoint });
+                if (appError.code === 'CANCELLED') return;
+                onChunk(appError.userMessage);
+                break;
+            }
+        }
+    }
 }
 
 const apiServices = {
@@ -239,20 +474,32 @@ export const streamChatResponse = async (
     };
 
     try {
+        const toolDefinitions = getToolsForProvider(selectedApiProvider);
+        const hasTools = Array.isArray(toolDefinitions) && toolDefinitions.length > 0;
+
         if (selectedApiProvider === ApiProvider.GEMINI) {
             const service = apiServices[ApiProvider.GEMINI];
             const effectiveGeminiKey = geminiApiKey;
             if (!effectiveGeminiKey) {
                 throw new AppError("CONFIG_ERROR", "Error: Gemini API key is not configured. Please add it in settings.");
             }
-            const config: GeminiServiceConfig = { apiKey: effectiveGeminiKey, model: geminiModel };
+            const config: GeminiServiceConfig = {
+                apiKey: effectiveGeminiKey,
+                model: geminiModel,
+                tools: hasTools ? (toolDefinitions as GeminiFunctionDeclaration[]) : undefined,
+            };
             await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
         } else if (selectedApiProvider === ApiProvider.OPENAI) {
             const service = apiServices[ApiProvider.OPENAI];
             if (!openAiApiKey) {
                 throw new AppError("CONFIG_ERROR", "Error: OpenAI API key is not configured in settings.");
             }
-            const config: OpenAIServiceConfig = { apiKey: openAiApiKey, model: openAiModel, baseUrl: openAiBaseUrl };
+            const config: OpenAIServiceConfig = {
+                apiKey: openAiApiKey,
+                model: openAiModel,
+                baseUrl: openAiBaseUrl,
+                tools: hasTools ? (toolDefinitions as OpenAIFunctionDefinition[]) : undefined,
+            };
             await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
         } else {
             throw new AppError("CONFIG_ERROR", `Error: API provider "${selectedApiProvider}" is not supported.`);

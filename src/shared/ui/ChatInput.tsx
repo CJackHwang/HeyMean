@@ -155,19 +155,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
             }
             return;
           }
-          const files = e.target.files;
-          if (files) {
-            const patched = Array.from(files).map(f => {
-              if (f.type) return f;
-              const name = f.name.toLowerCase();
-              const ext = name.split('.').pop() || '';
-              let mime = '';
-              if (ext === 'md' || ext === 'markdown') mime = 'text/markdown';
-              else if (ext === 'txt' || ext === 'text') mime = 'text/plain';
-              else if (ext === 'pdf') mime = 'application/pdf';
-              return f;
-            });
-          }
           handleFileChange(e);
         }} className="hidden" multiple />
         <button onClick={triggerFileInput} aria-label={t('chat.attach_file_button')} className="flex items-center justify-center size-12 rounded-full bg-heymean-l dark:bg-heymean-d text-primary-text-light dark:text-primary-text-dark shrink-0 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors duration-200 shadow-sm" disabled={isEditMode}>

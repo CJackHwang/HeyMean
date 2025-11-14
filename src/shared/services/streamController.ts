@@ -14,7 +14,7 @@ export class StreamController {
   async start(
     chatHistory: Message[],
     userMessage: Message,
-    aiMessageId: string,
+    _aiMessageId: string,
     options: StreamOptions,
     onChunk: (text: string) => void
   ): Promise<string> {

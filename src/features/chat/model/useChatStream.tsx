@@ -1,7 +1,6 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { Message, MessageSender } from '@shared/types';
-import { streamChatResponse } from '@shared/services/apiService';
 import { StreamController } from '@shared/services/streamController';
 import { useSettings } from '@app/providers/useSettings';
 import { parseStreamedText } from '@shared/lib/textHelpers';
@@ -82,7 +81,7 @@ export const useChatStream = () => {
                     thinkingDuration: prev.thinkingDuration || (Date.now() - thinkingStartTime) / 1000,
                 };
             });
-        }).catch((e) => {
+        }).catch(() => {
             // Swallow cancellation to avoid user-visible error text injection
             setIsThinking(false);
         });

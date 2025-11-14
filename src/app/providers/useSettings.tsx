@@ -49,7 +49,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [openAiBaseUrl, setOpenAiBaseUrlState] = useState<string>('');
   const [language, setLanguageState] = useState<Language>(Language.EN);
   // Render immediately; theme flash is mitigated by early index.html script
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -98,16 +97,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const appError = handleError(error, 'db');
           showToast(appError.userMessage, 'error');
           // Keep default state on error
-      } finally {
-        setIsLoading(false);
-        try {
-          window.__hmSettingsReady = true;
-          window.dispatchEvent(new Event('hm:settings-ready'));
-        } catch {}
-      }
-    };
-    loadSettings();
-  }, [showToast]);
+          } finally {
+          try {
+            window.__hmSettingsReady = true;
+            window.dispatchEvent(new Event('hm:settings-ready'));
+          } catch {}
+          }
+          };
+          loadSettings();
+          }, [showToast]);
 
   useEffect(() => {
     const root = window.document.documentElement;
