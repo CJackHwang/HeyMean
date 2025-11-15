@@ -1,13 +1,14 @@
 {
-  "name": "HeyMean",
-  "short_name": "HeyMean",
-  "description": "HeyMean: AI Learning Assistant",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#FFFFFF",
-  "theme_color": "#FFFFFF",
+ "name": "HeyMean",
+ "short_name": "HeyMean",
+ "description": "HeyMean: AI Learning Assistant",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "portrait-primary",
+ "background_color": "#FFFFFF",
+ "theme_color": "#FFFFFF",
+  "display_override": ["standalone", "fullscreen"],
   "icons": [
     {
       "src": "/heymeanlogo.svg",

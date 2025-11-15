@@ -75,6 +75,14 @@
 */
 
 /* Route transition layers */
+ 
+/* 禁用下拉刷新和滚动边界行为 */
+html, body {
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
+  touch-action: pan-x pan-y;
+}
+ 
 .route-container { contain: layout paint; isolation: isolate; overflow: hidden; }
 .route-layer { min-height: 100dvh; background: var(--color-background-light); contain: paint; }
 .dark .route-layer { background: var(--color-background-dark); }
@@ -288,4 +296,22 @@ div[role='button']:focus-visible {
 }
 .dark .katex-display::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
+}
+ 
+/* 确保滚动容器正确处理触摸滚动 */
+.chat-scroll,
+.custom-scrollbar,
+#root {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+ 
+/* 修复iOS安全区域适配 */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
