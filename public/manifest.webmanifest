@@ -8,6 +8,10 @@
   "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
   "theme_color": "#FFFFFF",
+  "display_override": [
+    "standalone",
+    "fullscreen"
+  ],
   "icons": [
     {
       "src": "/heymeanlogo.svg",

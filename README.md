@@ -8,6 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.1-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-1.28-4285F4?logo=google&logoColor=white)](https://ai.google.dev/)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-green.svg)](LICENSE)
 
 [View in AI Studio](https://ai.studio/apps/drive/1FrpJ1oHeY4gveHbT1iJn3y7TvmEbmecR) | [English](#english) | [中文](#中文)
@@ -39,6 +40,7 @@
 - **Mobile-Optimized Composer** - Responsive input with flexible textarea, attachment chips, and clear edit mode indicators
 - **Long-Press Support** - Quick access to message actions on mobile devices with 500ms touch detection
 - **Smooth Animations** - Page transitions with easing and route-aware preloading
+- **PWA Mobile Optimizations** - Pull-to-refresh disabled, optimized viewport settings, iOS safe area support
 
 ### 📝 Integrated Notes Workspace
 - Create and manage notes alongside your conversations
@@ -62,6 +64,8 @@
 - **Custom System Prompts** - Define AI personality and behavior
 - **Local Storage** - All data stored locally in your browser (IndexedDB)
 - **Toast Notifications** - Non-intrusive feedback for actions
+- **AI Tools Integration** - Built-in note management tools accessible via AI providers
+- **AI Tools Integration** - Built-in note management tools accessible via AI providers with extensible tool framework
 
 ### 🔒 Privacy & Security
 - API keys stored locally in browser (IndexedDB)
@@ -85,6 +89,7 @@
 - **apiService.ts** - Unified API interface that dispatches between Gemini and OpenAI implementations
 - **streamController.ts** - Cross-provider streaming control with cancel/retry support
 - **errorHandler.ts** - Centralized error handling with user-friendly messages
+- **toolService.ts** - Unified tool calling interface for AI function execution
 
 ### IndexedDB Persistence
 - Conversations, messages, notes, and settings stored locally
@@ -101,6 +106,10 @@
   - ChatInput, MessageBubble, MarkdownRenderer, Modal, ListItemMenu, etc.
 - **Global Providers** (`app/providers/`) - Application-wide state management
   - useSettings, useTranslation, useToast, AppReadyProvider
+- **AI Tools** (`ai/tools/`) - Extensible tool system for AI function calling
+  - Tool registry, executors, and schemas
+  - Built-in note management tools
+  - Provider-agnostic tool definitions
 
 ### Hooks Architecture
 - **Business Logic Hooks** (in `features/chat/model/`)
@@ -271,6 +280,7 @@
 - **IndexedDB** - Local persistent storage for all app data
 - **@google/genai 1.28** - Google Gemini SDK
 - **fetch API** - OpenAI-compatible endpoints
+- **AI Tools Framework** - Extensible tool calling system for AI function execution
 
 ### Performance
 - **@tanstack/react-virtual 3.13** - Virtual scrolling for message lists
@@ -315,6 +325,13 @@ heymean-ai-learning-assistant/
 │   │       │   └── useNotesPanel.ts     # Notes panel state
 │   │       ├── api/                  # Feature-specific API calls
 │   │       └── lib/                  # Feature-specific utilities
+│   ├── ai/                     # AI tools and utilities
+│   │   ├── tools/                # Tool system for AI function calling
+│   │   │   ├── registry.ts         # Tool registration
+│   │   │   ├── executors/          # Tool implementations
+│   │   │   ├── schemas/            # Tool schemas
+│   │   │   └── types.ts            # Tool types
+│   │   └── README.md              # AI tools documentation
 │   ├── shared/                 # Shared/reusable resources
 │   │   ├── ui/                    # Reusable UI components
 │   │   │   ├── ChatInput.tsx         # Message input with attachments
@@ -332,6 +349,7 @@ heymean-ai-learning-assistant/
 │   │   │   ├── db.ts                 # IndexedDB operations
 │   │   │   ├── apiService.ts         # Unified API service (Gemini/OpenAI)
 │   │   │   ├── streamController.ts   # Streaming control (cancel/retry)
+│   │   │   ├── toolService.ts        # Tool calling interface for AI functions
 │   │   │   └── errorHandler.ts       # Error handling utilities
 │   │   ├── lib/                   # Utility functions
 │   │   │   ├── constants.ts          # Application constants
@@ -633,6 +651,18 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 
 ### 🧱 架构亮点
 
+#### 🛠️ AI 工具集成
+- 内置笔记管理工具，AI 可直接调用
+- 可扩展的工具框架
+- 支持 Gemini 和 OpenAI 提供商
+- 工具注册表、执行器和 schema 定义
+ 
+#### 📱 PWA 移动端优化
+- 禁用下拉刷新功能，防止误触
+- iOS 安全区域适配
+- 优化视口设置
+- 增强的触摸滚动体验
+
 #### Provider 组合
 - **ToastProvider** - 集中式通知系统
 - **SettingsProvider** - 全局设置管理与持久化
@@ -833,6 +863,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 - **IndexedDB** - 所有应用数据的本地持久存储
 - **@google/genai 1.28** - Google Gemini SDK
 - **fetch API** - OpenAI 兼容端点
+- **AI Tools Framework** - 可扩展的 AI 工具调用系统
 
 #### 性能
 - **@tanstack/react-virtual 3.13** - 消息列表的虚拟滚动
@@ -876,6 +907,13 @@ heymean-ai-learning-assistant/
 │   │       │   └── useNotesPanel.ts     # 笔记面板状态
 │   │       ├── api/                  # 特性专用 API 调用
 │   │       └── lib/                  # 特性专用工具
+│   ├── ai/                     # AI 工具与实用程序
+│   │   ├── tools/                # AI 功能调用的工具系统
+│   │   │   ├── registry.ts         # 工具注册
+│   │   │   ├── executors/          # 工具实现
+│   │   │   ├── schemas/            # 工具 schemas
+│   │   │   └── types.ts            # 工具类型
+│   │   └── README.md              # AI 工具文档
 │   ├── shared/                 # 共享/可复用资源
 │   │   ├── ui/                    # 可复用 UI 组件
 │   │   │   ├── ChatInput.tsx         # 带附件的消息输入
@@ -894,6 +932,7 @@ heymean-ai-learning-assistant/
 │   │   │   ├── apiService.ts         # 统一 API 服务（Gemini/OpenAI）
 │   │   │   ├── streamController.ts   # 流式控制（取消/重试）
 │   │   │   └── errorHandler.ts       # 错误处理工具
+│   │   │   ├── toolService.ts        # AI 工具调用接口
 │   │   ├── lib/                   # 工具函数
 │   │   │   ├── constants.ts          # 应用常量
 │   │   │   ├── dateHelpers.ts        # 日期格式化
