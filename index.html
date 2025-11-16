@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" class="light">
+
 <head>
- <meta charset="UTF-8" />
- <link rel="icon" type="image/svg+xml" href="/heymeanlogo.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
- <!-- Theme color follows app background; updated at boot and on theme change -->
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/heymeanlogo.svg" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Theme color follows app background; updated at boot and on theme change -->
   <meta name="theme-color" content="#FFFFFF" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <!-- iOS PWA status bar style: use light content over white background -->
@@ -14,7 +16,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-180.png" />
   <script>
     // Apply persisted theme as early as possible to avoid flash
-    (function() {
+    (function () {
       try {
         var el = document.documentElement;
         var t = localStorage.getItem('hm_theme');
@@ -23,32 +25,35 @@
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           t = prefersDark ? 'dark' : 'light';
         }
-        el.classList.remove('light','dark');
+        el.classList.remove('light', 'dark');
         el.classList.add(t);
         // Sync meta theme-color to match background tone
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) {
           meta.setAttribute('content', t === 'dark' ? '#111111' : '#FFFFFF');
         }
-      } catch (e) {}
+      } catch (e) { }
     })();
   </script>
   <title>HeyMean - 何意味</title>
   <!-- Tailwind is bundled locally via PostCSS -->
   <!-- Material Symbols are bundled locally via npm (material-symbols). Removing external Google Fonts link. -->
   <!-- Inter is now bundled locally via @fontsource/inter; removing Google Fonts/preconnect links. -->
-  
+
   <!-- Tailwind configuration moved to tailwind.config.ts -->
   <!-- Global styles moved to src/index.css -->
-<!-- Import maps removed to rely on Vite bundling -->
+  <!-- Import maps removed to rely on Vite bundling -->
 </head>
+
 <body class="light bg-background-light dark:bg-background-dark font-display">
   <style>
     /* 禁用移动端下拉刷新 */
-    html, body {
+    html,
+    body {
       overscroll-behavior: none;
       -webkit-overflow-scrolling: touch;
     }
+
     /* 防止iOS橡皮筋效果 */
     body {
       position: fixed;
@@ -56,6 +61,7 @@
       height: 100%;
       overflow: hidden;
     }
+
     #root {
       position: absolute;
       top: 0;
@@ -66,7 +72,8 @@
       -webkit-overflow-scrolling: touch;
     }
   </style>
- <div id="root"></div>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
