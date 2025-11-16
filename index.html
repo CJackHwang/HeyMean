@@ -11,7 +11,7 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <!-- iOS PWA status bar style: use light content over white background -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <!-- iOS requires raster icons; SVG is not supported for home screen icons -->
   <link rel="apple-touch-icon" href="/icons/icon-180.png" />
   <script>
@@ -28,9 +28,15 @@
         el.classList.remove('light', 'dark');
         el.classList.add(t);
         // Sync meta theme-color to match background tone
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) {
-          meta.setAttribute('content', t === 'dark' ? '#111111' : '#FFFFFF');
+        var themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) {
+          themeColor.setAttribute('content', t === 'dark' ? '#111111' : '#FFFFFF');
+        }
+        
+        // Update status bar style dynamically based on theme
+        var statusBarStyle = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (statusBarStyle) {
+          statusBarStyle.setAttribute('content', 'black-translucent');
         }
       } catch (e) { }
     })();
