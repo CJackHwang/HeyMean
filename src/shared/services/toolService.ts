@@ -199,9 +199,10 @@ export const getAvailableToolNames = (): string[] => {
  * Format tool result for display in markdown
  */
 export const formatToolResult = (toolName: string, result: ToolResult): string => {
-  if (result.success) {
-    return `\n\n✅ **Tool Executed**: \`${toolName}\`\n\`\`\`json\n${JSON.stringify(result.data, null, 2)}\n\`\`\`\n`;
-  } else {
-    return `\n\n❌ **Tool Execution Failed**: \`${toolName}\`\nError: ${result.error}\n`;
-  }
+  const payload = {
+    name: toolName,
+    status: result.success ? 'success' : 'error',
+    data: result.success ? result.data : result.error
+  };
+  return `\n<tool_code>\n${JSON.stringify(payload, null, 2)}\n</tool_code>\n`;
 };

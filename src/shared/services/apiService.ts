@@ -406,16 +406,25 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                     const toolName = toolCall.function?.name ?? 'unknown_tool';
                     const argsString = toolCall.function?.arguments ?? '{}';
                     let parsedArgs: Record<string, unknown> = {};
+                    let parseError: unknown = null;
                     try {
                         parsedArgs = JSON.parse(argsString || '{}');
                     } catch (error) {
-                        parsedArgs = {};
+                        parseError = error;
                     }
 
-                    const result = await executeTool({
-                        name: toolName,
-                        parameters: parsedArgs,
-                    });
+                    let result;
+                    if (parseError) {
+                        result = {
+                            success: false,
+                            error: `JSON Parse Error: The tool arguments provided were not valid JSON. Please correct the format and retry. Arguments received: ${argsString}`
+                        };
+                    } else {
+                        result = await executeTool({
+                            name: toolName,
+                            parameters: parsedArgs,
+                        });
+                    }
 
                     onChunk(formatToolResult(toolName, result));
 

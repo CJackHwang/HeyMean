@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Message, MessageSender, Attachment } from '@shared/types';
 import { useTranslation } from '@app/providers/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -47,9 +47,49 @@ const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
     );
 }
 
+interface ToolCallPayload {
+    name: string;
+    status: 'success' | 'error';
+    data: any;
+}
+
+const ToolCallDisplay: React.FC<{ payload: ToolCallPayload }> = ({ payload }) => {
+    const [expanded, setExpanded] = React.useState(false);
+    const isError = payload.status === 'error';
+    
+    return (
+        <div className="my-2 select-none w-full max-w-full">
+            <button 
+                onClick={() => setExpanded(!expanded)}
+                className={`group flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border ${
+                    isError 
+                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-900/40' 
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/40'
+                }`}
+            >
+                <span className={`material-symbols-outlined text-[16px] leading-none ${isError ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    {isError ? 'error' : 'smart_toy'}
+                </span>
+                <span>
+                   {isError ? 'Tool Error' : 'Used Tool'}: <span className="font-semibold">{payload.name}</span>
+                </span>
+                 <span className={`material-symbols-outlined text-[16px] leading-none ml-1 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
+                    expand_more
+                </span>
+            </button>
+            {expanded && (
+                <div className="mt-2 mx-1 p-3 bg-gray-50 dark:bg-neutral-800/50 rounded-xl border border-gray-200 dark:border-neutral-700 text-xs font-mono overflow-x-auto shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+                    <pre className="whitespace-pre-wrap break-words text-gray-700 dark:text-gray-300">
+                        {typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data, null, 2)}
+                    </pre>
+                </div>
+            )}
+        </div>
+    );
+}
+
 const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const { t } = useTranslation();
-    const uniqueId = `thinking-toggle-${message.id}`;
     const isThinkingComplete = message.isThinkingComplete ?? true;
     const [expanded, setExpanded] = React.useState(!isThinkingComplete);
     const scrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -57,11 +97,6 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
 
     const thinkingContent = message.thinkingText?.trim() ?? '';
     const shouldRenderThinking = Boolean(message.isLoading || thinkingContent);
-    const statusDetail = !isThinkingComplete
-        ? t('message.thinking')
-        : message.isLoading
-            ? t('message.synthesizing')
-            : null;
 
     React.useEffect(() => {
         if (previousCompletionState.current !== isThinkingComplete) {
@@ -80,47 +115,103 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
 
     const handleToggle = () => setExpanded(prev => !prev);
 
-    const bodyContentClassName = shouldRenderThinking ? 'min-h-14' : undefined;
+    // Parse message text for tool codes
+    const messageParts = useMemo(() => {
+        const text = message.text || '';
+        const regex = /<tool_code>([\s\S]*?)<\/tool_code>/g;
+        const result: Array<{ type: 'text' | 'tool', content: any }> = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = regex.exec(text)) !== null) {
+            // Text before tool
+            if (match.index > lastIndex) {
+                const subText = text.substring(lastIndex, match.index);
+                if (subText.trim()) {
+                   result.push({ type: 'text', content: subText });
+                } else if (match.index - lastIndex > 0) {
+                   // Keep whitespace if needed, or maybe just trimming is safer for layout
+                   // result.push({ type: 'text', content: subText });
+                }
+            }
+            
+            // Tool content
+            try {
+                const toolData = JSON.parse(match[1]);
+                result.push({ type: 'tool', content: toolData });
+            } catch (e) {
+                result.push({ type: 'text', content: match[0] });
+            }
+            
+            lastIndex = regex.lastIndex;
+        }
+        
+        // Remaining text
+        if (lastIndex < text.length) {
+             result.push({ type: 'text', content: text.substring(lastIndex) });
+        }
+        
+        return result;
+    }, [message.text]);
 
     return (
         <MarkdownSurface className="w-full ai-bubble">
             {shouldRenderThinking && (
-                <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-thinking-dark rounded-t-2xl">
-                    <input
-                        className="collapsible-checkbox"
-                        id={uniqueId}
-                        type="checkbox"
-                        checked={expanded}
-                        onChange={handleToggle}
-                    />
-                    <label className="flex items-center justify-between px-3 py-3 sm:px-4 cursor-pointer gap-3" htmlFor={uniqueId}>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
-                                {t('message.thinking_process')}
-                            </span>
-                            {statusDetail && (
-                                <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
-                                    {statusDetail}
+                <div className="px-4 pt-3 pb-1">
+                    <div className="flex flex-col gap-2">
+                        <button 
+                            onClick={handleToggle}
+                            className="flex items-center gap-2 w-fit text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer select-none"
+                        >
+                            {message.isLoading && !isThinkingComplete ? (
+                                 <span className="relative flex h-2 w-2 mr-0.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neutral-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-neutral-500"></span>
+                                </span>
+                            ) : (
+                                <span className="material-symbols-outlined text-[16px] leading-none">
+                                    thought_bubble
                                 </span>
                             )}
-                        </div>
-                        <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-500 dark:text-neutral-300">
-                            expand_more
-                        </span>
-                    </label>
-                    <div
-                        ref={scrollRef}
-                        className="px-3 pb-3 sm:px-4 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
-                    >
-                        {thinkingContent ? (
-                            <MarkdownRenderer content={thinkingContent} />
-                        ) : (
-                            <p className="text-xs text-neutral-600 dark:text-neutral-400">{t('message.thinking')}</p>
+                            <span>{isThinkingComplete ? t('message.thinking_process') : t('message.thinking')}</span>
+                             <span className={`material-symbols-outlined text-[16px] leading-none transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
+                                expand_more
+                            </span>
+                        </button>
+                        
+                        {expanded && (
+                             <div className="pl-3 border-l-2 border-gray-200 dark:border-neutral-700 ml-1 py-1">
+                                <div
+                                    ref={scrollRef}
+                                    className="text-sm text-neutral-600 dark:text-neutral-400 markdown-thinking max-h-96 overflow-y-auto custom-scrollbar"
+                                >
+                                    {thinkingContent ? (
+                                        <MarkdownRenderer content={thinkingContent} />
+                                    ) : (
+                                        <p className="italic opacity-70">{t('message.thinking')}</p>
+                                    )}
+                                </div>
+                             </div>
                         )}
                     </div>
                 </div>
             )}
-            <MarkdownSurface.Content content={message.text} className={bodyContentClassName} />
+            
+            <div className="p-4">
+                {messageParts.length === 0 && !shouldRenderThinking && (
+                    <span className="text-neutral-400 italic">Empty message</span>
+                )}
+                
+                {messageParts.map((part, index) => (
+                    <React.Fragment key={index}>
+                        {part.type === 'tool' ? (
+                            <ToolCallDisplay payload={part.content} />
+                        ) : (
+                            <MarkdownRenderer content={part.content} />
+                        )}
+                    </React.Fragment>
+                ))}
+            </div>
         </MarkdownSurface>
     );
 };

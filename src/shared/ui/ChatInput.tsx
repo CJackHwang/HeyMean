@@ -34,7 +34,7 @@ export const AttachmentChip: React.FC<{attachment: Attachment, onRemove?: () => 
 }
 
 const MIN_TEXTAREA_HEIGHT = 48;
-const MAX_TEXTAREA_HEIGHT = 240;
+const MAX_TEXTAREA_HEIGHT = 400;
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editingMessage, onCancelEdit, onConfirmEdit }) => {
   const [text, setText] = useState('');
@@ -58,7 +58,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, isThinking, onStop, editi
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    textarea.style.height = 'auto';
+    textarea.style.height = '1px';
     const nextHeight = Math.min(
       Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT),
       MAX_TEXTAREA_HEIGHT
