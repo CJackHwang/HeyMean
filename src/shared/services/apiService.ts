@@ -130,7 +130,7 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         const tools = config.tools ?? [];
         const toolNames = tools.map(tool => tool.name);
 
-        const MAX_TOOL_ITERATIONS = 4;
+        const MAX_TOOL_ITERATIONS = 10;
         const history: Content[] = chatHistory.map(this.messageToContent);
         const conversation: Content[] = [...history, this.messageToContent(newMessage)];
 
@@ -171,16 +171,20 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                     break;
                 }
 
-                for (const functionCall of functionCalls) {
-                    if (signal?.aborted) {
-                        throw new AppError('CANCELLED', 'Request was cancelled by the user.');
-                    }
-
+                // Notify UI about all tool calls starting
+                const toolCallsData = functionCalls.map((functionCall: {
+                    name?: string | null;
+                    id?: string | null;
+                    args?: Record<string, unknown>;
+                }): {
+                    toolName: string;
+                    toolParams: Record<string, unknown>;
+                    toolCallId: string;
+                } => {
                     const toolName = functionCall.name ?? 'unknown_tool';
                     const toolParams = functionCall.args ?? {};
                     const toolCallId = functionCall.id ?? `${toolName}-${Date.now()}`;
-
-                    // Notify UI about tool call start
+                    
                     if (onToolCall) {
                         onToolCall({
                             id: toolCallId,
@@ -190,24 +194,48 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                             timestamp: Date.now(),
                         });
                     }
+                    
+                    return { toolName, toolParams, toolCallId };
+                });
 
-                    const result = await executeTool({
-                        name: toolName,
-                        parameters: toolParams,
-                    });
+                // Execute all tools in parallel
+                const results = await Promise.all(
+                    toolCallsData.map(async ({ toolName, toolParams, toolCallId }: {
+                        toolName: string;
+                        toolParams: Record<string, unknown>;
+                        toolCallId: string;
+                    }) => {
+                        if (signal?.aborted) {
+                            throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                        }
 
-                    // Notify UI about tool call result
-                    if (onToolCall) {
-                        onToolCall({
-                            id: toolCallId,
+                        const result = await executeTool({
                             name: toolName,
-                            status: result.success ? 'success' : 'error',
                             parameters: toolParams,
-                            result: result,
-                            timestamp: Date.now(),
                         });
-                    }
 
+                        // Notify UI about tool call result
+                        if (onToolCall) {
+                            onToolCall({
+                                id: toolCallId,
+                                name: toolName,
+                                status: result.success ? 'success' : 'error',
+                                parameters: toolParams,
+                                result: result,
+                                timestamp: Date.now(),
+                            });
+                        }
+
+                        return {
+                            toolCallId,
+                            toolName,
+                            result,
+                        };
+                    })
+                );
+
+                // Add all function responses to conversation
+                for (const { toolCallId, toolName, result } of results) {
                     const responsePart = createPartFromFunctionResponse(
                         toolCallId,
                         toolName,
@@ -358,7 +386,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
         const model = config.model || 'gpt-4o';
         const tools = config.tools ?? [];
-        const MAX_TOOL_ITERATIONS = 4;
+        const MAX_TOOL_ITERATIONS = 10;
 
         let messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
 
@@ -423,11 +451,11 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                     break;
                 }
 
-                for (const toolCall of toolCalls) {
-                    if (signal?.aborted) {
-                        throw new AppError('CANCELLED', 'Request was cancelled by the user.');
-                    }
-
+                const toolCallPayloads = toolCalls.map((toolCall: OpenAIToolCall): {
+                    toolName: string;
+                    parsedArgs: Record<string, unknown>;
+                    toolCallId: string;
+                } => {
                     const toolName = toolCall.function?.name ?? 'unknown_tool';
                     const argsString = toolCall.function?.arguments ?? '{}';
                     let parsedArgs: Record<string, unknown> = {};
@@ -439,7 +467,6 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
 
                     const toolCallId = toolCall.id ?? `${toolName}-${Date.now()}`;
 
-                    // Notify UI about tool call start
                     if (onToolCall) {
                         onToolCall({
                             id: toolCallId,
@@ -450,23 +477,40 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                         });
                     }
 
-                    const result = await executeTool({
-                        name: toolName,
-                        parameters: parsedArgs,
-                    });
+                    return { toolName, parsedArgs, toolCallId };
+                });
 
-                    // Notify UI about tool call result
-                    if (onToolCall) {
-                        onToolCall({
-                            id: toolCallId,
+                const toolResults = await Promise.all(
+                    toolCallPayloads.map(async ({ toolName, parsedArgs, toolCallId }: {
+                        toolName: string;
+                        parsedArgs: Record<string, unknown>;
+                        toolCallId: string;
+                    }) => {
+                        if (signal?.aborted) {
+                            throw new AppError('CANCELLED', 'Request was cancelled by the user.');
+                        }
+
+                        const result = await executeTool({
                             name: toolName,
-                            status: result.success ? 'success' : 'error',
                             parameters: parsedArgs,
-                            result: result,
-                            timestamp: Date.now(),
                         });
-                    }
 
+                        if (onToolCall) {
+                            onToolCall({
+                                id: toolCallId,
+                                name: toolName,
+                                status: result.success ? 'success' : 'error',
+                                parameters: parsedArgs,
+                                result: result,
+                                timestamp: Date.now(),
+                            });
+                        }
+
+                        return { toolCallId, result };
+                    })
+                );
+
+                for (const { toolCallId, result } of toolResults) {
                     const toolMessage: OpenAIMessage = {
                         role: 'tool',
                         content: JSON.stringify({

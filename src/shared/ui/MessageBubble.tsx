@@ -138,10 +138,10 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const bodyContentClassName = shouldRenderThinking || hasToolCalls ? 'min-h-14' : undefined;
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
             <MarkdownSurface className="w-full ai-bubble">
                 {shouldRenderThinking && (
-                    <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-thinking-dark rounded-t-2xl">
+                    <div className="border-b border-gray-300/70 dark:border-white/20 bg-gradient-to-br from-blue-50/60 via-purple-50/50 to-pink-50/40 dark:from-thinking-dark dark:via-thinking-dark/95 dark:to-thinking-dark/90 rounded-t-2xl overflow-hidden">
                         <input
                             className="collapsible-checkbox"
                             id={uniqueId}
@@ -149,29 +149,36 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                             checked={expanded}
                             onChange={handleToggle}
                         />
-                        <label className="flex items-center justify-between px-3 py-3 sm:px-4 cursor-pointer gap-3" htmlFor={uniqueId}>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
-                                    {t('message.thinking_process')}
-                                </span>
-                                {statusDetail && (
-                                    <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
-                                        {statusDetail}
+                        <label className="flex items-center justify-between px-4 py-3.5 cursor-pointer gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors" htmlFor={uniqueId}>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center size-8 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 dark:from-blue-400/30 dark:to-purple-400/30">
+                                    <span className="material-symbols-outlined text-base text-blue-600 dark:text-blue-300">psychology</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-200">
+                                        {t('message.thinking_process')}
                                     </span>
-                                )}
+                                    {statusDetail && (
+                                        <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
+                                            {statusDetail}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                            <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-500 dark:text-neutral-300">
+                            <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-600 dark:text-neutral-300">
                                 expand_more
                             </span>
                         </label>
                         <div
                             ref={scrollRef}
-                            className="px-3 pb-3 sm:px-4 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
+                            className="px-4 pb-4 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
                         >
                             {thinkingContent ? (
-                                <MarkdownRenderer content={thinkingContent} />
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                    <MarkdownRenderer content={thinkingContent} />
+                                </div>
                             ) : (
-                                <p className="text-xs text-neutral-600 dark:text-neutral-400">{t('message.thinking')}</p>
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400 animate-pulse">{t('message.thinking')}</p>
                             )}
                         </div>
                     </div>
@@ -179,9 +186,11 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                 <MarkdownSurface.Content content={message.text} className={bodyContentClassName} />
             </MarkdownSurface>
             {hasToolCalls && (
-                <div className="bg-heymean-l dark:bg-heymean-d rounded-2xl border border-black/5 dark:border-white/10 p-3 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
-                        <span className="material-symbols-outlined text-base">work</span>
+                <div className="bg-heymean-l dark:bg-heymean-d rounded-2xl border border-black/5 dark:border-white/10 p-3.5 space-y-2.5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-200">
+                        <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 dark:from-amber-400/30 dark:to-orange-400/30">
+                            <span className="material-symbols-outlined text-base text-amber-700 dark:text-amber-300">build_circle</span>
+                        </div>
                         {t('message.tool_calls')}
                     </div>
                     <div className="space-y-2">

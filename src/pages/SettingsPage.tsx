@@ -130,9 +130,31 @@ const SettingsPage: React.FC = () => {
                 <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.appearance_theme')}</p>
               </div>
               <div className="shrink-0">
-                <div className="flex items-center bg-background-light dark:bg-background-dark rounded-full p-1 text-sm font-medium">
-                  <button onClick={() => setTheme(Theme.LIGHT)} className={`px-4 py-1.5 rounded-full ${theme === Theme.LIGHT ? 'bg-primary text-white' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_light')}</button>
-                  <button onClick={() => setTheme(Theme.DARK)} className={`px-4 py-1.5 rounded-full ${theme === Theme.DARK ? 'bg-primary dark:bg-white dark:text-black' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_dark')}</button>
+                <div className="flex items-center bg-background-light dark:bg-background-dark rounded-full p-1.5 gap-1">
+                  <button 
+                    onClick={() => setTheme(Theme.LIGHT)} 
+                    className={`flex items-center justify-center size-9 rounded-full transition-all ${theme === Theme.LIGHT ? 'bg-primary text-white shadow-sm' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    aria-label={t('settings.theme_light')}
+                    title={t('settings.theme_light')}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">light_mode</span>
+                  </button>
+                  <button 
+                    onClick={() => setTheme(Theme.AUTO)} 
+                    className={`flex items-center justify-center size-9 rounded-full transition-all ${theme === Theme.AUTO ? 'bg-primary dark:bg-white text-white dark:text-black shadow-sm' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    aria-label={t('settings.theme_auto')}
+                    title={t('settings.theme_auto')}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">schedule</span>
+                  </button>
+                  <button 
+                    onClick={() => setTheme(Theme.DARK)} 
+                    className={`flex items-center justify-center size-9 rounded-full transition-all ${theme === Theme.DARK ? 'bg-primary dark:bg-white text-white dark:text-black shadow-sm' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    aria-label={t('settings.theme_dark')}
+                    title={t('settings.theme_dark')}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">dark_mode</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -279,7 +301,7 @@ const SettingsPage: React.FC = () => {
 
         {/* --- Informational Sections --- */}
         <section>
-          <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_about')}</h2>
+          <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_other')}</h2>
            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
             <div onClick={() => navigate('/about')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
                 <div className="flex items-center gap-4 min-w-0">
@@ -289,6 +311,15 @@ const SettingsPage: React.FC = () => {
                     <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.about_app')}</p>
                 </div>
                  <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">chevron_right</span>
+            </div>
+            <div onClick={() => window.open('https://heymean.app/privacy', '_blank')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
+                <div className="flex items-center gap-4 min-w-0">
+                    <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
+                        <span className="material-symbols-outlined">policy</span>
+                    </div>
+                    <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.privacy_policy')}</p>
+                </div>
+                 <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">open_in_new</span>
             </div>
           </div>
         </section>

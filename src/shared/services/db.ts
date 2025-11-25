@@ -283,6 +283,8 @@ export const addMessage = async (message: Message): Promise<void> => {
             text: message.text,
             timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
             attachments: message.attachments ? message.attachments.map(({ preview, ...rest }) => rest) : undefined,
+            thinkingText: message.thinkingText,
+            toolCalls: message.toolCalls,
         };
         
         // messageToStore is already sanitized to storage shape
@@ -307,6 +309,8 @@ export const batchAddMessages = async (messages: Message[]): Promise<void> => {
                 text: message.text,
                 timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
                 attachments: message.attachments ? message.attachments.map(({ preview, ...rest }) => rest) : undefined,
+                thinkingText: message.thinkingText,
+                toolCalls: message.toolCalls,
             };
             store.put(messageToStore);
         });
