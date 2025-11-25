@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Message, MessageSender, Attachment } from '@shared/types';
+import { Message, MessageSender, Attachment, ToolCall } from '@shared/types';
 import { useTranslation } from '@app/providers/useTranslation';
 import MarkdownRenderer from './MarkdownRenderer';
 import MarkdownSurface from './MarkdownSurface';
@@ -47,6 +47,60 @@ const AttachmentDisplay: React.FC<{ message: Message }> = ({ message }) => {
     );
 }
 
+const ToolCallItem: React.FC<{ toolCall: ToolCall }> = ({ toolCall }) => {
+    const { t } = useTranslation();
+    const [expanded, setExpanded] = React.useState(false);
+    const uniqueId = `tool-${toolCall.id}`;
+    
+    const statusIcon = toolCall.status === 'calling' ? 'progress_activity' : toolCall.status === 'success' ? 'check_circle' : 'error';
+    const statusColor = toolCall.status === 'calling' ? 'text-blue-500 dark:text-blue-400' : toolCall.status === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    const statusText = toolCall.status === 'calling' ? t('message.tool_calling') : toolCall.status === 'success' ? t('message.tool_success') : t('message.tool_error');
+    
+    return (
+        <div className="bg-black/5 dark:bg-white/5 rounded-lg">
+            <input
+                className="collapsible-checkbox"
+                id={uniqueId}
+                type="checkbox"
+                checked={expanded}
+                onChange={() => setExpanded(!expanded)}
+            />
+            <label className="flex items-center justify-between px-3 py-2 cursor-pointer gap-3" htmlFor={uniqueId}>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`material-symbols-outlined text-base ${statusColor}`}>{statusIcon}</span>
+                    <span className="text-xs font-mono font-medium text-neutral-700 dark:text-neutral-300 truncate">{toolCall.name}</span>
+                    <span className="text-[10px] text-neutral-500 dark:text-neutral-400">{statusText}</span>
+                </div>
+                <span className="material-symbols-outlined collapsible-icon transition-transform transform text-sm text-neutral-500 dark:text-neutral-300">
+                    expand_more
+                </span>
+            </label>
+            <div className="px-3 pb-2 collapsible-content space-y-2 text-xs">
+                {toolCall.parameters && Object.keys(toolCall.parameters).length > 0 && (
+                    <div>
+                        <div className="font-semibold text-neutral-600 dark:text-neutral-400 mb-1 text-[10px] uppercase tracking-wide">{t('message.tool_parameters')}</div>
+                        <pre className="bg-black/10 dark:bg-white/10 rounded p-2 overflow-x-auto text-[11px] text-neutral-700 dark:text-neutral-300">
+                            {JSON.stringify(toolCall.parameters, null, 2)}
+                        </pre>
+                    </div>
+                )}
+                {toolCall.result && (
+                    <div>
+                        <div className="font-semibold text-neutral-600 dark:text-neutral-400 mb-1 text-[10px] uppercase tracking-wide">{t('message.tool_result')}</div>
+                        {toolCall.result.error ? (
+                            <div className="text-red-600 dark:text-red-400 text-xs">{toolCall.result.error}</div>
+                        ) : (
+                            <pre className="bg-black/10 dark:bg-white/10 rounded p-2 overflow-x-auto text-[11px] text-neutral-700 dark:text-neutral-300">
+                                {JSON.stringify(toolCall.result.data, null, 2)}
+                            </pre>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const { t } = useTranslation();
     const uniqueId = `thinking-toggle-${message.id}`;
@@ -57,6 +111,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
 
     const thinkingContent = message.thinkingText?.trim() ?? '';
     const shouldRenderThinking = Boolean(message.isLoading || thinkingContent);
+    const hasToolCalls = Boolean(message.toolCalls && message.toolCalls.length > 0);
     const statusDetail = !isThinkingComplete
         ? t('message.thinking')
         : message.isLoading
@@ -80,48 +135,72 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
 
     const handleToggle = () => setExpanded(prev => !prev);
 
-    const bodyContentClassName = shouldRenderThinking ? 'min-h-14' : undefined;
+    const bodyContentClassName = shouldRenderThinking || hasToolCalls ? 'min-h-14' : undefined;
 
     return (
-        <MarkdownSurface className="w-full ai-bubble">
-            {shouldRenderThinking && (
-                <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-thinking-dark rounded-t-2xl">
-                    <input
-                        className="collapsible-checkbox"
-                        id={uniqueId}
-                        type="checkbox"
-                        checked={expanded}
-                        onChange={handleToggle}
-                    />
-                    <label className="flex items-center justify-between px-3 py-3 sm:px-4 cursor-pointer gap-3" htmlFor={uniqueId}>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
-                                {t('message.thinking_process')}
+        <div className="flex flex-col gap-2.5">
+            <MarkdownSurface className="w-full ai-bubble">
+                {shouldRenderThinking && (
+                    <div className="border-b border-gray-300/70 dark:border-white/20 bg-gradient-to-br from-blue-50/60 via-purple-50/50 to-pink-50/40 dark:from-thinking-dark dark:via-thinking-dark/95 dark:to-thinking-dark/90 rounded-t-2xl overflow-hidden">
+                        <input
+                            className="collapsible-checkbox"
+                            id={uniqueId}
+                            type="checkbox"
+                            checked={expanded}
+                            onChange={handleToggle}
+                        />
+                        <label className="flex items-center justify-between px-4 py-3.5 cursor-pointer gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors" htmlFor={uniqueId}>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center size-8 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 dark:from-blue-400/30 dark:to-purple-400/30">
+                                    <span className="material-symbols-outlined text-base text-blue-600 dark:text-blue-300">psychology</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-200">
+                                        {t('message.thinking_process')}
+                                    </span>
+                                    {statusDetail && (
+                                        <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
+                                            {statusDetail}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-600 dark:text-neutral-300">
+                                expand_more
                             </span>
-                            {statusDetail && (
-                                <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
-                                    {statusDetail}
-                                </span>
+                        </label>
+                        <div
+                            ref={scrollRef}
+                            className="px-4 pb-4 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
+                        >
+                            {thinkingContent ? (
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                    <MarkdownRenderer content={thinkingContent} />
+                                </div>
+                            ) : (
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400 animate-pulse">{t('message.thinking')}</p>
                             )}
                         </div>
-                        <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-500 dark:text-neutral-300">
-                            expand_more
-                        </span>
-                    </label>
-                    <div
-                        ref={scrollRef}
-                        className="px-3 pb-3 sm:px-4 collapsible-content space-y-2 max-h-64 overflow-y-auto custom-scrollbar text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
-                    >
-                        {thinkingContent ? (
-                            <MarkdownRenderer content={thinkingContent} />
-                        ) : (
-                            <p className="text-xs text-neutral-600 dark:text-neutral-400">{t('message.thinking')}</p>
-                        )}
+                    </div>
+                )}
+                <MarkdownSurface.Content content={message.text} className={bodyContentClassName} />
+            </MarkdownSurface>
+            {hasToolCalls && (
+                <div className="bg-heymean-l dark:bg-heymean-d rounded-2xl border border-black/5 dark:border-white/10 p-3.5 space-y-2.5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-200">
+                        <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 dark:from-amber-400/30 dark:to-orange-400/30">
+                            <span className="material-symbols-outlined text-base text-amber-700 dark:text-amber-300">build_circle</span>
+                        </div>
+                        {t('message.tool_calls')}
+                    </div>
+                    <div className="space-y-2">
+                        {message.toolCalls?.map((toolCall) => (
+                            <ToolCallItem key={toolCall.id} toolCall={toolCall} />
+                        ))}
                     </div>
                 </div>
             )}
-            <MarkdownSurface.Content content={message.text} className={bodyContentClassName} />
-        </MarkdownSurface>
+        </div>
     );
 };
 

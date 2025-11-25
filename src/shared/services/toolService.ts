@@ -194,14 +194,3 @@ export const hasToolsForProvider = (_provider: ApiProvider): boolean => {
 export const getAvailableToolNames = (): string[] => {
   return toolRegistry.getAllNames();
 };
-
-/**
- * Format tool result for display in markdown
- */
-export const formatToolResult = (toolName: string, result: ToolResult): string => {
-  if (result.success) {
-    return `\n\n✅ **Tool Executed**: \`${toolName}\`\n\`\`\`json\n${JSON.stringify(result.data, null, 2)}\n\`\`\`\n`;
-  } else {
-    return `\n\n❌ **Tool Execution Failed**: \`${toolName}\`\nError: ${result.error}\n`;
-  }
-};
