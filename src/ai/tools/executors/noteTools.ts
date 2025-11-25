@@ -94,6 +94,7 @@ export const executeGetNote: ToolExecutor = async (params): Promise<ToolResult> 
 
 /**
  * Execute listNotes tool
+ * Returns only note summaries to save tokens
  */
 export const executeListNotes: ToolExecutor = async (params): Promise<ToolResult> => {
   try {
@@ -110,19 +111,24 @@ export const executeListNotes: ToolExecutor = async (params): Promise<ToolResult
       resultNotes = resultNotes.slice(0, limit);
     }
 
+    const MAX_PREVIEW_LENGTH = 150;
+
     return {
       success: true,
       data: {
         notes: resultNotes.map((note) => ({
           id: note.id,
           title: note.title,
-          content: note.content,
+          preview: note.content.length > MAX_PREVIEW_LENGTH 
+            ? note.content.substring(0, MAX_PREVIEW_LENGTH) + '...' 
+            : note.content,
           createdAt: note.createdAt.toISOString(),
           updatedAt: note.updatedAt.toISOString(),
           isPinned: note.isPinned,
         })),
         total: notes.length,
         returned: resultNotes.length,
+        message: 'Use getNote tool with specific note id to retrieve full content',
       },
     };
   } catch (error) {
@@ -220,19 +226,24 @@ export const executeSearchNotes: ToolExecutor = async (params): Promise<ToolResu
       return titleMatch || contentMatch;
     });
 
+    const MAX_PREVIEW_LENGTH = 200;
+
     return {
       success: true,
       data: {
         notes: matchedNotes.map((note) => ({
           id: note.id,
           title: note.title,
-          content: note.content,
+          preview: note.content.length > MAX_PREVIEW_LENGTH
+            ? note.content.substring(0, MAX_PREVIEW_LENGTH) + '...'
+            : note.content,
           createdAt: note.createdAt.toISOString(),
           updatedAt: note.updatedAt.toISOString(),
           isPinned: note.isPinned,
         })),
         query,
         found: matchedNotes.length,
+        message: 'Use getNote tool if you need the full content of a specific note',
       },
     };
   } catch (error) {

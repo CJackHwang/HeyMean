@@ -8,6 +8,7 @@ import { handleError } from '@shared/services/errorHandler';
 interface SettingsContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  resolvedTheme: Theme.LIGHT | Theme.DARK; // The actual theme applied (resolves AUTO)
   systemPrompt: string; // User-editable prompt
   setSystemPrompt: (prompt: string) => void;
   effectiveSystemPrompt: string; // The prompt to be used by the AI
@@ -35,8 +36,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [theme, setThemeState] = useState<Theme>(() => {
     try {
       const ls = window.localStorage.getItem('hm_theme');
-      if (ls === Theme.DARK || ls === Theme.LIGHT) return ls as Theme;
+      if (ls === Theme.DARK || ls === Theme.LIGHT || ls === Theme.AUTO) return ls as Theme;
     } catch {}
+    return Theme.AUTO;
+  });
+  
+  const [systemTheme, setSystemTheme] = useState<Theme.LIGHT | Theme.DARK>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? Theme.DARK : Theme.LIGHT;
+    }
     return Theme.LIGHT;
   });
   const [systemPrompt, setSystemPromptState] = useState<string>(''); // User's custom prompt
@@ -73,7 +81,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Prefer localStorage for earliest persisted theme, fallback to DB
         const lsTheme = (() => { try { return (localStorage.getItem('hm_theme') as Theme) || null; } catch { return null; } })();
         const savedDbTheme = await getSetting<Theme>('theme');
-        const savedTheme = lsTheme || savedDbTheme || Theme.LIGHT;
+        const savedTheme = lsTheme || savedDbTheme || Theme.AUTO;
         const savedPrompt = await getSetting<string>('systemPrompt') || ''; // Default to empty
         const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.GEMINI;
         const savedGeminiApiKey = await getSetting<string>('geminiApiKey') || '';
@@ -108,10 +116,51 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }, [showToast]);
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove(theme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
-    root.classList.add(theme);
+    // Monitor system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemTheme(e.matches ? Theme.DARK : Theme.LIGHT);
+    };
+    
+    try {
+      mediaQuery.addEventListener('change', handleChange);
+    } catch {
+      // Fallback for older browsers
+      try {
+        mediaQuery.addListener(handleChange);
+      } catch {}
+    }
+    
+    return () => {
+      try {
+        mediaQuery.removeEventListener('change', handleChange);
+      } catch {
+        try {
+          mediaQuery.removeListener(handleChange);
+        } catch {}
+      }
+    };
+  }, []);
 
+  const resolvedTheme = useMemo<Theme.LIGHT | Theme.DARK>(() => (
+    theme === Theme.AUTO ? systemTheme : theme
+  ), [theme, systemTheme]);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove(Theme.LIGHT, Theme.DARK);
+    root.classList.add(resolvedTheme);
+
+    // Keep PWA/browser UI theme-color in sync with page background
+    try {
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute('content', resolvedTheme === Theme.DARK ? '#111111' : '#FFFFFF');
+      }
+    } catch {}
+  }, [resolvedTheme]);
+
+  useEffect(() => {
     const saveTheme = async () => {
       try {
         await setSetting('theme', theme);
@@ -125,31 +174,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     };
     saveTheme();
-
-    // Keep PWA/browser UI theme-color in sync with page background
-    try {
-      const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) {
-        meta.setAttribute('content', theme === Theme.DARK ? '#111111' : '#FFFFFF');
-      }
-    } catch {}
-
   }, [theme, showToast]);
   
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    // Persist immediately to avoid race with loading flag
+    // Mirror to localStorage immediately for boot-time script
     try {
       window.localStorage.setItem('hm_theme', newTheme);
-    } catch {}
-    setSetting('theme', newTheme).catch(error => {
-      const appError = handleError(error, 'settings');
-      showToast(appError.userMessage, 'error');
-    });
-    try {
-      const root = window.document.documentElement;
-      root.classList.remove(newTheme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
-      root.classList.add(newTheme);
     } catch {}
   };
   
@@ -219,7 +250,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const resetSettings = () => {
     // These setters already contain error handling
-    setTheme(Theme.LIGHT);
+    setTheme(Theme.AUTO);
     setSystemPrompt('');
     setSelectedApiProvider(ApiProvider.GEMINI);
     setGeminiApiKey('');
@@ -235,6 +266,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const value = useMemo(() => ({
     theme,
     setTheme,
+    resolvedTheme,
     systemPrompt, // The user-editable one
     setSystemPrompt,
     effectiveSystemPrompt, // The one for the API
@@ -254,7 +286,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setLanguage,
     resetSettings
   }), [
-    theme, 
+    theme,
+    resolvedTheme,
     systemPrompt,
     effectiveSystemPrompt,
     selectedApiProvider, 

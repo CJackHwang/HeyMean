@@ -11,7 +11,7 @@ interface CodeBlockProps {
 const MAX_COLLAPSED_LINES = 15;
 
 const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
-  const { theme } = useSettings();
+  const { resolvedTheme } = useSettings();
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [styleTheme, setStyleTheme] = useState<Record<string, unknown> | null>(null);
@@ -29,7 +29,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
     let mounted = true;
     (async () => {
       const styles = await import('react-syntax-highlighter/dist/esm/styles/prism') as unknown as Record<string, unknown> & { oneDark?: Record<string, unknown>; oneLight?: Record<string, unknown> };
-      const selected = theme === Theme.DARK ? (styles.oneDark || null) : (styles.oneLight || null);
+      const selected = resolvedTheme === Theme.DARK ? (styles.oneDark || null) : (styles.oneLight || null);
       if (mounted) setStyleTheme(selected);
       // Import PrismLight directly from ESM entry to avoid pulling highlight.js
       const prismMod = await import('react-syntax-highlighter/dist/esm/prism-light');
@@ -40,7 +40,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
       }
     })();
     return () => { mounted = false; };
-  }, [theme]);
+  }, [resolvedTheme]);
 
   useEffect(() => {
     // Lazy-load only the requested language for PrismLight
@@ -110,8 +110,8 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
     } catch {}
   };
 
-  const bgColor = theme === Theme.DARK ? '#0f172a' : '#f8fafc';
-  const fgColor = theme === Theme.DARK ? '#e5e7eb' : '#1f2937';
+  const bgColor = resolvedTheme === Theme.DARK ? '#0f172a' : '#f8fafc';
+  const fgColor = resolvedTheme === Theme.DARK ? '#e5e7eb' : '#1f2937';
 
   return (
     <div className="my-4 rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700">
@@ -145,7 +145,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
         )}
         {showCollapse && (
           <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style={{
-            background: theme === Theme.DARK
+            background: resolvedTheme === Theme.DARK
               ? 'linear-gradient(to bottom, rgba(15,23,42,0), rgba(15,23,42,1))'
               : 'linear-gradient(to bottom, rgba(248,250,252,0), rgba(248,250,252,1))'
           }}></div>
