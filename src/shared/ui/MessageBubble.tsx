@@ -61,24 +61,33 @@ const ToolCallDisplay: React.FC<{ payload: ToolCallPayload }> = ({ payload }) =>
         <div className="my-2 select-none w-full max-w-full">
             <button 
                 onClick={() => setExpanded(!expanded)}
-                className={`group flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border ${
+                className={`group flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 border w-full text-left ${
                     isError 
-                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-900/40' 
-                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/40'
+                    ? 'bg-red-50/50 text-red-700 border-red-200 hover:bg-red-100/50 dark:bg-red-900/10 dark:text-red-300 dark:border-red-800/50 dark:hover:bg-red-900/20' 
+                    : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-700/50'
                 }`}
             >
-                <span className={`material-symbols-outlined text-[16px] leading-none ${isError ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                    {isError ? 'error' : 'smart_toy'}
-                </span>
-                <span>
-                   {isError ? 'Tool Error' : 'Used Tool'}: <span className="font-semibold">{payload.name}</span>
-                </span>
-                 <span className={`material-symbols-outlined text-[16px] leading-none ml-1 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
+                <div className={`flex items-center justify-center size-6 rounded-lg ${isError ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400'}`}>
+                     <span className="material-symbols-outlined text-[16px] leading-none">
+                        {isError ? 'error' : 'extension'}
+                    </span>
+                </div>
+                
+                <div className="flex-1 flex flex-col min-w-0">
+                    <span className="opacity-70 text-[10px] uppercase tracking-wider font-semibold">
+                        {isError ? 'Tool Error' : 'Tool Used'}
+                    </span>
+                    <span className="truncate font-semibold text-sm">
+                        {payload.name}
+                    </span>
+                </div>
+
+                 <span className={`material-symbols-outlined text-[18px] leading-none transition-transform duration-200 opacity-50 ${expanded ? 'rotate-180' : ''}`}>
                     expand_more
                 </span>
             </button>
             {expanded && (
-                <div className="mt-2 mx-1 p-3 bg-gray-50 dark:bg-neutral-800/50 rounded-xl border border-gray-200 dark:border-neutral-700 text-xs font-mono overflow-x-auto shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="mt-2 mx-1 p-3 bg-gray-50 dark:bg-neutral-900/50 rounded-xl border border-gray-200 dark:border-neutral-700 text-xs font-mono overflow-x-auto shadow-inner animate-in fade-in slide-in-from-top-1 duration-200">
                     <pre className="whitespace-pre-wrap break-words text-gray-700 dark:text-gray-300">
                         {typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data, null, 2)}
                     </pre>
@@ -129,9 +138,6 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                 const subText = text.substring(lastIndex, match.index);
                 if (subText.trim()) {
                    result.push({ type: 'text', content: subText });
-                } else if (match.index - lastIndex > 0) {
-                   // Keep whitespace if needed, or maybe just trimming is safer for layout
-                   // result.push({ type: 'text', content: subText });
                 }
             }
             
@@ -140,6 +146,8 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                 const toolData = JSON.parse(match[1]);
                 result.push({ type: 'tool', content: toolData });
             } catch (e) {
+                // If parsing fails, just render the tag as text? Or hide it?
+                // Better to render it as text so we see what failed
                 result.push({ type: 'text', content: match[0] });
             }
             
@@ -164,16 +172,17 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                             className="flex items-center gap-2 w-fit text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer select-none"
                         >
                             {message.isLoading && !isThinkingComplete ? (
-                                 <span className="relative flex h-2 w-2 mr-0.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neutral-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-neutral-500"></span>
+                                <span className="material-symbols-outlined text-[16px] leading-none animate-spin text-primary">
+                                    progress_activity
                                 </span>
                             ) : (
-                                <span className="material-symbols-outlined text-[16px] leading-none">
+                                <span className="material-symbols-outlined text-[16px] leading-none text-neutral-400">
                                     thought_bubble
                                 </span>
                             )}
-                            <span>{isThinkingComplete ? t('message.thinking_process') : t('message.thinking')}</span>
+                            <span className={message.isLoading && !isThinkingComplete ? 'text-primary' : ''}>
+                                {isThinkingComplete ? t('message.thinking_process') : t('message.thinking')}
+                            </span>
                              <span className={`material-symbols-outlined text-[16px] leading-none transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
                                 expand_more
                             </span>
