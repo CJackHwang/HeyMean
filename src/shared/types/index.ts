@@ -1,6 +1,7 @@
 export enum Theme {
   LIGHT = 'light',
   DARK = 'dark',
+  SYSTEM = 'system',
 }
 
 export enum ApiProvider {
@@ -63,6 +64,8 @@ export type MessageStored = Omit<
 > & {
   timestamp: string;
   attachments?: AttachmentStored[];
+  toolCalls?: ToolCall[];
+  thinkingText?: string;
 };
 
 export interface Note {

@@ -141,7 +141,7 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
         <div className="flex flex-col gap-2">
             <MarkdownSurface className="w-full ai-bubble">
                 {shouldRenderThinking && (
-                    <div className="border-b border-gray-300/70 dark:border-white/20 bg-black/5 dark:bg-thinking-dark rounded-t-2xl">
+                    <div className="border-b border-gray-300/70 dark:border-white/20 bg-gradient-to-br from-blue-50/80 to-purple-50/80 dark:from-blue-950/30 dark:to-purple-950/30 rounded-t-2xl backdrop-blur-sm">
                         <input
                             className="collapsible-checkbox"
                             id={uniqueId}
@@ -150,17 +150,26 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                             onChange={handleToggle}
                         />
                         <label className="flex items-center justify-between px-3 py-3 sm:px-4 cursor-pointer gap-3" htmlFor={uniqueId}>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
-                                    {t('message.thinking_process')}
-                                </span>
-                                {statusDetail && (
-                                    <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 normal-case">
-                                        {statusDetail}
+                            <div className="flex items-center gap-2.5">
+                                <div className="flex items-center justify-center size-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-400 shrink-0">
+                                    {!isThinkingComplete ? (
+                                        <span className="material-symbols-outlined text-white text-sm animate-spin">progress_activity</span>
+                                    ) : (
+                                        <span className="material-symbols-outlined text-white text-sm">psychology</span>
+                                    )}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                                        {t('message.thinking_process')}
                                     </span>
-                                )}
+                                    {statusDetail && (
+                                        <span className="text-[10px] font-medium text-blue-600/80 dark:text-blue-400/80 normal-case">
+                                            {statusDetail}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                            <span className="material-symbols-outlined collapsible-icon transition-transform transform text-neutral-500 dark:text-neutral-300">
+                            <span className="material-symbols-outlined collapsible-icon transition-transform transform text-blue-600 dark:text-blue-400">
                                 expand_more
                             </span>
                         </label>
@@ -171,7 +180,12 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
                             {thinkingContent ? (
                                 <MarkdownRenderer content={thinkingContent} />
                             ) : (
-                                <p className="text-xs text-neutral-600 dark:text-neutral-400">{t('message.thinking')}</p>
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center gap-2">
+                                    <span className="inline-block size-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                    <span className="inline-block size-1 rounded-full bg-purple-500 animate-pulse" style={{animationDelay: '0.2s'}}></span>
+                                    <span className="inline-block size-1 rounded-full bg-blue-500 animate-pulse" style={{animationDelay: '0.4s'}}></span>
+                                    {t('message.thinking')}
+                                </p>
                             )}
                         </div>
                     </div>

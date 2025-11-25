@@ -19,6 +19,7 @@
   "settings.appearance_theme": "Theme",
   "settings.theme_light": "Light",
   "settings.theme_dark": "Dark",
+  "settings.theme_system": "System",
   "settings.appearance_language": "Language",
   "settings.section_model": "Model Settings",
   "settings.model_system_prompt": "System Prompt",

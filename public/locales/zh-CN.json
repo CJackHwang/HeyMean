@@ -19,6 +19,7 @@
   "settings.appearance_theme": "主题",
   "settings.theme_light": "浅色",
   "settings.theme_dark": "深色",
+  "settings.theme_system": "跟随系统",
   "settings.appearance_language": "语言",
   "settings.section_model": "模型设置",
   "settings.model_system_prompt": "系统提示",

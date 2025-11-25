@@ -19,6 +19,7 @@
   "settings.appearance_theme": "テーマ",
   "settings.theme_light": "ライト",
   "settings.theme_dark": "ダーク",
+  "settings.theme_system": "システム",
   "settings.appearance_language": "言語",
   "settings.section_model": "モデル設定",
   "settings.model_system_prompt": "システムプロンプト",

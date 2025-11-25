@@ -38,11 +38,11 @@ export const getNoteTool: ToolDefinition = {
 };
 
 /**
- * List all notes or get notes with pagination
+ * List all notes or get notes with pagination (returns preview only)
  */
 export const listNotesTool: ToolDefinition = {
   name: 'listNotes',
-  description: 'List all notes or get notes with pagination. Use this when the user asks to see all notes, list notes, or browse their notes. Returns notes sorted by update time (most recent first), with pinned notes at the top.',
+  description: 'List all notes with title and content preview (first 100 characters). Use this when the user asks to see all notes, list notes, or browse their notes. Returns notes sorted by update time (most recent first), with pinned notes at the top. To get full content of a specific note, use getNote tool.',
   parameters: {
     limit: {
       type: 'number',

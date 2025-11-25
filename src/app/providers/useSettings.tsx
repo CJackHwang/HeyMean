@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { Theme, ApiProvider, Language } from '@shared/types';
 import { getSetting, setSetting, initDB } from '@shared/services/db';
 import { useToast } from './useToast';
@@ -35,9 +35,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [theme, setThemeState] = useState<Theme>(() => {
     try {
       const ls = window.localStorage.getItem('hm_theme');
-      if (ls === Theme.DARK || ls === Theme.LIGHT) return ls as Theme;
+      if (ls === Theme.DARK || ls === Theme.LIGHT || ls === Theme.SYSTEM) return ls as Theme;
     } catch {}
-    return Theme.LIGHT;
+    return Theme.SYSTEM;
+  });
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [systemPrompt, setSystemPromptState] = useState<string>(''); // User's custom prompt
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState<string>(''); // Loaded from file
@@ -73,7 +77,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Prefer localStorage for earliest persisted theme, fallback to DB
         const lsTheme = (() => { try { return (localStorage.getItem('hm_theme') as Theme) || null; } catch { return null; } })();
         const savedDbTheme = await getSetting<Theme>('theme');
-        const savedTheme = lsTheme || savedDbTheme || Theme.LIGHT;
+        const savedTheme = lsTheme || savedDbTheme || Theme.SYSTEM;
         const savedPrompt = await getSetting<string>('systemPrompt') || ''; // Default to empty
         const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.GEMINI;
         const savedGeminiApiKey = await getSetting<string>('geminiApiKey') || '';
@@ -85,6 +89,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
         setThemeState(savedTheme);
+        try {
+          window.localStorage.setItem('hm_theme', savedTheme);
+        } catch {}
         setSystemPromptState(savedPrompt);
         setSelectedApiProviderState(savedApiProvider);
         setGeminiApiKeyState(savedGeminiApiKey);
@@ -107,34 +114,47 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           loadSettings();
           }, [showToast]);
 
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove(theme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
-    root.classList.add(theme);
+  const getEffectiveTheme = useCallback((themePreference: Theme, systemDark: boolean): 'light' | 'dark' => {
+    if (themePreference === Theme.SYSTEM) {
+      return systemDark ? 'dark' : 'light';
+    }
+    return themePreference as 'light' | 'dark';
+  }, []);
 
-    const saveTheme = async () => {
-      try {
-        await setSetting('theme', theme);
-        // Mirror to localStorage for earliest boot-time theme application
-        try {
-          window.localStorage.setItem('hm_theme', theme);
-        } catch {}
-      } catch (error) {
-        const appError = handleError(error, 'settings');
-        showToast(appError.userMessage, 'error');
-      }
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemPrefersDark(event.matches);
     };
-    saveTheme();
+
+    setSystemPrefersDark(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  useEffect(() => {
+    const effectiveTheme = getEffectiveTheme(theme, systemPrefersDark);
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(effectiveTheme);
 
     // Keep PWA/browser UI theme-color in sync with page background
     try {
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) {
-        meta.setAttribute('content', theme === Theme.DARK ? '#111111' : '#FFFFFF');
+        meta.setAttribute('content', effectiveTheme === 'dark' ? '#111111' : '#FFFFFF');
       }
     } catch {}
 
-  }, [theme, showToast]);
+  }, [theme, systemPrefersDark, getEffectiveTheme]);
   
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
@@ -146,11 +166,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const appError = handleError(error, 'settings');
       showToast(appError.userMessage, 'error');
     });
-    try {
-      const root = window.document.documentElement;
-      root.classList.remove(newTheme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
-      root.classList.add(newTheme);
-    } catch {}
   };
   
   const setSystemPrompt = (prompt: string) => {
@@ -219,7 +234,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const resetSettings = () => {
     // These setters already contain error handling
-    setTheme(Theme.LIGHT);
+    setTheme(Theme.SYSTEM);
     setSystemPrompt('');
     setSelectedApiProvider(ApiProvider.GEMINI);
     setGeminiApiKey('');

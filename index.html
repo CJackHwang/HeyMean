@@ -19,14 +19,22 @@
     (function () {
       try {
         var el = document.documentElement;
-        var t = localStorage.getItem('hm_theme');
-        if (t !== 'dark' && t !== 'light') {
-          // Fallback to system preference if no stored theme
+        var stored = localStorage.getItem('hm_theme');
+        var t = 'light';
+        
+        if (stored === 'dark') {
+          t = 'dark';
+        } else if (stored === 'light') {
+          t = 'light';
+        } else {
+          // system or not set - detect from system preference
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           t = prefersDark ? 'dark' : 'light';
         }
+        
         el.classList.remove('light', 'dark');
         el.classList.add(t);
+        
         // Sync meta theme-color to match background tone
         var themeColor = document.querySelector('meta[name="theme-color"]');
         if (themeColor) {

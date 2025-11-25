@@ -130,7 +130,7 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         const tools = config.tools ?? [];
         const toolNames = tools.map(tool => tool.name);
 
-        const MAX_TOOL_ITERATIONS = 4;
+        const MAX_TOOL_ITERATIONS = 10;
         const history: Content[] = chatHistory.map(this.messageToContent);
         const conversation: Content[] = [...history, this.messageToContent(newMessage)];
 
@@ -171,7 +171,7 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                     break;
                 }
 
-                for (const functionCall of functionCalls) {
+                const toolCallPromises = functionCalls.map(async (functionCall) => {
                     if (signal?.aborted) {
                         throw new AppError('CANCELLED', 'Request was cancelled by the user.');
                     }
@@ -180,7 +180,6 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                     const toolParams = functionCall.args ?? {};
                     const toolCallId = functionCall.id ?? `${toolName}-${Date.now()}`;
 
-                    // Notify UI about tool call start
                     if (onToolCall) {
                         onToolCall({
                             id: toolCallId,
@@ -196,7 +195,6 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                         parameters: toolParams,
                     });
 
-                    // Notify UI about tool call result
                     if (onToolCall) {
                         onToolCall({
                             id: toolCallId,
@@ -208,6 +206,16 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
                         });
                     }
 
+                    return {
+                        toolCallId,
+                        toolName,
+                        result,
+                    };
+                });
+
+                const toolResults = await Promise.all(toolCallPromises);
+
+                for (const { toolCallId, toolName, result } of toolResults) {
                     const responsePart = createPartFromFunctionResponse(
                         toolCallId,
                         toolName,
@@ -358,7 +366,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
         const model = config.model || 'gpt-4o';
         const tools = config.tools ?? [];
-        const MAX_TOOL_ITERATIONS = 4;
+        const MAX_TOOL_ITERATIONS = 10;
 
         let messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
 
@@ -423,7 +431,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                     break;
                 }
 
-                for (const toolCall of toolCalls) {
+                const toolResults = await Promise.all(toolCalls.map(async (toolCall: OpenAIToolCall) => {
                     if (signal?.aborted) {
                         throw new AppError('CANCELLED', 'Request was cancelled by the user.');
                     }
@@ -439,7 +447,6 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
 
                     const toolCallId = toolCall.id ?? `${toolName}-${Date.now()}`;
 
-                    // Notify UI about tool call start
                     if (onToolCall) {
                         onToolCall({
                             id: toolCallId,
@@ -455,7 +462,6 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                         parameters: parsedArgs,
                     });
 
-                    // Notify UI about tool call result
                     if (onToolCall) {
                         onToolCall({
                             id: toolCallId,
@@ -467,17 +473,24 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                         });
                     }
 
+                    return {
+                        toolCallId,
+                        result,
+                    };
+                }));
+
+                toolResults.forEach(({ toolCallId, result }) => {
                     const toolMessage: OpenAIMessage = {
                         role: 'tool',
                         content: JSON.stringify({
-                            success: result.success,
-                            data: result.data ?? null,
-                            error: result.error ?? null,
+                            success: result?.success ?? false,
+                            data: result?.data ?? null,
+                            error: result?.error ?? null,
                         }),
                         tool_call_id: toolCallId,
                     };
                     messages.push(toolMessage);
-                }
+                });
             } catch (error) {
                 const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: openaiEndpoint });
                 if (appError.code === 'CANCELLED') return;

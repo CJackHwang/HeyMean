@@ -93,7 +93,7 @@ export const executeGetNote: ToolExecutor = async (params): Promise<ToolResult> 
 };
 
 /**
- * Execute listNotes tool
+ * Execute listNotes tool - returns note previews only (first 100 chars of content)
  */
 export const executeListNotes: ToolExecutor = async (params): Promise<ToolResult> => {
   try {
@@ -116,7 +116,7 @@ export const executeListNotes: ToolExecutor = async (params): Promise<ToolResult
         notes: resultNotes.map((note) => ({
           id: note.id,
           title: note.title,
-          content: note.content,
+          contentPreview: note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content,
           createdAt: note.createdAt.toISOString(),
           updatedAt: note.updatedAt.toISOString(),
           isPinned: note.isPinned,

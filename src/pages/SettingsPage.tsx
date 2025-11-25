@@ -130,9 +130,28 @@ const SettingsPage: React.FC = () => {
                 <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.appearance_theme')}</p>
               </div>
               <div className="shrink-0">
-                <div className="flex items-center bg-background-light dark:bg-background-dark rounded-full p-1 text-sm font-medium">
-                  <button onClick={() => setTheme(Theme.LIGHT)} className={`px-4 py-1.5 rounded-full ${theme === Theme.LIGHT ? 'bg-primary text-white' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_light')}</button>
-                  <button onClick={() => setTheme(Theme.DARK)} className={`px-4 py-1.5 rounded-full ${theme === Theme.DARK ? 'bg-primary dark:bg-white dark:text-black' : 'text-primary-text-light/60 dark:text-primary-text-dark/60'}`}>{t('settings.theme_dark')}</button>
+                <div className="flex items-center bg-background-light dark:bg-background-dark rounded-full p-1 gap-1">
+                  <button 
+                    onClick={() => setTheme(Theme.LIGHT)} 
+                    className={`size-9 flex items-center justify-center rounded-full transition-colors ${theme === Theme.LIGHT ? 'bg-primary text-white' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    title={t('settings.theme_light')}
+                  >
+                    <span className="material-symbols-outlined text-xl">light_mode</span>
+                  </button>
+                  <button 
+                    onClick={() => setTheme(Theme.DARK)} 
+                    className={`size-9 flex items-center justify-center rounded-full transition-colors ${theme === Theme.DARK ? 'bg-primary dark:bg-white text-white dark:text-black' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    title={t('settings.theme_dark')}
+                  >
+                    <span className="material-symbols-outlined text-xl">dark_mode</span>
+                  </button>
+                  <button 
+                    onClick={() => setTheme(Theme.SYSTEM)} 
+                    className={`size-9 flex items-center justify-center rounded-full transition-colors ${theme === Theme.SYSTEM ? 'bg-primary dark:bg-white text-white dark:text-black' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    title={t('settings.theme_system')}
+                  >
+                    <span className="material-symbols-outlined text-xl">computer</span>
+                  </button>
                 </div>
               </div>
             </div>
