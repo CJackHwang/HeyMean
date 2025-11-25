@@ -27,6 +27,19 @@ export interface Attachment {
   preview?: string;
 }
 
+export interface ToolCall {
+  id: string;
+  name: string;
+  status: 'calling' | 'success' | 'error';
+  parameters?: Record<string, unknown>;
+  result?: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+  };
+  timestamp?: number;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -39,6 +52,7 @@ export interface Message {
   isThinkingComplete?: boolean;
   thinkingStartTime?: number;
   thinkingDuration?: number;
+  toolCalls?: ToolCall[];
 }
 
 export type AttachmentStored = Omit<Attachment, 'preview'>;

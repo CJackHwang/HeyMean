@@ -1,9 +1,9 @@
 
 import { GoogleGenAI, Content, Part, FunctionCallingConfigMode, createPartFromFunctionResponse } from "@google/genai";
-import { Message, MessageSender, ApiProvider } from '@shared/types';
+import { Message, MessageSender, ApiProvider, ToolCall } from '@shared/types';
 import { getTextFromDataUrl, getInlineDataFromDataUrl } from "@shared/lib/fileHelpers";
 import { AppError, handleError } from "./errorHandler";
-import { getToolsForProvider, executeTool, formatToolResult } from "./toolService";
+import { getToolsForProvider, executeTool } from "./toolService";
 import { GeminiFunctionDeclaration, OpenAIFunctionDefinition } from "./toolService";
 
 // --- HELPER FUNCTIONS ---
@@ -52,7 +52,8 @@ interface IChatService<T> {
         systemInstruction: string,
         config: T,
         onChunk: (text: string) => void,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        onToolCall?: (toolCall: ToolCall) => void
     ): Promise<void>;
 }
 
@@ -78,9 +79,9 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         return { role: msg.sender === MessageSender.USER ? 'user' : 'model', parts };
     }
 
-    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
+    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: GeminiServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal, onToolCall?: (toolCall: ToolCall) => void): Promise<void> {
         if (config.tools && config.tools.length > 0) {
-            await this.streamWithTools(chatHistory, newMessage, systemInstruction, config, onChunk, signal);
+            await this.streamWithTools(chatHistory, newMessage, systemInstruction, config, onChunk, signal, onToolCall);
             return;
         }
 
@@ -121,7 +122,8 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
         systemInstruction: string,
         config: GeminiServiceConfig,
         onChunk: (text: string) => void,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        onToolCall?: (toolCall: ToolCall) => void
     ): Promise<void> {
         const ai = new GoogleGenAI({ apiKey: config.apiKey });
         const model = config.model || 'gemini-2.5-flash';
@@ -176,16 +178,38 @@ class GeminiChatService implements IChatService<GeminiServiceConfig> {
 
                     const toolName = functionCall.name ?? 'unknown_tool';
                     const toolParams = functionCall.args ?? {};
+                    const toolCallId = functionCall.id ?? `${toolName}-${Date.now()}`;
+
+                    // Notify UI about tool call start
+                    if (onToolCall) {
+                        onToolCall({
+                            id: toolCallId,
+                            name: toolName,
+                            status: 'calling',
+                            parameters: toolParams,
+                            timestamp: Date.now(),
+                        });
+                    }
 
                     const result = await executeTool({
                         name: toolName,
                         parameters: toolParams,
                     });
 
-                    onChunk(formatToolResult(toolName, result));
+                    // Notify UI about tool call result
+                    if (onToolCall) {
+                        onToolCall({
+                            id: toolCallId,
+                            name: toolName,
+                            status: result.success ? 'success' : 'error',
+                            parameters: toolParams,
+                            result: result,
+                            timestamp: Date.now(),
+                        });
+                    }
 
                     const responsePart = createPartFromFunctionResponse(
-                        functionCall.id ?? `${toolName}-${Date.now()}`,
+                        toolCallId,
                         toolName,
                         {
                             success: result.success,
@@ -258,9 +282,9 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         return openAIMessages;
     }
 
-    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal): Promise<void> {
+    async stream(chatHistory: Message[], newMessage: Message, systemInstruction: string, config: OpenAIServiceConfig, onChunk: (text: string) => void, signal?: AbortSignal, onToolCall?: (toolCall: ToolCall) => void): Promise<void> {
         if (config.tools && config.tools.length > 0) {
-            await this.streamWithTools(chatHistory, newMessage, systemInstruction, config, onChunk, signal);
+            await this.streamWithTools(chatHistory, newMessage, systemInstruction, config, onChunk, signal, onToolCall);
             return;
         }
 
@@ -328,7 +352,8 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         systemInstruction: string,
         config: OpenAIServiceConfig,
         onChunk: (text: string) => void,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        onToolCall?: (toolCall: ToolCall) => void
     ): Promise<void> {
         const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
         const model = config.model || 'gpt-4o';
@@ -412,12 +437,35 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                         parsedArgs = {};
                     }
 
+                    const toolCallId = toolCall.id ?? `${toolName}-${Date.now()}`;
+
+                    // Notify UI about tool call start
+                    if (onToolCall) {
+                        onToolCall({
+                            id: toolCallId,
+                            name: toolName,
+                            status: 'calling',
+                            parameters: parsedArgs,
+                            timestamp: Date.now(),
+                        });
+                    }
+
                     const result = await executeTool({
                         name: toolName,
                         parameters: parsedArgs,
                     });
 
-                    onChunk(formatToolResult(toolName, result));
+                    // Notify UI about tool call result
+                    if (onToolCall) {
+                        onToolCall({
+                            id: toolCallId,
+                            name: toolName,
+                            status: result.success ? 'success' : 'error',
+                            parameters: parsedArgs,
+                            result: result,
+                            timestamp: Date.now(),
+                        });
+                    }
 
                     const toolMessage: OpenAIMessage = {
                         role: 'tool',
@@ -426,7 +474,7 @@ class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
                             data: result.data ?? null,
                             error: result.error ?? null,
                         }),
-                        tool_call_id: toolCall.id,
+                        tool_call_id: toolCallId,
                     };
                     messages.push(toolMessage);
                 }
@@ -463,6 +511,7 @@ export const streamChatResponse = async (
   config: StreamChatConfig,
   onChunk: (text: string) => void,
   signal?: AbortSignal,
+  onToolCall?: (toolCall: ToolCall) => void,
   retryTimes: number = 0
 ): Promise<string> => {
     const { systemInstruction, provider: selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl } = config;
@@ -488,7 +537,7 @@ export const streamChatResponse = async (
                 model: geminiModel,
                 tools: hasTools ? (toolDefinitions as GeminiFunctionDeclaration[]) : undefined,
             };
-            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
+            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal, onToolCall);
         } else if (selectedApiProvider === ApiProvider.OPENAI) {
             const service = apiServices[ApiProvider.OPENAI];
             if (!openAiApiKey) {
@@ -500,7 +549,7 @@ export const streamChatResponse = async (
                 baseUrl: openAiBaseUrl,
                 tools: hasTools ? (toolDefinitions as OpenAIFunctionDefinition[]) : undefined,
             };
-            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal);
+            await service.stream(chatHistory, newMessage, systemInstruction, config, accumulatingOnChunk, signal, onToolCall);
         } else {
             throw new AppError("CONFIG_ERROR", `Error: API provider "${selectedApiProvider}" is not supported.`);
         }
@@ -522,6 +571,7 @@ export const streamChatResponse = async (
                 config,
                 onChunk,
                 signal,
+                onToolCall,
                 retryTimes + 1
             );
         }
