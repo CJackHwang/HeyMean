@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useRef } from 'react';
-import { Message, MessageSender } from '@shared/types';
+import { Message, MessageSender, ToolCall } from '@shared/types';
 import { StreamController } from '@shared/services/streamController';
 import { useSettings } from '@app/providers/useSettings';
 import { parseStreamedText } from '@shared/lib/textHelpers';
@@ -31,6 +31,7 @@ export const useChatStream = () => {
             isLoading: true,
             isThinkingComplete: false,
             thinkingStartTime: thinkingStartTime,
+            toolCalls: [],
         });
 
         let streamedText = '';
@@ -64,6 +65,28 @@ export const useChatStream = () => {
                         thinkingText: thinkingContent.trim(),
                         isThinkingComplete: isThinkingBlockComplete,
                         thinkingDuration: thinkingDurationUpdate ?? prev.thinkingDuration,
+                    };
+                });
+            },
+            (toolCall: ToolCall) => {
+                setStreamedAiMessage(prev => {
+                    if (!prev) return null;
+                    const existingToolCalls = prev.toolCalls || [];
+                    const existingIndex = existingToolCalls.findIndex(tc => tc.id === toolCall.id);
+                    
+                    let updatedToolCalls;
+                    if (existingIndex >= 0) {
+                        // Update existing tool call
+                        updatedToolCalls = [...existingToolCalls];
+                        updatedToolCalls[existingIndex] = toolCall;
+                    } else {
+                        // Add new tool call
+                        updatedToolCalls = [...existingToolCalls, toolCall];
+                    }
+                    
+                    return {
+                        ...prev,
+                        toolCalls: updatedToolCalls,
                     };
                 });
             }
