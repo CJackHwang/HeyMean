@@ -36,49 +36,40 @@ export const useNoteActions = () => {
     }
   }, [loadNotes]);
 
-  const createNewNote = useCallback(() => {
-    const now = new Date();
-    const newNote: Note = {
-      id: Date.now(),
-      title: t('notes.untitled'),
-      content: '',
-      createdAt: now,
-      updatedAt: now,
-      isPinned: false,
-    };
-    setActiveNote(newNote);
-    setOriginalNoteContent('');
-    setIsNewNote(true);
-  }, [t]);
+  const createNewNote = useCallback(async () => {
+    try {
+      const addedNote = await addNote(t('notes.untitled'), '');
+      await loadNotes();
+      setActiveNote(addedNote);
+      setOriginalNoteContent(addedNote.content);
+      setIsNewNote(true);
+      return addedNote;
+    } catch (error) {
+      const appError = handleError(error, 'db');
+      showToast(appError.userMessage, 'error');
+      throw error;
+    }
+  }, [t, loadNotes, showToast]);
 
-  const saveNote = useCallback(async () => {
-    if (!activeNote) return;
+  const saveNote = useCallback(async (): Promise<boolean> => {
+    if (!activeNote) return false;
+    
+    if (!activeNote.content.trim()) {
+      showToast(t('toast.input_required'), 'error');
+      return false;
+    }
 
     setSaveStatus('saving');
     try {
-      const [title, ...rest] = activeNote.content.split('\n');
-      const trimmedTitle = title.trim() || t('notes.untitled');
-      const content = rest.join('\n');
-      const noteToSave = { ...activeNote, title: trimmedTitle, content, updatedAt: new Date() };
-
-      if (isNewNote) {
-        const addedNote = await addNote(noteToSave.title, noteToSave.content);
-        await loadNotes();
-        setActiveNote(addedNote);
-        setOriginalNoteContent(addedNote.content);
-        setIsNewNote(false);
-      } else {
-        await updateNote(noteToSave.id, {
-          title: noteToSave.title,
-          content: noteToSave.content,
-          updatedAt: noteToSave.updatedAt,
-        });
-        await loadNotes();
-        setActiveNote(noteToSave);
-        setOriginalNoteContent(noteToSave.content);
-      }
-
+      await new Promise(res => setTimeout(res, 300));
+      await updateNote(activeNote.id, { content: activeNote.content, updatedAt: new Date() });
+      const updated = { ...activeNote, updatedAt: new Date() };
+      setOriginalNoteContent(updated.content);
+      setActiveNote(updated);
+      await loadNotes();
       setSaveStatus('saved');
+      setIsNewNote(false);
+
       if (saveStatusResetTimeoutRef.current !== null) {
         clearTimeout(saveStatusResetTimeoutRef.current);
       }
@@ -86,12 +77,14 @@ export const useNoteActions = () => {
         setSaveStatus('idle');
         saveStatusResetTimeoutRef.current = null;
       }, 1500);
+      return true;
     } catch (error) {
       const appError = handleError(error, 'db');
       showToast(appError.userMessage, 'error');
       setSaveStatus('idle');
+      return false;
     }
-  }, [activeNote, isNewNote, loadNotes, showToast, t]);
+  }, [activeNote, loadNotes, showToast, t]);
 
   const deleteNoteById = useCallback(
     async (noteId: number) => {

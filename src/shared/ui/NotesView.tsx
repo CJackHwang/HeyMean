@@ -14,7 +14,7 @@ interface NotesViewProps {
 
 type ViewState = 'list' | 'preview' | 'editing';
 
-export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isDesktop = false }) => {
+export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop = false }) => {
   const [viewState, setViewState] = useState<ViewState>('list');
   const { t } = useTranslation();
 
@@ -118,36 +118,71 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
     }
   }, [saveNote, isNewNote]);
 
-  const handleNew = useCallback(() => {
+  const handleNew = useCallback(async () => {
     if (shouldPromptOnExit) {
       setPendingAction({ type: 'new' });
       setIsUnsavedModalOpen(true);
     } else {
-      createNewNote();
+      await createNewNote();
       setViewState('editing');
     }
   }, [shouldPromptOnExit, createNewNote]);
 
-  const handleConfirmUnsaved = useCallback(() => {
+  const executePendingAction = useCallback(async (action: typeof pendingAction) => {
+    if (!action) return;
+
+    if (action.type === 'back') {
+      setViewState('list');
+      setActiveNote(null);
+      setOriginalNoteContent(null);
+      setIsNewNote(false);
+      return;
+    }
+
+    if (action.type === 'select' && action.note) {
+      setActiveNote(action.note);
+      setOriginalNoteContent(action.note.content);
+      setIsNewNote(false);
+      setViewState('preview');
+      return;
+    }
+
+    if (action.type === 'new') {
+      await createNewNote();
+      setViewState('editing');
+    }
+  }, [createNewNote, setActiveNote, setOriginalNoteContent, setIsNewNote]);
+
+  const handleUnsavedSave = useCallback(async () => {
+    if (!pendingAction) return;
+    const didSave = await saveNote();
+    if (!didSave) {
+      return;
+    }
+    setIsUnsavedModalOpen(false);
+    await executePendingAction(pendingAction);
+    setPendingAction(null);
+  }, [pendingAction, saveNote, executePendingAction]);
+
+  const handleUnsavedDiscard = useCallback(async () => {
     if (!pendingAction) return;
     setIsUnsavedModalOpen(false);
 
-    if (pendingAction.type === 'back') {
-      setViewState('list');
+    if (isNewNote && activeNote) {
+      await deleteNoteById(activeNote.id);
       setActiveNote(null);
+      setOriginalNoteContent(null);
       setIsNewNote(false);
-    } else if (pendingAction.type === 'select' && pendingAction.note) {
-      setActiveNote(pendingAction.note);
-      setOriginalNoteContent(pendingAction.note.content);
-      setIsNewNote(false);
-      setViewState('preview');
-    } else if (pendingAction.type === 'new') {
-      createNewNote();
-      setViewState('editing');
     }
 
+    await executePendingAction(pendingAction);
     setPendingAction(null);
-  }, [pendingAction, createNewNote, setActiveNote, setOriginalNoteContent, setIsNewNote]);
+  }, [pendingAction, executePendingAction, isNewNote, activeNote, deleteNoteById, setActiveNote, setOriginalNoteContent, setIsNewNote]);
+
+  const handleUnsavedCancel = useCallback(() => {
+    setIsUnsavedModalOpen(false);
+    setPendingAction(null);
+  }, []);
 
   const handleDelete = useCallback(
     async (noteId: number) => {
@@ -248,23 +283,33 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
   ]);
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden">
-      {viewState === 'list' && (
-        <div className="flex items-center justify-between mb-4 shrink-0">
-          <h1 className="text-xl font-bold">{t('notes.header_title')}</h1>
+    <div className="flex flex-col h-full w-full">
+      <header className="flex items-center p-4 pb-3 justify-between border-b border-gray-200 dark:border-neutral-700 shrink-0">
+        <h3 className="text-primary-text-light dark:text-primary-text-dark text-lg font-bold">
+          {t('notes.header_title')}
+        </h3>
+        <div className="flex items-center">
+          {!isDesktop && (
+            <label
+              htmlFor="notes-drawer"
+              className="flex items-center justify-center size-10 cursor-pointer text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d"
+            >
+              <span className="material-symbols-outlined text-2xl!">close</span>
+            </label>
+          )}
           <button
             onClick={handleNew}
-            className="size-10 flex items-center justify-center rounded-full hover:bg-heymean-l dark:hover:bg-heymean-d text-primary-text-light dark:text-primary-text-dark"
+            className="flex items-center justify-center size-10 text-primary-text-light dark:text-primary-text-dark rounded-lg hover:bg-heymean-l dark:hover:bg-heymean-d"
           >
-            <span className="material-symbols-outlined">add</span>
+            <span className="material-symbols-outlined text-2xl!">add_circle</span>
           </button>
         </div>
-      )}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">{renderContent}</div>
+      </header>
+      <main className="flex-1 p-4 overflow-y-auto">{renderContent}</main>
 
       <ListItemMenu
         isOpen={menuState.isOpen}
-        onClose={() => setMenuState({ isOpen: false, position: { x: 0, y: 0 }, note: null })}
+        onClose={() => setMenuState((state) => ({ ...state, isOpen: false }))}
         position={menuState.position}
         actions={menuItems}
       />
@@ -282,13 +327,14 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
 
       <Modal
         isOpen={isUnsavedModalOpen}
-        onClose={() => setIsUnsavedModalOpen(false)}
+        onClose={handleUnsavedCancel}
         title={t('modal.unsaved_title')}
         message={t('modal.unsaved_content')}
-        confirmText={t('modal.unsaved_discard')}
+        confirmText={t('modal.unsaved_save')}
         cancelText={t('modal.cancel')}
-        onConfirm={handleConfirmUnsaved}
-        confirmDestructive
+        destructiveText={t('modal.unsaved_discard')}
+        onConfirm={handleUnsavedSave}
+        onDestructive={handleUnsavedDiscard}
       />
 
       <Modal
