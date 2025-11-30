@@ -198,17 +198,17 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
       menuState.note
         ? [
             {
-              label: t('notes.rename'),
+              label: t('list.rename'),
               onClick: () => handleRenameNote(menuState.note!),
               icon: 'edit',
             },
             {
-              label: menuState.note.isPinned ? t('notes.unpin') : t('notes.pin'),
+              label: menuState.note.isPinned ? t('list.unpin') : t('list.pin'),
               onClick: () => handlePin(menuState.note!),
               icon: 'push_pin',
             },
             {
-              label: t('notes.delete'),
+              label: t('list.delete'),
               onClick: () => handleDelete(menuState.note!.id),
               icon: 'delete',
               isDestructive: true,
@@ -251,7 +251,7 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
     <div className="flex flex-col w-full h-full overflow-hidden">
       {viewState === 'list' && (
         <div className="flex items-center justify-between mb-4 shrink-0">
-          <h1 className="text-xl font-bold">{t('notes.title')}</h1>
+          <h1 className="text-xl font-bold">{t('notes.header_title')}</h1>
           <button
             onClick={handleNew}
             className="size-10 flex items-center justify-center rounded-full hover:bg-heymean-l dark:hover:bg-heymean-d text-primary-text-light dark:text-primary-text-dark"
@@ -272,10 +272,10 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title={t('modal.delete_note_title')}
-        message={t('modal.delete_note_message')}
-        confirmText={t('modal.delete_button')}
-        cancelText={t('modal.cancel_button')}
+        title={t('modal.delete_title')}
+        message={t('modal.delete_content')}
+        confirmText={t('modal.delete_confirm')}
+        cancelText={t('modal.cancel')}
         onConfirm={handleConfirmDelete}
         confirmDestructive
       />
@@ -283,10 +283,10 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
       <Modal
         isOpen={isUnsavedModalOpen}
         onClose={() => setIsUnsavedModalOpen(false)}
-        title={t('modal.unsaved_changes_title')}
-        message={t('modal.unsaved_changes_message')}
-        confirmText={t('modal.discard_button')}
-        cancelText={t('modal.cancel_button')}
+        title={t('modal.unsaved_title')}
+        message={t('modal.unsaved_content')}
+        confirmText={t('modal.unsaved_discard')}
+        cancelText={t('modal.cancel')}
         onConfirm={handleConfirmUnsaved}
         confirmDestructive
       />
@@ -295,13 +295,13 @@ export const NotesView: React.FC<NotesViewProps> = React.memo(({ isDesktop: _isD
         isOpen={isRenameModalOpen}
         onClose={() => setIsRenameModalOpen(false)}
         title={t('modal.rename_note_title')}
-        message={t('modal.rename_note_message')}
-        confirmText={t('modal.save_button')}
-        cancelText={t('modal.cancel_button')}
+        message={t('modal.rename_note_content')}
+        confirmText={t('modal.rename_save')}
+        cancelText={t('modal.cancel')}
         onConfirm={handleConfirmRename}
         inputValue={newTitle}
         onInputChange={setNewTitle}
-        inputPlaceholder={t('modal.note_title_placeholder')}
+        inputPlaceholder={t('notes.untitled')}
       />
     </div>
   );

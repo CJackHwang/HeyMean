@@ -4,6 +4,7 @@ import { getNotes, addNote, updateNote, deleteNote } from '@shared/services/db';
 import { getPayload, clearPayload } from '@shared/lib/preloadPayload';
 import { useToast } from '@app/providers/useToast';
 import { handleError } from '@shared/services/errorHandler';
+import { useTranslation } from '@app/providers/useTranslation';
 
 export const useNoteActions = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -12,6 +13,7 @@ export const useNoteActions = () => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isNewNote, setIsNewNote] = useState(false);
   const { showToast } = useToast();
+  const { t } = useTranslation();
   const saveStatusResetTimeoutRef = useRef<number | null>(null);
 
   const loadNotes = useCallback(async () => {
@@ -38,7 +40,7 @@ export const useNoteActions = () => {
     const now = new Date();
     const newNote: Note = {
       id: Date.now(),
-      title: 'New Note',
+      title: t('notes.untitled'),
       content: '',
       createdAt: now,
       updatedAt: now,
@@ -47,7 +49,7 @@ export const useNoteActions = () => {
     setActiveNote(newNote);
     setOriginalNoteContent('');
     setIsNewNote(true);
-  }, []);
+  }, [t]);
 
   const saveNote = useCallback(async () => {
     if (!activeNote) return;
@@ -55,7 +57,7 @@ export const useNoteActions = () => {
     setSaveStatus('saving');
     try {
       const [title, ...rest] = activeNote.content.split('\n');
-      const trimmedTitle = title.trim() || 'New Note';
+      const trimmedTitle = title.trim() || t('notes.untitled');
       const content = rest.join('\n');
       const noteToSave = { ...activeNote, title: trimmedTitle, content, updatedAt: new Date() };
 
@@ -89,7 +91,7 @@ export const useNoteActions = () => {
       showToast(appError.userMessage, 'error');
       setSaveStatus('idle');
     }
-  }, [activeNote, isNewNote, loadNotes, showToast]);
+  }, [activeNote, isNewNote, loadNotes, showToast, t]);
 
   const deleteNoteById = useCallback(
     async (noteId: number) => {
