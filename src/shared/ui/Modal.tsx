@@ -4,17 +4,20 @@ import React, { useEffect, useState, useRef } from 'react';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // FIX: Allow async functions for onConfirm to resolve type errors.
   onConfirm: () => void | Promise<void>;
   title: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  message?: string;
   confirmText?: string;
   cancelText?: string;
   confirmButtonClass?: string;
-  // FIX: Allow async functions for onDestructive to resolve type errors.
+  confirmDestructive?: boolean;
   onDestructive?: () => void | Promise<void>;
   destructiveText?: string;
   destructiveButtonClass?: string;
+  inputValue?: string;
+  onInputChange?: (value: string) => void;
+  inputPlaceholder?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -23,13 +26,22 @@ const Modal: React.FC<ModalProps> = ({
   onConfirm,
   title,
   children,
+  message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  confirmButtonClass = 'bg-red-600 hover:bg-red-700 text-white',
+  confirmButtonClass,
+  confirmDestructive = false,
   onDestructive,
   destructiveText,
   destructiveButtonClass,
+  inputValue,
+  onInputChange,
+  inputPlaceholder,
 }) => {
+  const defaultConfirmClass = confirmDestructive
+    ? 'bg-red-600 hover:bg-red-700 text-white'
+    : 'bg-primary hover:bg-primary/90 text-white dark:bg-white dark:text-black';
+  const finalConfirmClass = confirmButtonClass || defaultConfirmClass;
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
   const modalPanelRef = useRef<HTMLDivElement>(null);
@@ -99,8 +111,18 @@ const Modal: React.FC<ModalProps> = ({
         <h3 className="text-lg font-bold text-primary-text-light dark:text-primary-text-dark" id="modal-title">
           {title}
         </h3>
-        <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
+        <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-300 space-y-4">
+          {message && <p>{message}</p>}
           {children}
+          {onInputChange && (
+            <input
+              type="text"
+              value={inputValue ?? ''}
+              onChange={(e) => onInputChange(e.target.value)}
+              placeholder={inputPlaceholder}
+              className="w-full rounded-xl border border-gray-200 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
+            />
+          )}
         </div>
         <div className="mt-6 flex justify-end gap-3">
            {onDestructive && destructiveText && (
@@ -121,7 +143,7 @@ const Modal: React.FC<ModalProps> = ({
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${confirmButtonClass}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${finalConfirmClass}`}
             onClick={onConfirm}
           >
             {confirmText}

@@ -19,11 +19,11 @@
   - assets/ 全局静态与预加载（如 fonts-preload.ts）
   - App.tsx 应用壳，薄层引导
 - src/shared（业务无关、平台相关性可有）
-  - ui/ 基础可复用 UI（Modal、ListItemMenu 等）
+  - ui/ 基础可复用 UI（Modal、ListItemMenu 等）。2024.11 起 Notes 体系已拆分为 `shared/ui/Notes/*`，通过 `NoteList/NoteEditor/NotePreview` + `useNoteActions` 组合，避免巨型组件反复渲染。
   - hooks/ 通用 Hooks（无业务语义）
   - lib/ 纯工具（preloadPayload、format、storage、event-bus 等）
   - api/ HTTP 客户端、拦截器、通用 schema/validator（可选）
-  - services/ 与平台相关但无业务语义（db、errorHandler、logger）
+  - services/ 与平台相关但无业务语义（db、errorHandler、logger）。AI Provider 相关逻辑通过 `shared/services/providers/*` 实现策略模式（`GeminiChatService` / `OpenAIChatService`），`apiService.ts` 仅负责调度与重试。
   - types/ 通用类型定义（基础 DTO、Result 等）
 - src/entities（领域实体，跨特性共享）
   - message/ conversation/ user/ ...
@@ -93,6 +93,12 @@
 - 副作用位置：业务副作用集中在 `model`；UI 尽量无副作用。
 - 导出通过该目录的 `index.ts`（barrel 出口）统一暴露，便于重构与可见性控制。
 
+**Notes 模块拆分（2024 Q4）**
+- `NotesView` 仅负责路由态/模态交互，逻辑下沉至 `shared/ui/Notes/useNoteActions`。
+- 独立的 `NoteList / NoteEditor / NotePreview` 组件通过 `React.memo` 保障列表/编辑器互不干扰。
+- 长按/菜单交互统一在 `NoteList` 内处理，向上派发 note + 坐标，方便 Desktop/Mobile 同时维护。
+- 任何新增 Notes 相关能力（筛选、搜索）请首选在 `useNoteActions` 内扩展，避免再次形成巨石组件。
+
 **类型与边界**
 - 通用基础类型：`shared/types`；领域模型：`entities/*/model`。
 - API DTO 与 Domain 类型分离：请求/响应 DTO 在 `api`，领域类型在 `model` 或 `entities`。
@@ -107,6 +113,7 @@
 - 保持路由与特性入口懒加载；大依赖（如 Markdown/LLM SDK/虚拟列表）按包分离为独立 chunk。
 - 对重计算（解析/索引/Embedding 等），可迁至 `workers`，与主线程解耦。
 - 图片与字体走现代格式（WebP/woff2），关键字体在 `app/assets` 早期预加载。
+- React 性能优化：核心组件（如 `MessageBubble/*`、`Notes/*`）使用 `React.memo` 避免不必要重渲染；回调函数使用 `useCallback`；昂贵的计算使用 `useMemo`。
 
 **PWA / Service Worker**
 - 保持当前最小化注册；若后续离线化增强，建议使用 Workbox 或细分缓存策略（静态/接口/模型）。
