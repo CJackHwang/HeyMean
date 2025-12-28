@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -57,7 +58,7 @@ const Modal: React.FC<ModalProps> = ({
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
-  
+
   // Effect to manage the entry animation after the component is mounted
   useEffect(() => {
     if (shouldRender && isOpen && modalPanelRef.current) {
@@ -65,7 +66,7 @@ const Modal: React.FC<ModalProps> = ({
       // This ensures the initial state (opacity-0, scale-95) is rendered
       // before the final state (opacity-100, scale-100) is applied for the transition.
       void modalPanelRef.current.offsetHeight;
-      
+
       // Now trigger the animation by updating the state
       setIsAnimatingIn(true);
     }
@@ -88,7 +89,7 @@ const Modal: React.FC<ModalProps> = ({
 
   if (!shouldRender) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       aria-labelledby="modal-title"
@@ -125,15 +126,15 @@ const Modal: React.FC<ModalProps> = ({
           )}
         </div>
         <div className="mt-6 flex justify-end gap-3">
-           {onDestructive && destructiveText && (
+          {onDestructive && destructiveText && (
             <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
-                onClick={onDestructive}
+              type="button"
+              className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${destructiveButtonClass || 'text-red-500 hover:bg-red-500/10'}`}
+              onClick={onDestructive}
             >
-                {destructiveText}
+              {destructiveText}
             </button>
-           )}
+          )}
           <button
             type="button"
             className="px-4 py-2 text-sm font-medium text-primary-text-light dark:text-primary-text-dark bg-heymean-l dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500"
@@ -150,7 +151,8 @@ const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

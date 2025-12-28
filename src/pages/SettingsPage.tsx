@@ -14,12 +14,12 @@ const SettingsPage: React.FC = () => {
   const location = useLocation();
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { 
-    theme, 
-    setTheme, 
-    systemPrompt, 
-    setSystemPrompt, 
-    selectedApiProvider, 
+  const {
+    theme,
+    setTheme,
+    systemPrompt,
+    setSystemPrompt,
+    selectedApiProvider,
     setSelectedApiProvider,
     geminiApiKey,
     setGeminiApiKey,
@@ -65,7 +65,7 @@ const SettingsPage: React.FC = () => {
       setAvailableModels(modelIds);
       // If current model is not in the list, set to the first one available
       if (modelIds.length > 0 && !modelIds.includes(openAiModel)) {
-          setOpenAiModel(modelIds[0]);
+        setOpenAiModel(modelIds[0]);
       }
     } catch (error) {
       const appError = handleError(error, 'api');
@@ -100,16 +100,16 @@ const SettingsPage: React.FC = () => {
     // The initial location in the history stack has the key "default".
     // If we are not on the initial location, we can safely go back.
     if (location.key !== 'default') {
-        navigate(-1);
+      navigate(-1);
     } else {
-        // Otherwise, navigate to the home page as a fallback.
-        navigate('/');
+      // Otherwise, navigate to the home page as a fallback.
+      navigate('/');
     }
   };
 
 
   return (
-    <div className="relative flex h-screen min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
+    <div className="relative flex min-h-[var(--vh-full,100vh)] w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
         <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
@@ -118,7 +118,7 @@ const SettingsPage: React.FC = () => {
         <div className="w-10 shrink-0"></div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-8 custom-scrollbar w-full max-w-4xl mx-auto">
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_appearance')}</h2>
           <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
@@ -131,24 +131,24 @@ const SettingsPage: React.FC = () => {
               </div>
               <div className="shrink-0">
                 <div className="flex items-center bg-background-light dark:bg-background-dark rounded-full p-1.5 gap-1">
-                  <button 
-                    onClick={() => setTheme(Theme.LIGHT)} 
+                  <button
+                    onClick={() => setTheme(Theme.LIGHT)}
                     className={`flex items-center justify-center size-9 rounded-full transition-all ${theme === Theme.LIGHT ? 'bg-primary text-white shadow-sm' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
                     aria-label={t('settings.theme_light')}
                     title={t('settings.theme_light')}
                   >
                     <span className="material-symbols-outlined text-[20px]">light_mode</span>
                   </button>
-                  <button 
-                    onClick={() => setTheme(Theme.AUTO)} 
+                  <button
+                    onClick={() => setTheme(Theme.AUTO)}
                     className={`flex items-center justify-center size-9 rounded-full transition-all ${theme === Theme.AUTO ? 'bg-primary dark:bg-white text-white dark:text-black shadow-sm' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
                     aria-label={t('settings.theme_auto')}
                     title={t('settings.theme_auto')}
                   >
                     <span className="material-symbols-outlined text-[20px]">schedule</span>
                   </button>
-                  <button 
-                    onClick={() => setTheme(Theme.DARK)} 
+                  <button
+                    onClick={() => setTheme(Theme.DARK)}
                     className={`flex items-center justify-center size-9 rounded-full transition-all ${theme === Theme.DARK ? 'bg-primary dark:bg-white text-white dark:text-black shadow-sm' : 'text-primary-text-light/60 dark:text-primary-text-dark/60 hover:bg-black/5 dark:hover:bg-white/5'}`}
                     aria-label={t('settings.theme_dark')}
                     title={t('settings.theme_dark')}
@@ -173,20 +173,20 @@ const SettingsPage: React.FC = () => {
         </section>
 
         <section>
-            <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_model')}</h2>
-            <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-4 space-y-4">
-                 <div>
-                    <label htmlFor="system-prompt" className="block text-sm font-medium mb-2 px-2">{t('settings.model_system_prompt')}</label>
-                    <textarea
-                        id="system-prompt"
-                        rows={4}
-                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                        value={systemPrompt}
-                        onChange={(e) => setSystemPrompt(e.target.value)}
-                        placeholder={t('settings.model_system_prompt_placeholder')}
-                    />
-                </div>
+          <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_model')}</h2>
+          <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-4 space-y-4">
+            <div>
+              <label htmlFor="system-prompt" className="block text-sm font-medium mb-2 px-2">{t('settings.model_system_prompt')}</label>
+              <textarea
+                id="system-prompt"
+                rows={4}
+                className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder={t('settings.model_system_prompt_placeholder')}
+              />
             </div>
+          </div>
         </section>
 
         <section>
@@ -261,35 +261,35 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                      <label htmlFor="openai-model" className="block text-sm font-medium">{t('settings.api_model_name')}</label>
-                      <button 
-                        onClick={handleFetchModels}
-                        disabled={isFetchingModels || !openAiApiKey}
-                        className="text-sm font-medium text-primary dark:text-white hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isFetchingModels ? t('settings.api_fetching_models') : t('settings.api_fetch_models')}
-                      </button>
+                    <label htmlFor="openai-model" className="block text-sm font-medium">{t('settings.api_model_name')}</label>
+                    <button
+                      onClick={handleFetchModels}
+                      disabled={isFetchingModels || !openAiApiKey}
+                      className="text-sm font-medium text-primary dark:text-white hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isFetchingModels ? t('settings.api_fetching_models') : t('settings.api_fetch_models')}
+                    </button>
                   </div>
                   {availableModels.length > 0 ? (
-                      <Selector
-                        label={t('settings.api_model_name')}
-                        options={availableModels.map(id => ({ value: id, label: id }))}
-                        selectedValue={openAiModel}
-                        onSelect={setOpenAiModel}
-                      />
-                    ) : (
-                      <input
-                        id="openai-model"
-                        type="text"
-                        placeholder={t('settings.api_model_placeholder')}
-                        className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
-                        value={openAiModel}
-                        onChange={(e) => setOpenAiModel(e.target.value)}
-                      />
+                    <Selector
+                      label={t('settings.api_model_name')}
+                      options={availableModels.map(id => ({ value: id, label: id }))}
+                      selectedValue={openAiModel}
+                      onSelect={setOpenAiModel}
+                    />
+                  ) : (
+                    <input
+                      id="openai-model"
+                      type="text"
+                      placeholder={t('settings.api_model_placeholder')}
+                      className="w-full p-3 rounded-lg bg-background-light dark:bg-background-dark focus:outline-hidden focus:ring-2 focus:ring-primary dark:focus:ring-white"
+                      value={openAiModel}
+                      onChange={(e) => setOpenAiModel(e.target.value)}
+                    />
                   )}
                   {fetchError && <p className="text-xs text-red-500 mt-1">{fetchError}</p>}
                   <p className="text-xs text-gray-500 mt-1">
-                      {availableModels.length > 0 
+                    {availableModels.length > 0
                       ? t('settings.api_model_select_info')
                       : t('settings.api_model_fetch_info')}
                   </p>
@@ -302,49 +302,49 @@ const SettingsPage: React.FC = () => {
         {/* --- Informational Sections --- */}
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_other')}</h2>
-           <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
+          <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
             <div onClick={() => navigate('/about')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
-                <div className="flex items-center gap-4 min-w-0">
-                    <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
-                        <span className="material-symbols-outlined">info</span>
-                    </div>
-                    <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.about_app')}</p>
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
+                  <span className="material-symbols-outlined">info</span>
                 </div>
-                 <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">chevron_right</span>
+                <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.about_app')}</p>
+              </div>
+              <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">chevron_right</span>
             </div>
             <div onClick={() => window.open('https://heymean.app/privacy', '_blank')} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
-                <div className="flex items-center gap-4 min-w-0">
-                    <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
-                        <span className="material-symbols-outlined">policy</span>
-                    </div>
-                    <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.privacy_policy')}</p>
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center justify-center rounded-lg bg-heymean-l dark:bg-heymean-d shrink-0 size-10">
+                  <span className="material-symbols-outlined">policy</span>
                 </div>
-                 <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">open_in_new</span>
+                <p className="text-base font-normal leading-normal flex-1 truncate">{t('settings.privacy_policy')}</p>
+              </div>
+              <span className="material-symbols-outlined text-neutral-400 dark:text-neutral-500">open_in_new</span>
             </div>
           </div>
         </section>
-        
+
         {/* --- Destructive Actions - Placed at the very bottom for safety --- */}
         <section>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">{t('settings.section_account')}</h2>
-           <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
+          <div className="bg-heymean-l/50 dark:bg-heymean-d/50 rounded-xl p-2 space-y-1">
             <div onClick={() => setIsClearDataModalOpen(true)} className="flex items-center gap-4 px-4 min-h-14 justify-between rounded-lg cursor-pointer hover:bg-red-500/10">
-                <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate">{t('settings.account_clear_data')}</p>
+              <p className="text-red-500 text-base font-normal leading-normal flex-1 truncate">{t('settings.account_clear_data')}</p>
             </div>
           </div>
         </section>
       </div>
 
       <Modal
-          isOpen={isClearDataModalOpen}
-          onClose={() => setIsClearDataModalOpen(false)}
-          onConfirm={handleConfirmClearData}
-          title={t('modal.clear_data_title')}
-          confirmText={t('modal.clear_data_confirm')}
-          cancelText={t('modal.cancel')}
-          confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+        isOpen={isClearDataModalOpen}
+        onClose={() => setIsClearDataModalOpen(false)}
+        onConfirm={handleConfirmClearData}
+        title={t('modal.clear_data_title')}
+        confirmText={t('modal.clear_data_confirm')}
+        cancelText={t('modal.cancel')}
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
       >
-          <p>{t('modal.clear_data_content')}</p>
+        <p>{t('modal.clear_data_content')}</p>
       </Modal>
 
     </div>

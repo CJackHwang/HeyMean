@@ -32,7 +32,7 @@
         if (themeColor) {
           themeColor.setAttribute('content', t === 'dark' ? '#111111' : '#FFFFFF');
         }
-        
+
         // Update status bar style dynamically based on theme
         var statusBarStyle = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
         if (statusBarStyle) {
@@ -60,12 +60,20 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 防止iOS橡皮筋效果 */
+    /* 防止iOS橡皮筋效果 - 使用 dvh 支持动态视口 */
     body {
       position: fixed;
       width: 100%;
-      height: 100%;
+      height: 100dvh;
+      height: 100vh;
+      /* Fallback */
       overflow: hidden;
+    }
+
+    @supports (height: 100dvh) {
+      body {
+        height: 100dvh;
+      }
     }
 
     #root {
