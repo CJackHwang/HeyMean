@@ -74,6 +74,17 @@
 }
 */
 
+/* 统一视口高度变量 - 支持 iOS Safari 动态视口 */
+:root {
+  --vh-full: 100dvh;
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --vh-full: 100vh;
+  }
+}
+
 /* Route transition layers */
  
 /* 禁用下拉刷新和滚动边界行为 */
@@ -148,13 +159,17 @@ button, a, input, textarea, label[for] {
 
 /* Global body styles */
 body {
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--vh-full);
   /* Disable text selection globally for a better mobile experience */
   -webkit-user-select: none; /* Safari */
   -moz-user-select: none; /* Firefox */
   -ms-user-select: none; /* IE10+/Edge */
   user-select: none; /* Standard */
+}
+
+/* 根容器布局 - 由 index.html 中的 absolute 定位控制 */
+#root {
+  /* min-height 由 index.html 的 inset: 0 控制 */
 }
 
 /* Removed skeleton shimmer styles for instant render experience */
@@ -306,9 +321,9 @@ div[role='button']:focus-visible {
   overscroll-behavior: contain;
 }
  
-/* 修复iOS安全区域适配 */
+/* 修复iOS安全区域适配 - 应用到 #root 确保内容正确避开刘海等区域 */
 @supports (padding: max(0px)) {
-  body {
+  #root {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);

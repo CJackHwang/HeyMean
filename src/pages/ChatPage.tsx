@@ -62,9 +62,9 @@ const ChatPage: React.FC = () => {
             } else {
                 setMessages((prev) => [...prev, streamedAiMessage]);
             }
-            
+
             streamedMessageIdRef.current = streamedAiMessage.id;
-            
+
             if (!streamedAiMessage.isLoading && !streamedAiMessage.isThinkingComplete) {
             } else if (!streamedAiMessage.isLoading) {
                 saveUpdatedMessage(streamedAiMessage);
@@ -202,7 +202,7 @@ const ChatPage: React.FC = () => {
     });
 
     return (
-        <div ref={rootRef} className="relative flex h-screen min-h-screen w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
+        <div ref={rootRef} className="relative flex min-h-[var(--vh-full,100vh)] h-[var(--vh-full,100vh)] w-full group/design-root overflow-hidden bg-background-light dark:bg-background-dark">
             <div className="flex-1 flex flex-col relative">
                 <ChatHeader />
 
@@ -220,19 +220,19 @@ const ChatPage: React.FC = () => {
                     pendingTopLoad={pendingTopLoad}
                 />
 
-                <ListItemMenu 
-                    isOpen={menuState.isOpen} 
-                    onClose={closeMenu} 
-                    position={menuState.position} 
-                    actions={menuActions} 
+                <ListItemMenu
+                    isOpen={menuState.isOpen}
+                    onClose={closeMenu}
+                    position={menuState.position}
+                    actions={menuActions}
                 />
-                <Modal 
-                    isOpen={deleteModalState.isOpen} 
-                    onClose={closeDeleteModal} 
-                    onConfirm={confirmDeleteMessage} 
-                    title={t('modal.delete_message_title')} 
-                    confirmText={t('modal.delete_confirm')} 
-                    cancelText={t('modal.cancel')} 
+                <Modal
+                    isOpen={deleteModalState.isOpen}
+                    onClose={closeDeleteModal}
+                    onConfirm={confirmDeleteMessage}
+                    title={t('modal.delete_message_title')}
+                    confirmText={t('modal.delete_confirm')}
+                    cancelText={t('modal.cancel')}
                     confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
                 >
                     <p>{t('modal.delete_message_content')}</p>
@@ -247,7 +247,7 @@ const ChatPage: React.FC = () => {
                     onCancelEdit={chatActions.handleCancelEdit}
                     onConfirmEdit={chatActions.handleConfirmEdit}
                 />
-                <div className="md:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col opacity-0 pointer-events-none z-40" id="notes-content">
+                <div className="lg:hidden fixed inset-0 bg-background-light dark:bg-background-dark flex flex-col opacity-0 pointer-events-none z-40" id="notes-content">
                     <NotesView />
                 </div>
             </div>

@@ -15,7 +15,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
     return (
         <div
             id="notes-panel"
-            className="hidden md:flex flex-col relative overflow-visible border-l border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark"
+            className="hidden lg:flex flex-col relative overflow-visible border-l border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark"
             style={{ width: isNotesCollapsed ? 0 : `${notesWidth}px`, minWidth: isNotesCollapsed ? 0 : 260 }}
             aria-hidden={isNotesCollapsed}
         >
