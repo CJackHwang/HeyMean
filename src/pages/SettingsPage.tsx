@@ -109,7 +109,7 @@ const SettingsPage: React.FC = () => {
 
 
   return (
-    <div className="relative flex min-h-[var(--vh-full,100vh)] w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
+    <div className="relative flex h-[var(--vh-full,100vh)] w-full flex-col bg-background-light dark:bg-background-dark text-primary-text-light dark:text-primary-text-dark">
       <header className="sticky top-0 z-10 flex items-center p-4 pb-3 justify-between shrink-0 border-b border-gray-200 dark:border-neutral-700 bg-background-light dark:bg-background-dark">
         <button onClick={handleBack} className="flex size-10 shrink-0 items-center justify-center">
           <span className="material-symbols-outlined text-2xl! text-primary-text-light dark:text-primary-text-dark">arrow_back</span>
