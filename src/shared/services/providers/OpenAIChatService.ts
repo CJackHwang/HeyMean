@@ -10,6 +10,7 @@ export interface OpenAIMessage {
   content: string | OpenAIMessageContentPart[];
   tool_calls?: OpenAIToolCall[];
   tool_call_id?: string;
+  name?: string;
 }
 
 export type OpenAITextContentPart = { type: 'text'; text: string };
@@ -30,9 +31,82 @@ export interface OpenAIServiceConfig {
   model: string;
   baseUrl: string;
   tools?: OpenAIFunctionDefinition[];
+  toolResultSerialization?: 'json' | 'text';
 }
 
+type ToolCallSchemaValidation = {
+  toolName: string;
+  toolCallId: string;
+  parsedArgs: Record<string, unknown>;
+  parseError?: string;
+  rawArgumentsSnippet?: string;
+};
+
 export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
+  private normalizeAssistantMessage(message: unknown): OpenAIMessage {
+    const msg = (message ?? {}) as Record<string, unknown>;
+    const rawContent = msg.content;
+    const normalizedContent: string | OpenAIMessageContentPart[] = typeof rawContent === 'string' || Array.isArray(rawContent)
+      ? (rawContent as string | OpenAIMessageContentPart[])
+      : '';
+
+    return {
+      role: 'assistant',
+      content: normalizedContent,
+      tool_calls: Array.isArray(msg.tool_calls) ? (msg.tool_calls as OpenAIToolCall[]) : undefined,
+      name: typeof msg.name === 'string' ? msg.name : undefined,
+    };
+  }
+
+  private toDisplayText(content: string | OpenAIMessageContentPart[]): string {
+    if (typeof content === 'string') return content;
+    if (!Array.isArray(content)) return '';
+    return content
+      .map((part: { type?: string; text?: string }) => (part?.type === 'text' ? part.text ?? '' : ''))
+      .join('');
+  }
+
+  private validateToolCallSchema(toolCall: OpenAIToolCall): ToolCallSchemaValidation {
+    const toolName = typeof toolCall.function?.name === 'string' && toolCall.function.name.trim() ? toolCall.function.name : 'unknown_tool';
+    const argsString = typeof toolCall.function?.arguments === 'string' ? toolCall.function.arguments : '{}';
+    const toolCallId = toolCall.id ?? `${toolName}-${Date.now()}`;
+
+    let parsedArgs: Record<string, unknown> = {};
+    let parseError: string | undefined;
+    let rawArgumentsSnippet: string | undefined;
+
+    try {
+      const parsed = JSON.parse(argsString || '{}');
+      parsedArgs = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        parseError = 'Tool arguments must be a JSON object.';
+      }
+    } catch (error) {
+      parseError = error instanceof Error ? error.message : 'Failed to parse tool arguments as JSON.';
+      rawArgumentsSnippet = argsString.slice(0, 500);
+    }
+
+    return { toolName, toolCallId, parsedArgs, parseError, rawArgumentsSnippet };
+  }
+
+  private serializeToolResult(
+    result: { success: boolean; data?: unknown; error?: string },
+    strategy: OpenAIServiceConfig['toolResultSerialization'] = 'json'
+  ): string {
+    if (strategy === 'text') {
+      if (!result.success) {
+        return `success: false\nerror: ${result.error ?? 'Unknown error'}`;
+      }
+      if (typeof result.data === 'string') return result.data;
+      return `success: true\ndata: ${JSON.stringify(result.data ?? null)}`;
+    }
+
+    return JSON.stringify({
+      success: result.success,
+      data: result.data ?? null,
+      error: result.error ?? null,
+    });
+  }
   private async messagesToOpenAIChatFormat(messages: Message[], systemInstruction: string): Promise<OpenAIMessage[]> {
     const openAIMessages: OpenAIMessage[] = [];
     if (systemInstruction) {
@@ -189,32 +263,20 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
 
         const data = await response.json();
         const choice = data.choices?.[0];
-        const message = choice?.message;
+        const message = this.normalizeAssistantMessage(choice?.message);
 
-        if (!choice || !message) {
+        if (!choice) {
           onChunk('OpenAI returned an empty response.');
           break;
         }
 
-        let textChunk = '';
-        if (typeof message.content === 'string') {
-          textChunk = message.content;
-        } else if (Array.isArray(message.content)) {
-          textChunk = message.content
-            .map((part: { type?: string; text?: string }) => (part?.type === 'text' ? part.text ?? '' : ''))
-            .join('');
-        }
+        const textChunk = this.toDisplayText(message.content);
 
         if (textChunk) {
           onChunk(textChunk);
         }
 
-        const assistantMessage = {
-          role: 'assistant' as const,
-          content: typeof message.content === 'string' ? message.content : '',
-          tool_calls: message.tool_calls,
-        };
-        messages.push(assistantMessage);
+        messages.push(message);
 
         const toolCalls = message.tool_calls ?? [];
         if (toolCalls.length === 0) {
@@ -222,32 +284,28 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         }
 
         const toolCallPayloads = toolCalls.map((toolCall: OpenAIToolCall) => {
-          const toolName = toolCall.function?.name ?? 'unknown_tool';
-          const argsString = toolCall.function?.arguments ?? '{}';
-          let parsedArgs: Record<string, unknown> = {};
-          try {
-            parsedArgs = JSON.parse(argsString || '{}');
-          } catch (error) {
-            parsedArgs = {};
-          }
-
-          const toolCallId = toolCall.id ?? `${toolName}-${Date.now()}`;
+          const validation = this.validateToolCallSchema(toolCall);
 
           if (onToolCall) {
             onToolCall({
-              id: toolCallId,
-              name: toolName,
-              status: 'calling',
-              parameters: parsedArgs,
+              id: validation.toolCallId,
+              name: validation.toolName,
+              status: validation.parseError ? 'error' : 'calling',
+              parameters: {
+                ...validation.parsedArgs,
+                _schemaValidation: validation.parseError
+                  ? { error: validation.parseError, rawArgumentsSnippet: validation.rawArgumentsSnippet }
+                  : { ok: true },
+              },
               timestamp: Date.now(),
             });
           }
 
-          return { toolName, parsedArgs, toolCallId };
+          return validation;
         });
 
         const toolResults = await Promise.all(
-          toolCallPayloads.map(async ({ toolName, parsedArgs, toolCallId }: { toolName: string; parsedArgs: Record<string, unknown>; toolCallId: string }) => {
+          toolCallPayloads.map(async ({ toolName, parsedArgs, toolCallId }: ToolCallSchemaValidation) => {
             if (signal?.aborted) {
               throw new AppError('CANCELLED', 'Request was cancelled by the user.');
             }
@@ -275,11 +333,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         for (const { toolCallId, result } of toolResults) {
           const toolMessage: OpenAIMessage = {
             role: 'tool',
-            content: JSON.stringify({
-              success: result.success,
-              data: result.data ?? null,
-              error: result.error ?? null,
-            }),
+            content: this.serializeToolResult(result, config.toolResultSerialization),
             tool_call_id: toolCallId,
           };
           messages.push(toolMessage);
