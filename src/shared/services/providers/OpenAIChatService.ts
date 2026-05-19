@@ -61,6 +61,20 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
     return raw.includes('not support') || raw.includes('unsupported') || raw.includes('unknown endpoint') || raw.includes('responses');
   }
 
+  private extractResponsesOutputText(data: any): string {
+    if (typeof data?.output_text === 'string' && data.output_text.length > 0) {
+      return data.output_text;
+    }
+
+    if (!Array.isArray(data?.output)) return '';
+
+    return data.output
+      .flatMap((item: any) => (Array.isArray(item?.content) ? item.content : []))
+      .filter((part: any) => part?.type === 'output_text' && typeof part?.text === 'string')
+      .map((part: any) => part.text)
+      .join('');
+  }
+
   private normalizeToolCalls(message: any): OpenAIToolCall[] {
     const directCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
     if (directCalls.length > 0) return directCalls;
@@ -165,7 +179,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
           });
         } else {
           const data = await response.json();
-          const outputText = data?.output_text;
+          const outputText = this.extractResponsesOutputText(data);
           if (outputText) onChunk(outputText);
           return;
         }
@@ -281,14 +295,14 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
           onChunk(textChunk);
         }
 
+        const toolCalls = this.normalizeToolCalls(message);
         const assistantMessage = {
           role: 'assistant' as const,
           content: typeof message.content === 'string' ? message.content : '',
-          tool_calls: message.tool_calls,
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
         };
         messages.push(assistantMessage);
 
-        const toolCalls = this.normalizeToolCalls(message);
         if (toolCalls.length === 0) {
           break;
         }
