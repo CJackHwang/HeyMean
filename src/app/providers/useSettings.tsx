@@ -49,7 +49,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
   const [systemPrompt, setSystemPromptState] = useState<string>(''); // User's custom prompt
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState<string>(''); // Loaded from file
-  const [selectedApiProvider, setSelectedApiProviderState] = useState<ApiProvider>(ApiProvider.GEMINI);
+  const [selectedApiProvider, setSelectedApiProviderState] = useState<ApiProvider>(ApiProvider.OPENAI);
   const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
   const [geminiModel, setGeminiModelState] = useState<string>('gemini-2.5-flash');
   const [openAiApiKey, setOpenAiApiKeyState] = useState<string>('');
@@ -83,7 +83,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const savedDbTheme = await getSetting<Theme>('theme');
         const savedTheme = lsTheme || savedDbTheme || Theme.AUTO;
         const savedPrompt = await getSetting<string>('systemPrompt') || ''; // Default to empty
-        const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.GEMINI;
+        const savedApiProvider = await getSetting<ApiProvider>('selectedApiProvider') || ApiProvider.OPENAI;
         const savedGeminiApiKey = await getSetting<string>('geminiApiKey') || '';
         const savedGeminiModel = await getSetting<string>('geminiModel') || 'gemini-2.5-flash';
         const savedOpenAiApiKey = await getSetting<string>('openAiApiKey') || '';
@@ -252,7 +252,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // These setters already contain error handling
     setTheme(Theme.AUTO);
     setSystemPrompt('');
-    setSelectedApiProvider(ApiProvider.GEMINI);
+    setSelectedApiProvider(ApiProvider.OPENAI);
     setGeminiApiKey('');
     setGeminiModel('gemini-2.5-flash');
     setOpenAiApiKey('');

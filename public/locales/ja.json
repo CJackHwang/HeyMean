@@ -30,7 +30,7 @@
   "settings.about_app": "HeyMeanについて",
   "settings.api_provider": "APIプロバイダー",
   "settings.api_provider_gemini": "Google Gemini",
-  "settings.api_provider_openai": "OpenAI互換",
+  "settings.api_provider_openai": "OpenAI互換（デフォルト）",
   "settings.api_key": "APIキー",
   "settings.api_key_gemini_placeholder": "Gemini APIキーを入力してください",
   "settings.api_key_gemini_info": "APIキーはローカルに保存されます。空の場合、内蔵キーが試されます。",

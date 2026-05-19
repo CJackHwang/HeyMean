@@ -31,7 +31,7 @@
   "settings.other_user_agreement_placeholder": "We'll share the detailed user agreement soon.",
   "settings.api_provider": "API Provider",
   "settings.api_provider_gemini": "Google Gemini",
-  "settings.api_provider_openai": "OpenAI Compatible",
+  "settings.api_provider_openai": "OpenAI Compatible (Default)",
   "settings.api_key": "API Key",
   "settings.api_key_gemini_placeholder": "Enter your Gemini API Key",
   "settings.api_key_gemini_info": "Your API key is stored locally. If empty, the built-in key will be attempted.",

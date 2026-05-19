@@ -30,7 +30,7 @@
   "settings.about_app": "关于 HeyMean",
   "settings.api_provider": "API 提供商",
   "settings.api_provider_gemini": "Google Gemini",
-  "settings.api_provider_openai": "OpenAI 兼容",
+  "settings.api_provider_openai": "OpenAI 兼容（默认）",
   "settings.api_key": "API 密钥",
   "settings.api_key_gemini_placeholder": "输入你的 Gemini API 密钥",
   "settings.api_key_gemini_info": "你的 API 密钥存储在本地。如果为空，将尝试使用内置密钥。",
