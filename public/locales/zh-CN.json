@@ -112,8 +112,23 @@
   "about.app_description": "一个旨在使学习变得直观和有趣的AI学习助手。",
   "about.developed_by": "由 CJackHwang 开发",
   "about.github_repo": "GitHub 仓库",
-  "about.license": "许可证 (AGPL-3.0)"
-  ,
+  "about.license": "许可证 (AGPL-3.0)",
   "toast.input_required": "请输入内容",
-  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。"
+  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。",
+  "settings.diag_title": "连接诊断",
+  "settings.diag_test": "连接测试",
+  "settings.diag_testing": "测试中...",
+  "settings.diag_models": "/models",
+  "settings.diag_chat": "/chat/completions",
+  "settings.diag_responses": "/responses",
+  "settings.diag_tools": "tools",
+  "settings.diag_stream": "stream",
+  "settings.diag_suggestions": "建议配置",
+  "settings.diag_ok": "当前配置看起来可用。",
+  "settings.diag_rec_chat": "建议协议模式：Chat Completions。",
+  "settings.diag_rec_responses": "建议协议模式：Responses。",
+  "settings.diag_rec_tools": "建议关闭 tools 或切换支持函数调用的模型。",
+  "settings.diag_rec_stream": "建议关闭 stream 或改用支持 SSE 的代理。",
+  "settings.diag_rec_models": "/models 不可用，建议检查 Base URL（常见是缺少 /v1）。",
+  "settings.diag_rec_proxy": "检测到网络/CORS 异常，建议启用 proxy。"
 }

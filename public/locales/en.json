@@ -115,8 +115,23 @@
   "about.app_description": "An AI-powered learning assistant designed to make learning intuitive and engaging.",
   "about.developed_by": "Developed by CJackHwang",
   "about.github_repo": "GitHub Repository",
-  "about.license": "License (AGPL-3.0)"
-  ,
+  "about.license": "License (AGPL-3.0)",
   "toast.input_required": "Please enter content",
-  "toast.translation_fallback": "Could not load translations for {0}. Falling back to English."
+  "toast.translation_fallback": "Could not load translations for {0}. Falling back to English.",
+  "settings.diag_title": "Connection Diagnostics",
+  "settings.diag_test": "Run Test",
+  "settings.diag_testing": "Testing...",
+  "settings.diag_models": "/models",
+  "settings.diag_chat": "/chat/completions",
+  "settings.diag_responses": "/responses",
+  "settings.diag_tools": "tools",
+  "settings.diag_stream": "stream",
+  "settings.diag_suggestions": "Suggested configuration",
+  "settings.diag_ok": "Current settings look good.",
+  "settings.diag_rec_chat": "Recommended protocol mode: Chat Completions.",
+  "settings.diag_rec_responses": "Recommended protocol mode: Responses.",
+  "settings.diag_rec_tools": "Disable tools or switch to a model that supports function calling.",
+  "settings.diag_rec_stream": "Disable stream or use a proxy that supports SSE passthrough.",
+  "settings.diag_rec_models": "/models failed. Check Base URL (often missing /v1).",
+  "settings.diag_rec_proxy": "Network/CORS issue detected. Proxy is recommended."
 }
