@@ -212,7 +212,22 @@
    - Custom system prompt
    - Model selection (Gemini 2.5 Flash/Pro for Gemini, auto-fetch for OpenAI)
    - Base URL (for custom OpenAI-compatible endpoints)
+   - Request mode: `proxy` (recommended) / `direct`
    - Language and theme preferences
+
+### Request Mode & Same-Origin Proxy
+
+- The app now supports two OpenAI request modes:
+  - `proxy` (default): requests go through same-origin `/api/llm/*` routes.
+  - `direct`: browser requests upstream API directly.
+- If your upstream endpoint does **not** provide proper CORS headers, use **`proxy`** mode.
+- Development proxy is preconfigured in Vite for `/api/llm/openai/v1 -> https://api.openai.com/v1`.
+- For production, deploy a gateway/edge proxy and forward `/api/llm/openai/v1/*` to your upstream OpenAI-compatible endpoint.
+- A standalone proxy example is provided at `scripts/llm-proxy.mjs`:
+  - Authorization forwarding/injection
+  - CORS header unification
+  - Error format normalization
+  - Optional timeout/retry and audit log
 
 ### Starting a Conversation
 

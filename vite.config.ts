@@ -8,6 +8,13 @@ export default defineConfig((_context) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/api/llm/openai/v1': {
+            target: 'https://api.openai.com',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/llm\/openai\/v1/, '/v1'),
+          },
+        },
       },
       plugins: [react(), tailwindcss()],
       define: {},

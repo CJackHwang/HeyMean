@@ -30,6 +30,7 @@ export class StreamController {
       openAiApiKey: options.openAiApiKey,
       openAiModel: options.openAiModel,
       openAiBaseUrl: options.openAiBaseUrl,
+      requestMode: options.requestMode,
     };
     
     return await streamChatResponse(
@@ -42,4 +43,3 @@ export class StreamController {
     );
   }
 }
-

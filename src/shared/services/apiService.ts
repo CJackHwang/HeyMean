@@ -1,7 +1,8 @@
-import { Message, ApiProvider, ToolCall } from '@shared/types';
+import { Message, ApiProvider, RequestMode, ToolCall } from '@shared/types';
 import { AppError, handleError } from './errorHandler';
 import { getToolsForProvider, GeminiFunctionDeclaration, OpenAIFunctionDefinition } from './toolService';
 import { GeminiChatService, GeminiServiceConfig, OpenAIChatService, OpenAIServiceConfig } from './providers';
+import { resolveOpenAIBaseUrl } from './requestFactory';
 
 const apiServices = {
   [ApiProvider.GEMINI]: new GeminiChatService(),
@@ -16,6 +17,7 @@ export interface StreamChatConfig {
   openAiApiKey: string;
   openAiModel: string;
   openAiBaseUrl: string;
+  requestMode: RequestMode;
 }
 
 export const streamChatResponse = async (
@@ -35,6 +37,7 @@ export const streamChatResponse = async (
     openAiApiKey,
     openAiModel,
     openAiBaseUrl,
+    requestMode,
   } = config;
 
   let fullText = '';
@@ -75,7 +78,7 @@ export const streamChatResponse = async (
       const serviceConfig: OpenAIServiceConfig = {
         apiKey: openAiApiKey,
         model: openAiModel,
-        baseUrl: openAiBaseUrl,
+        baseUrl: resolveOpenAIBaseUrl(openAiBaseUrl, requestMode),
         tools: hasTools ? (toolDefinitions as OpenAIFunctionDefinition[]) : undefined,
       };
       await service.stream(

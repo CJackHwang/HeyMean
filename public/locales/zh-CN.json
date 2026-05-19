@@ -112,8 +112,11 @@
   "about.app_description": "一个旨在使学习变得直观和有趣的AI学习助手。",
   "about.developed_by": "由 CJackHwang 开发",
   "about.github_repo": "GitHub 仓库",
-  "about.license": "许可证 (AGPL-3.0)"
-  ,
+  "about.license": "许可证 (AGPL-3.0)",
   "toast.input_required": "请输入内容",
-  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。"
+  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。",
+  "settings.request_mode": "请求模式",
+  "settings.request_mode_proxy": "代理（推荐）",
+  "settings.request_mode_direct": "直连",
+  "settings.request_mode_info": "当上游 API 不支持 CORS 时，请使用代理模式。"
 }

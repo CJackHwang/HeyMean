@@ -15,6 +15,8 @@ export enum Language {
   JA = 'ja',
 }
 
+export type RequestMode = 'direct' | 'proxy';
+
 export enum MessageSender {
   USER = 'user',
   AI = 'ai',
@@ -95,4 +97,5 @@ export interface StreamOptions {
   openAiApiKey: string;
   openAiModel: string;
   openAiBaseUrl: string;
+  requestMode: RequestMode;
 }
