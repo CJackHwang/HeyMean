@@ -297,6 +297,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setOpenAiModel,
     openAiBaseUrl,
     setOpenAiBaseUrl,
+    requestMode,
+    setRequestMode,
     language,
     setLanguage,
     resetSettings
@@ -311,6 +313,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     openAiApiKey, 
     openAiModel, 
     openAiBaseUrl,
+    requestMode,
     language
   ]);
 

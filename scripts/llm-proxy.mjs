@@ -14,7 +14,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
 };
 
-app.options('/api/llm/*', (_req, res) => {
+app.options('/api/llm/*path', (_req, res) => {
   res.set(corsHeaders).status(204).end();
 });
 
