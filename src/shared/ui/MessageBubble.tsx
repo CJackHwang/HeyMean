@@ -117,11 +117,15 @@ const AiMessage: React.FC<{ message: Message }> = ({ message }) => {
     const thinkingContent = message.thinkingText?.trim() ?? '';
     const shouldRenderThinking = Boolean(message.isLoading || thinkingContent);
     const hasToolCalls = Boolean(message.toolCalls && message.toolCalls.length > 0);
-    const statusDetail = !isThinkingComplete
+    const retryStatusText = message.isLoading && message.retryAttempt
+        ? t('message.retrying_status', message.retryAttempt, message.maxRetries || 0)
+        : null;
+
+    const statusDetail = retryStatusText || (!isThinkingComplete
         ? t('message.thinking')
         : message.isLoading
             ? t('message.synthesizing')
-            : null;
+            : null);
 
     React.useEffect(() => {
         if (previousCompletionState.current !== isThinkingComplete) {

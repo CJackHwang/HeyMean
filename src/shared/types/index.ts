@@ -54,7 +54,10 @@ export interface Message {
   thinkingStartTime?: number;
   thinkingDuration?: number;
   toolCalls?: ToolCall[];
+  retryAttempt?: number;
+  maxRetries?: number;
 }
+
 
 export type AttachmentStored = Omit<Attachment, 'preview'>;
 
@@ -65,7 +68,10 @@ export type MessageStored = Omit<
   timestamp: string;
   attachments?: AttachmentStored[];
   toolCalls?: ToolCall[];
-};
+  retryAttempt?: number;
+  maxRetries?: number;
+}
+;
 
 export interface Note {
   id: number;
@@ -86,6 +92,12 @@ export interface Conversation {
 
 export type ConversationUpdate = Partial<Omit<Conversation, 'id' | 'createdAt'>>;
 export type NoteUpdate = Partial<Omit<Note, 'id' | 'createdAt'>>;
+
+export interface RetryStatus {
+  attempt: number;
+  maxRetries: number;
+  delayMs: number;
+}
 
 export interface StreamOptions {
   provider: ApiProvider;

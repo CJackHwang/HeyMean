@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useRef } from 'react';
-import { Message, MessageSender, ToolCall } from '@shared/types';
+import { Message, MessageSender, RetryStatus, ToolCall } from '@shared/types';
 import { StreamController } from '@shared/services/streamController';
 import { useSettings } from '@app/providers/useSettings';
 import { parseStreamedText } from '@shared/lib/textHelpers';
@@ -89,6 +89,17 @@ export const useChatStream = () => {
                         toolCalls: updatedToolCalls,
                     };
                 });
+
+            },
+            (retryStatus: RetryStatus) => {
+                setStreamedAiMessage(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        retryAttempt: retryStatus.attempt,
+                        maxRetries: retryStatus.maxRetries,
+                    };
+                });
             }
         ).then((finalStreamedText) => {
             setIsThinking(false);
@@ -102,6 +113,8 @@ export const useChatStream = () => {
                     isLoading: false,
                     isThinkingComplete: true,
                     thinkingDuration: prev.thinkingDuration || (Date.now() - thinkingStartTime) / 1000,
+                    retryAttempt: undefined,
+                    maxRetries: undefined,
                 };
             });
         }).catch(() => {
