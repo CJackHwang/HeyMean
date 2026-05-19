@@ -115,27 +115,62 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
       if (!reader) throw new Error("Failed to get response reader for OpenAI stream.");
       
       const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      const processSSEEvent = (eventRaw: string): boolean => {
+        const dataLines = eventRaw
+          .split('\n')
+          .map(line => line.trimEnd())
+          .filter(line => line.startsWith('data:'))
+          .map(line => line.slice(5).trimStart());
+
+        if (dataLines.length === 0) return false;
+        const data = dataLines.join('\n');
+
+        if (data === '[DONE]') {
+          return true;
+        }
+
+        try {
+          const json = JSON.parse(data);
+          const content = json.choices?.[0]?.delta?.content;
+          if (content) onChunk(content);
+        } catch (error) {
+          console.warn('Failed to parse OpenAI SSE event', {
+            provider: 'openai',
+            model,
+            endpoint: openaiEndpoint,
+            error: error instanceof Error ? { name: error.name, message: error.message } : String(error),
+            rawEvent: eventRaw,
+            parsedData: data,
+          });
+        }
+
+        return false;
+      };
+
       while (true) {
         if (signal?.aborted) {
           throw new AppError('CANCELLED', 'Request was cancelled by the user.');
         }
         const { value, done } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
-            if (data === '[DONE]') return;
-            try {
-              const json = JSON.parse(data);
-              const content = json.choices[0].delta.content;
-              if (content) onChunk(content);
-            } catch (e) {
-              console.warn("Could not parse OpenAI stream chunk:", e, data);
-            }
-          }
+        if (done) {
+          buffer += decoder.decode();
+          break;
         }
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? '';
+
+        for (const eventRaw of events) {
+          const shouldStop = processSSEEvent(eventRaw);
+          if (shouldStop) return;
+        }
+      }
+
+      if (buffer.trim()) {
+        processSSEEvent(buffer);
       }
     } catch (error) {
       const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: openaiEndpoint });
