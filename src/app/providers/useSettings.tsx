@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { Theme, ApiProvider, Language } from '@shared/types';
+import { Theme, ApiProvider, Language, RequestMode } from '@shared/types';
 import { getSetting, setSetting, initDB } from '@shared/services/db';
 import { useToast } from './useToast';
 import { handleError } from '@shared/services/errorHandler';
@@ -24,6 +24,8 @@ interface SettingsContextType {
   setOpenAiModel: (model: string) => void;
   openAiBaseUrl: string;
   setOpenAiBaseUrl: (url: string) => void;
+  requestMode: RequestMode;
+  setRequestMode: (mode: RequestMode) => void;
   language: Language;
   setLanguage: (language: Language) => void;
   resetSettings: () => void;
@@ -55,6 +57,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [openAiApiKey, setOpenAiApiKeyState] = useState<string>('');
   const [openAiModel, setOpenAiModelState] = useState<string>('');
   const [openAiBaseUrl, setOpenAiBaseUrlState] = useState<string>('');
+  const [requestMode, setRequestModeState] = useState<RequestMode>('proxy');
   const [language, setLanguageState] = useState<Language>(Language.EN);
   // Render immediately; theme flash is mitigated by early index.html script
 
@@ -89,6 +92,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const savedOpenAiApiKey = await getSetting<string>('openAiApiKey') || '';
         const savedOpenAiModel = await getSetting<string>('openAiModel') || 'gpt-4o'; // Default OpenAI model
         const savedOpenAiBaseUrl = await getSetting<string>('openAiBaseUrl') || 'https://api.openai.com/v1';
+        const savedRequestMode = await getSetting<RequestMode>('requestMode') || 'proxy';
         const savedLanguage = await getSetting<Language>('language') || Language.EN;
 
 
@@ -100,6 +104,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setOpenAiApiKeyState(savedOpenAiApiKey);
         setOpenAiModelState(savedOpenAiModel);
         setOpenAiBaseUrlState(savedOpenAiBaseUrl);
+        setRequestModeState(savedRequestMode);
         setLanguageState(savedLanguage);
       } catch (error) {
           const appError = handleError(error, 'db');
@@ -240,6 +245,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
   
+
+  const setRequestMode = (mode: RequestMode) => {
+    setRequestModeState(mode);
+    setSetting('requestMode', mode).catch(error => {
+        const appError = handleError(error, 'settings');
+        showToast(appError.userMessage, 'error');
+    });
+  };
+
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     setSetting('language', lang).catch(error => {
@@ -258,6 +272,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setOpenAiApiKey('');
     setOpenAiModel('gpt-4o');
     setOpenAiBaseUrl('https://api.openai.com/v1');
+    setRequestMode('proxy');
     setLanguage(Language.EN);
   };
 

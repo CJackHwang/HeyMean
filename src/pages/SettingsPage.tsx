@@ -8,6 +8,7 @@ import { clearAllData } from '@shared/services/db';
 import Selector from '@shared/ui/Selector';
 import { useToast } from '@app/providers/useToast';
 import { handleError } from '@shared/services/errorHandler';
+import { buildOpenAIModelsUrl } from '@shared/services/requestFactory';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ const SettingsPage: React.FC = () => {
     setOpenAiModel,
     openAiBaseUrl,
     setOpenAiBaseUrl,
+    requestMode,
+    setRequestMode,
     language,
     setLanguage,
     resetSettings
@@ -51,7 +54,7 @@ const SettingsPage: React.FC = () => {
     setFetchError(null);
     setAvailableModels([]);
     try {
-      const response = await fetch(`${openAiBaseUrl || 'https://api.openai.com/v1'}/models`, {
+      const response = await fetch(buildOpenAIModelsUrl(openAiBaseUrl, requestMode), {
         headers: {
           'Authorization': `Bearer ${openAiApiKey}`,
         },
@@ -235,6 +238,17 @@ const SettingsPage: React.FC = () => {
 
             {selectedApiProvider === ApiProvider.OPENAI && (
               <div className="p-4 space-y-4">
+                <Selector
+                  label={t('settings.request_mode')}
+                  icon="alt_route"
+                  options={[
+                    { value: 'proxy', label: t('settings.request_mode_proxy') },
+                    { value: 'direct', label: t('settings.request_mode_direct') }
+                  ]}
+                  selectedValue={requestMode}
+                  onSelect={(mode) => setRequestMode(mode as 'direct' | 'proxy')}
+                />
+                <p className="text-xs text-gray-500 mt-1">{t('settings.request_mode_info')}</p>
                 <div>
                   <label htmlFor="openai-api-key" className="block text-sm font-medium mb-2">{t('settings.api_key')}</label>
                   <input
