@@ -1,4 +1,4 @@
-import { Message, StreamOptions, ToolCall } from '@shared/types';
+import { Message, RetryStatus, StreamOptions, ToolCall } from '@shared/types';
 import { streamChatResponse, StreamChatConfig } from './apiService';
 
 export class StreamController {
@@ -17,7 +17,8 @@ export class StreamController {
     _aiMessageId: string,
     options: StreamOptions,
     onChunk: (text: string) => void,
-    onToolCall?: (toolCall: ToolCall) => void
+    onToolCall?: (toolCall: ToolCall) => void,
+    onRetry?: (status: RetryStatus) => void
   ): Promise<string> {
     this.cancel();
     this.controller = new AbortController();
@@ -38,7 +39,8 @@ export class StreamController {
       config,
       onChunk,
       this.controller.signal,
-      onToolCall
+      onToolCall,
+      onRetry
     );
   }
 }

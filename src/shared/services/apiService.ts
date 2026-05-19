@@ -1,7 +1,8 @@
-import { Message, ApiProvider, ToolCall } from '@shared/types';
+import { Message, ApiProvider, RetryStatus, ToolCall } from '@shared/types';
 import { AppError, handleError } from './errorHandler';
 import { getToolsForProvider, GeminiFunctionDeclaration, OpenAIFunctionDefinition } from './toolService';
 import { GeminiChatService, GeminiServiceConfig, OpenAIChatService, OpenAIServiceConfig } from './providers';
+import { getRetryDelayMs, isClientConfigError, shouldRetryRequest, UNIFIED_REQUEST_POLICY } from './requestPolicy';
 
 const apiServices = {
   [ApiProvider.GEMINI]: new GeminiChatService(),
@@ -18,6 +19,29 @@ export interface StreamChatConfig {
   openAiBaseUrl: string;
 }
 
+
+const withTimeoutSignal = (signal: AbortSignal | undefined, timeoutMs: number): { signal: AbortSignal; cleanup: () => void } => {
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+  const mergedController = new AbortController();
+  const abortMerged = () => {
+    if (!mergedController.signal.aborted) mergedController.abort();
+  };
+
+  signal?.addEventListener('abort', abortMerged, { once: true });
+  timeoutController.signal.addEventListener('abort', abortMerged, { once: true });
+
+  return {
+    signal: mergedController.signal,
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', abortMerged);
+      timeoutController.signal.removeEventListener('abort', abortMerged);
+    },
+  };
+};
+
 export const streamChatResponse = async (
   chatHistory: Message[],
   newMessage: Message,
@@ -25,6 +49,7 @@ export const streamChatResponse = async (
   onChunk: (text: string) => void,
   signal?: AbortSignal,
   onToolCall?: (toolCall: ToolCall) => void,
+  onRetry?: (status: RetryStatus) => void,
   retryTimes: number = 0
 ): Promise<string> => {
   const {
@@ -58,15 +83,20 @@ export const streamChatResponse = async (
         model: geminiModel,
         tools: hasTools ? (toolDefinitions as GeminiFunctionDeclaration[]) : undefined,
       };
-      await service.stream(
-        chatHistory,
-        newMessage,
-        systemInstruction,
-        serviceConfig,
-        accumulatingOnChunk,
-        signal,
-        onToolCall
-      );
+      const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, UNIFIED_REQUEST_POLICY.timeoutMs);
+      try {
+        await service.stream(
+          chatHistory,
+          newMessage,
+          systemInstruction,
+          serviceConfig,
+          accumulatingOnChunk,
+          timedSignal,
+          onToolCall
+        );
+      } finally {
+        cleanup();
+      }
     } else if (selectedApiProvider === ApiProvider.OPENAI) {
       const service = apiServices[ApiProvider.OPENAI];
       if (!openAiApiKey) {
@@ -78,15 +108,20 @@ export const streamChatResponse = async (
         baseUrl: openAiBaseUrl,
         tools: hasTools ? (toolDefinitions as OpenAIFunctionDefinition[]) : undefined,
       };
-      await service.stream(
-        chatHistory,
-        newMessage,
-        systemInstruction,
-        serviceConfig,
-        accumulatingOnChunk,
-        signal,
-        onToolCall
-      );
+      const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, UNIFIED_REQUEST_POLICY.timeoutMs);
+      try {
+        await service.stream(
+          chatHistory,
+          newMessage,
+          systemInstruction,
+          serviceConfig,
+          accumulatingOnChunk,
+          timedSignal,
+          onToolCall
+        );
+      } finally {
+        cleanup();
+      }
     } else {
       throw new AppError('CONFIG_ERROR', `Error: API provider "${selectedApiProvider}" is not supported.`);
     }
@@ -100,12 +135,20 @@ export const streamChatResponse = async (
           : openAiBaseUrl || 'https://api.openai.com/v1',
     });
 
-    const isRecoverable =
-      appError.code === 'API_RATE_LIMIT' || appError.userMessage.toLowerCase().includes('failed to fetch');
     const wasCancelled = appError.code === 'CANCELLED' || (error instanceof Error && error.name === 'AbortError');
 
-    if (!wasCancelled && isRecoverable && retryTimes < 2) {
-      const backoffMs = 500 * Math.pow(2, retryTimes);
+    const statusCode = appError.details?.statusCode as number | undefined;
+    const isNetworkFailure = appError.userMessage.toLowerCase().includes('failed to fetch') || appError.code === 'UNKNOWN_ERROR';
+    const retryable = shouldRetryRequest(statusCode, isNetworkFailure);
+    const isBadConfig4xx = isClientConfigError(statusCode) || appError.code === 'CONFIG_ERROR';
+
+    if (!wasCancelled && !isBadConfig4xx && retryable && retryTimes < UNIFIED_REQUEST_POLICY.maxRetries) {
+      const backoffMs = getRetryDelayMs(retryTimes);
+      onRetry?.({
+        attempt: retryTimes + 1,
+        maxRetries: UNIFIED_REQUEST_POLICY.maxRetries,
+        delayMs: backoffMs,
+      });
       await new Promise((res) => setTimeout(res, backoffMs));
       return await streamChatResponse(
         chatHistory,
@@ -114,6 +157,7 @@ export const streamChatResponse = async (
         onChunk,
         signal,
         onToolCall,
+        onRetry,
         retryTimes + 1
       );
     }
