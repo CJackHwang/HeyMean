@@ -9,6 +9,16 @@ import Selector from '@shared/ui/Selector';
 import { useToast } from '@app/providers/useToast';
 import { handleError } from '@shared/services/errorHandler';
 
+type ProbeResult = {
+  models: boolean;
+  chat: boolean;
+  responses: boolean;
+  tools: boolean;
+  stream: boolean;
+  recommendation: string[];
+  rawNotes: string[];
+};
+
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,6 +50,8 @@ const SettingsPage: React.FC = () => {
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [diagnosticResult, setDiagnosticResult] = useState<ProbeResult | null>(null);
 
 
   const handleFetchModels = async () => {
@@ -72,6 +84,66 @@ const SettingsPage: React.FC = () => {
       setFetchError(appError.userMessage);
     } finally {
       setIsFetchingModels(false);
+    }
+  };
+
+  const handleConnectionTest = async () => {
+    if (!openAiApiKey) {
+      setFetchError(t('settings.api_key_error'));
+      return;
+    }
+
+    const base = openAiBaseUrl || 'https://api.openai.com/v1';
+    const headers = {
+      'Authorization': `Bearer ${openAiApiKey}`,
+      'Content-Type': 'application/json',
+    };
+    const model = openAiModel || 'gpt-4o-mini';
+    const result: ProbeResult = { models: false, chat: false, responses: false, tools: false, stream: false, recommendation: [], rawNotes: [] };
+
+    const safeProbe = async (label: string, fn: () => Promise<boolean>) => {
+      try {
+        const ok = await fn();
+        if (!ok) result.rawNotes.push(`${label}: failed`);
+        return ok;
+      } catch (error) {
+        const appError = handleError(error, 'api');
+        result.rawNotes.push(`${label}: ${appError.userMessage}`);
+        return false;
+      }
+    };
+
+    setIsDiagnosing(true);
+    setDiagnosticResult(null);
+    try {
+      result.models = await safeProbe('/models', async () => (await fetch(`${base}/models`, { headers: { Authorization: `Bearer ${openAiApiKey}` } })).ok);
+      result.chat = await safeProbe('/chat/completions', async () => (await fetch(`${base}/chat/completions`, { method: 'POST', headers, body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 }) })).ok);
+      result.responses = await safeProbe('/responses', async () => (await fetch(`${base}/responses`, { method: 'POST', headers, body: JSON.stringify({ model, input: 'ping', max_output_tokens: 1 }) })).ok);
+      result.tools = await safeProbe('tools', async () => (await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1, tools: [{ type: 'function', function: { name: 'noop', description: 'noop', parameters: { type: 'object', properties: {} } } }], tool_choice: 'auto' }),
+      })).ok);
+      result.stream = await safeProbe('stream', async () => {
+        const response = await fetch(`${base}/chat/completions`, { method: 'POST', headers, body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1, stream: true }) });
+        const contentType = response.headers.get('content-type') || '';
+        return response.ok && (contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson'));
+      });
+
+      if (result.chat) {
+        result.recommendation.push(t('settings.diag_rec_chat'));
+      } else if (result.responses) {
+        result.recommendation.push(t('settings.diag_rec_responses'));
+      }
+      if (!result.tools) result.recommendation.push(t('settings.diag_rec_tools'));
+      if (!result.stream) result.recommendation.push(t('settings.diag_rec_stream'));
+      if (!result.models) result.recommendation.push(t('settings.diag_rec_models'));
+      if (result.rawNotes.some(note => note.toLowerCase().includes('cors') || note.toLowerCase().includes('network'))) {
+        result.recommendation.push(t('settings.diag_rec_proxy'));
+      }
+      setDiagnosticResult(result);
+    } finally {
+      setIsDiagnosing(false);
     }
   };
 
@@ -293,6 +365,33 @@ const SettingsPage: React.FC = () => {
                       ? t('settings.api_model_select_info')
                       : t('settings.api_model_fetch_info')}
                   </p>
+                </div>
+                <div className="border-t border-gray-200/70 dark:border-neutral-700/70 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{t('settings.diag_title')}</p>
+                    <button
+                      onClick={handleConnectionTest}
+                      disabled={isDiagnosing || !openAiApiKey}
+                      className="text-sm font-medium text-primary dark:text-white hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDiagnosing ? t('settings.diag_testing') : t('settings.diag_test')}
+                    </button>
+                  </div>
+                  {diagnosticResult && (
+                    <div className="rounded-lg bg-background-light dark:bg-background-dark p-3 text-xs space-y-2">
+                      <p>{t('settings.diag_models')}: {diagnosticResult.models ? '✅' : '❌'}</p>
+                      <p>{t('settings.diag_chat')}: {diagnosticResult.chat ? '✅' : '❌'}</p>
+                      <p>{t('settings.diag_responses')}: {diagnosticResult.responses ? '✅' : '❌'}</p>
+                      <p>{t('settings.diag_tools')}: {diagnosticResult.tools ? '✅' : '❌'}</p>
+                      <p>{t('settings.diag_stream')}: {diagnosticResult.stream ? '✅' : '❌'}</p>
+                      <div>
+                        <p className="font-semibold mb-1">{t('settings.diag_suggestions')}</p>
+                        {diagnosticResult.recommendation.length > 0
+                          ? diagnosticResult.recommendation.map(item => <p key={item}>• {item}</p>)
+                          : <p>{t('settings.diag_ok')}</p>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
