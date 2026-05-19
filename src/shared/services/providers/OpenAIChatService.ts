@@ -1,5 +1,6 @@
 import { Message, MessageSender, ToolCall } from '@shared/types';
 import { getTextFromDataUrl } from '@shared/lib/fileHelpers';
+import { buildOpenAIEndpoint, normalizeOpenAIBaseUrl } from '@shared/lib/normalizeOpenAIBaseUrl';
 import { AppError, handleError } from '../errorHandler';
 import { executeTool } from '../toolService';
 import { OpenAIFunctionDefinition } from '../toolService';
@@ -86,7 +87,8 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
       return;
     }
 
-    const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
+    const normalizedBaseUrl = normalizeOpenAIBaseUrl(config.baseUrl);
+    const openaiEndpoint = buildOpenAIEndpoint(normalizedBaseUrl, 'chat/completions');
     const messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
     const model = config.model || 'gpt-4o';
 
@@ -103,7 +105,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
       });
 
       if (!response.ok) {
-        if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
+        if (response.status === 404 && normalizedBaseUrl.includes('googleapis.com')) {
           throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
         }
         const errorData = await response.json();
@@ -153,7 +155,8 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
     signal?: AbortSignal,
     onToolCall?: (toolCall: ToolCall) => void
   ): Promise<void> {
-    const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
+    const normalizedBaseUrl = normalizeOpenAIBaseUrl(config.baseUrl);
+    const openaiEndpoint = buildOpenAIEndpoint(normalizedBaseUrl, 'chat/completions');
     const model = config.model || 'gpt-4o';
     const tools = config.tools ?? [];
     const MAX_TOOL_ITERATIONS = 10;
@@ -179,7 +182,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         });
 
         if (!response.ok) {
-          if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
+          if (response.status === 404 && normalizedBaseUrl.includes('googleapis.com')) {
             throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
           }
           const errorData = await response.json();
