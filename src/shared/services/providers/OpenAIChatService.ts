@@ -29,10 +29,51 @@ export interface OpenAIServiceConfig {
   apiKey: string;
   model: string;
   baseUrl: string;
+  apiMode?: 'auto' | 'chat_completions' | 'responses';
   tools?: OpenAIFunctionDefinition[];
 }
 
 export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
+  private normalizeBaseUrl(baseUrl?: string): string {
+    return (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  }
+
+  private buildChatCompletionsPayload(model: string, messages: OpenAIMessage[], tools?: OpenAIFunctionDefinition[], stream: boolean = true) {
+    return {
+      model,
+      messages,
+      stream,
+      ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' as const } : {}),
+    };
+  }
+
+  private buildResponsesPayload(model: string, messages: OpenAIMessage[], tools?: OpenAIFunctionDefinition[]) {
+    return {
+      model,
+      input: messages,
+      ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' as const } : {}),
+    };
+  }
+
+  private shouldFallbackToChatCompletions(status: number, errorBody: unknown): boolean {
+    if (status === 404 || status === 501) return true;
+    const raw = JSON.stringify(errorBody || {}).toLowerCase();
+    return raw.includes('not support') || raw.includes('unsupported') || raw.includes('unknown endpoint') || raw.includes('responses');
+  }
+
+  private normalizeToolCalls(message: any): OpenAIToolCall[] {
+    const directCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+    if (directCalls.length > 0) return directCalls;
+    const contentCalls = Array.isArray(message?.content)
+      ? message.content.filter((part: any) => part?.type === 'tool_call' && part?.name)
+      : [];
+    return contentCalls.map((part: any, index: number) => ({
+      id: part.id ?? `tool-${index}-${Date.now()}`,
+      type: 'function' as const,
+      function: { name: part.name, arguments: typeof part.arguments === 'string' ? part.arguments : JSON.stringify(part.arguments ?? {}) },
+    }));
+  }
+
   private async messagesToOpenAIChatFormat(messages: Message[], systemInstruction: string): Promise<OpenAIMessage[]> {
     const openAIMessages: OpenAIMessage[] = [];
     if (systemInstruction) {
@@ -86,7 +127,9 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
       return;
     }
 
-    const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
+    const baseUrl = this.normalizeBaseUrl(config.baseUrl);
+    const chatEndpoint = `${baseUrl}/chat/completions`;
+    const responsesEndpoint = `${baseUrl}/responses`;
     const messages = await this.messagesToOpenAIChatFormat([...chatHistory, newMessage], systemInstruction);
     const model = config.model || 'gpt-4o';
 
@@ -95,12 +138,45 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         throw new AppError("CONFIG_ERROR", "Configuration Error: Video generation models are not supported in chat. Please select a text-based model in settings.");
       }
 
-      const response = await fetch(openaiEndpoint, {
+      let endpoint = chatEndpoint;
+      let response: Response;
+      const shouldTryResponses = (config.apiMode ?? 'auto') !== 'chat_completions';
+      if (shouldTryResponses) {
+        endpoint = responsesEndpoint;
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+          body: JSON.stringify(this.buildResponsesPayload(model, messages)),
+          signal,
+        });
+        if (!response.ok) {
+          let errorData: any = {};
+          try { errorData = await response.json(); } catch {}
+          if (!((config.apiMode ?? 'auto') === 'auto' && this.shouldFallbackToChatCompletions(response.status, errorData))) {
+            const message = errorData?.error?.message || JSON.stringify(errorData);
+            throw new Error(`API error (${response.status}): ${message}`);
+          }
+          endpoint = chatEndpoint;
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+            body: JSON.stringify(this.buildChatCompletionsPayload(model, messages, undefined, true)),
+            signal,
+          });
+        } else {
+          const data = await response.json();
+          const outputText = data?.output_text;
+          if (outputText) onChunk(outputText);
+          return;
+        }
+      } else {
+        response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
-        body: JSON.stringify({ model, messages, stream: true }),
+        body: JSON.stringify(this.buildChatCompletionsPayload(model, messages, undefined, true)),
         signal,
       });
+      }
 
       if (!response.ok) {
         if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
@@ -138,7 +214,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         }
       }
     } catch (error) {
-      const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: openaiEndpoint });
+      const appError = handleError(error, 'api', { provider: 'openai', model, endpoint: baseUrl });
       if (appError.code === 'CANCELLED') return;
       onChunk(appError.userMessage);
     }
@@ -153,7 +229,8 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
     signal?: AbortSignal,
     onToolCall?: (toolCall: ToolCall) => void
   ): Promise<void> {
-    const openaiEndpoint = `${config.baseUrl || 'https://api.openai.com/v1'}/chat/completions`;
+    const baseUrl = this.normalizeBaseUrl(config.baseUrl);
+    const openaiEndpoint = `${baseUrl}/chat/completions`;
     const model = config.model || 'gpt-4o';
     const tools = config.tools ?? [];
     const MAX_TOOL_ITERATIONS = 10;
@@ -169,12 +246,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         const response = await fetch(openaiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
-          body: JSON.stringify({
-            model,
-            messages,
-            tools,
-            tool_choice: 'auto',
-          }),
+          body: JSON.stringify(this.buildChatCompletionsPayload(model, messages, tools, false)),
           signal,
         });
 
@@ -216,7 +288,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         };
         messages.push(assistantMessage);
 
-        const toolCalls = message.tool_calls ?? [];
+        const toolCalls = this.normalizeToolCalls(message);
         if (toolCalls.length === 0) {
           break;
         }

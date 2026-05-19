@@ -31,6 +31,8 @@ const SettingsPage: React.FC = () => {
     setOpenAiModel,
     openAiBaseUrl,
     setOpenAiBaseUrl,
+    openAiApiMode,
+    setOpenAiApiMode,
     language,
     setLanguage,
     resetSettings
@@ -258,6 +260,21 @@ const SettingsPage: React.FC = () => {
                     onChange={(e) => setOpenAiBaseUrl(e.target.value)}
                   />
                   <p className="text-xs text-gray-500 mt-1">{t('settings.api_base_url_info')}</p>
+                </div>
+                <div>
+                  <label htmlFor="openai-api-mode" className="block text-sm font-medium mb-2">{t('settings.api_protocol_mode')}</label>
+                  <Selector
+                    label={t('settings.api_protocol_mode')}
+                    icon="sync_alt"
+                    options={[
+                      { value: 'auto', label: t('settings.api_protocol_mode_auto') },
+                      { value: 'responses', label: t('settings.api_protocol_mode_responses') },
+                      { value: 'chat_completions', label: t('settings.api_protocol_mode_chat') }
+                    ]}
+                    selectedValue={openAiApiMode}
+                    onSelect={(mode) => setOpenAiApiMode(mode as 'auto' | 'chat_completions' | 'responses')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{t('settings.api_protocol_mode_info')}</p>
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">

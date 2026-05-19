@@ -112,8 +112,12 @@
   "about.app_description": "学習を直感的で魅力的にするために設計されたAI学習アシスタント。",
   "about.developed_by": "開発者 CJackHwang",
   "about.github_repo": "GitHubリポジトリ",
-  "about.license": "ライセンス (AGPL-3.0)"
-  ,
+  "about.license": "ライセンス (AGPL-3.0)",
   "toast.input_required": "内容を入力してください",
-  "toast.translation_fallback": "{0} の翻訳を読み込めませんでした。英語にフォールバックします。"
+  "toast.translation_fallback": "{0} の翻訳を読み込めませんでした。英語にフォールバックします。",
+  "settings.api_protocol_mode": "プロトコルモード",
+  "settings.api_protocol_mode_auto": "自動（Responses優先）",
+  "settings.api_protocol_mode_responses": "Responses API",
+  "settings.api_protocol_mode_chat": "Chat Completions API",
+  "settings.api_protocol_mode_info": "自動モードではまず /v1/responses を試し、未対応なら /v1/chat/completions にフォールバックします。"
 }

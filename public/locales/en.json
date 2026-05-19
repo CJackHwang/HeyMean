@@ -115,8 +115,12 @@
   "about.app_description": "An AI-powered learning assistant designed to make learning intuitive and engaging.",
   "about.developed_by": "Developed by CJackHwang",
   "about.github_repo": "GitHub Repository",
-  "about.license": "License (AGPL-3.0)"
-  ,
+  "about.license": "License (AGPL-3.0)",
   "toast.input_required": "Please enter content",
-  "toast.translation_fallback": "Could not load translations for {0}. Falling back to English."
+  "toast.translation_fallback": "Could not load translations for {0}. Falling back to English.",
+  "settings.api_protocol_mode": "Protocol mode",
+  "settings.api_protocol_mode_auto": "Auto (prefer Responses)",
+  "settings.api_protocol_mode_responses": "Responses API",
+  "settings.api_protocol_mode_chat": "Chat Completions API",
+  "settings.api_protocol_mode_info": "Auto mode will try /v1/responses first, then fallback to /v1/chat/completions when unsupported."
 }
