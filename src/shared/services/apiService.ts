@@ -16,6 +16,7 @@ export interface StreamChatConfig {
   openAiApiKey: string;
   openAiModel: string;
   openAiBaseUrl: string;
+  openAiApiMode: 'auto' | 'chat_completions' | 'responses';
 }
 
 export const streamChatResponse = async (
@@ -35,6 +36,7 @@ export const streamChatResponse = async (
     openAiApiKey,
     openAiModel,
     openAiBaseUrl,
+    openAiApiMode,
   } = config;
 
   let fullText = '';
@@ -76,6 +78,7 @@ export const streamChatResponse = async (
         apiKey: openAiApiKey,
         model: openAiModel,
         baseUrl: openAiBaseUrl,
+        apiMode: openAiApiMode,
         tools: hasTools ? (toolDefinitions as OpenAIFunctionDefinition[]) : undefined,
       };
       await service.stream(

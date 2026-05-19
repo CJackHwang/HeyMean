@@ -112,8 +112,12 @@
   "about.app_description": "一个旨在使学习变得直观和有趣的AI学习助手。",
   "about.developed_by": "由 CJackHwang 开发",
   "about.github_repo": "GitHub 仓库",
-  "about.license": "许可证 (AGPL-3.0)"
-  ,
+  "about.license": "许可证 (AGPL-3.0)",
   "toast.input_required": "请输入内容",
-  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。"
+  "toast.translation_fallback": "无法加载 {0} 翻译，已回退为英语。",
+  "settings.api_protocol_mode": "协议模式",
+  "settings.api_protocol_mode_auto": "自动（优先 Responses）",
+  "settings.api_protocol_mode_responses": "Responses API",
+  "settings.api_protocol_mode_chat": "Chat Completions API",
+  "settings.api_protocol_mode_info": "自动模式会先尝试 /v1/responses，不支持时回退到 /v1/chat/completions。"
 }

@@ -95,4 +95,5 @@ export interface StreamOptions {
   openAiApiKey: string;
   openAiModel: string;
   openAiBaseUrl: string;
+  openAiApiMode: 'auto' | 'chat_completions' | 'responses';
 }

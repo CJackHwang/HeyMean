@@ -8,7 +8,7 @@ import { parseStreamedText } from '@shared/lib/textHelpers';
 export const useChatStream = () => {
     const [isThinking, setIsThinking] = useState(false);
     const [streamedAiMessage, setStreamedAiMessage] = useState<Message | null>(null);
-    const { effectiveSystemPrompt, selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl } = useSettings();
+    const { effectiveSystemPrompt, selectedApiProvider, geminiApiKey, geminiModel, openAiApiKey, openAiModel, openAiBaseUrl, openAiApiMode } = useSettings();
     const controllerRef = useRef<StreamController | null>(null);
     if (!controllerRef.current) controllerRef.current = new StreamController();
 
@@ -48,6 +48,7 @@ export const useChatStream = () => {
                 openAiApiKey,
                 openAiModel,
                 openAiBaseUrl,
+                openAiApiMode,
             },
             (chunk) => {
                 streamedText += chunk;
@@ -115,7 +116,8 @@ export const useChatStream = () => {
         geminiModel,
         openAiApiKey,
         openAiModel,
-        openAiBaseUrl
+        openAiBaseUrl,
+        openAiApiMode
     ]);
 
     return {
