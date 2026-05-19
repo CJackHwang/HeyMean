@@ -8,6 +8,7 @@ import { clearAllData } from '@shared/services/db';
 import Selector from '@shared/ui/Selector';
 import { useToast } from '@app/providers/useToast';
 import { handleError } from '@shared/services/errorHandler';
+import { buildOpenAIEndpoint, normalizeOpenAIBaseUrl } from '@shared/lib/normalizeOpenAIBaseUrl';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -51,7 +52,8 @@ const SettingsPage: React.FC = () => {
     setFetchError(null);
     setAvailableModels([]);
     try {
-      const response = await fetch(`${openAiBaseUrl || 'https://api.openai.com/v1'}/models`, {
+      const normalizedBaseUrl = normalizeOpenAIBaseUrl(openAiBaseUrl);
+      const response = await fetch(buildOpenAIEndpoint(normalizedBaseUrl, 'models'), {
         headers: {
           'Authorization': `Bearer ${openAiApiKey}`,
         },

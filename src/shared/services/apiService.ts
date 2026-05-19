@@ -2,6 +2,7 @@ import { Message, ApiProvider, ToolCall } from '@shared/types';
 import { AppError, handleError } from './errorHandler';
 import { getToolsForProvider, GeminiFunctionDeclaration, OpenAIFunctionDefinition } from './toolService';
 import { GeminiChatService, GeminiServiceConfig, OpenAIChatService, OpenAIServiceConfig } from './providers';
+import { normalizeOpenAIBaseUrl } from '@shared/lib/normalizeOpenAIBaseUrl';
 
 const apiServices = {
   [ApiProvider.GEMINI]: new GeminiChatService(),
@@ -97,7 +98,7 @@ export const streamChatResponse = async (
       endpoint:
         selectedApiProvider === ApiProvider.GEMINI
           ? 'google-genai'
-          : openAiBaseUrl || 'https://api.openai.com/v1',
+          : normalizeOpenAIBaseUrl(openAiBaseUrl),
     });
 
     const isRecoverable =
