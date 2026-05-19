@@ -9,6 +9,36 @@ import Selector from '@shared/ui/Selector';
 import { useToast } from '@app/providers/useToast';
 import { handleError } from '@shared/services/errorHandler';
 
+
+
+const ERROR_BODY_SNIPPET_MAX_LENGTH = 500;
+
+const safeReadErrorBody = async (response: Response): Promise<string> => {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  let rawBody = '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      const jsonBody = await response.json();
+      rawBody = jsonBody?.error?.message || jsonBody?.message || JSON.stringify(jsonBody);
+    } catch {
+      rawBody = await response.text();
+    }
+  } else {
+    rawBody = await response.text();
+  }
+
+  const trimmedBody = rawBody.trim();
+  if (!trimmedBody) {
+    return response.statusText || `HTTP ${response.status}`;
+  }
+
+  return trimmedBody;
+};
+
+const buildApiErrorMessage = (response: Response, normalizedMessage: string): string =>
+  `API error (${response.status}): ${normalizedMessage}`;
+
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,8 +87,9 @@ const SettingsPage: React.FC = () => {
         },
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.error?.message || `API error (${response.status})`);
+        const normalizedMessage = await safeReadErrorBody(response);
+        console.debug('[SettingsPage] Fetch models API error body snippet:', normalizedMessage.slice(0, ERROR_BODY_SNIPPET_MAX_LENGTH));
+        throw new Error(buildApiErrorMessage(response, normalizedMessage));
       }
       const data = await response.json() as { data: Array<{ id: string }> };
       const modelIds = data.data.map((model) => model.id).sort();

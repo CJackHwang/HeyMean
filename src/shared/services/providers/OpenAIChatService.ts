@@ -25,6 +25,36 @@ export type OpenAIToolCall = {
   };
 };
 
+
+
+const ERROR_BODY_SNIPPET_MAX_LENGTH = 500;
+
+const safeReadErrorBody = async (response: Response): Promise<string> => {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  let rawBody = '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      const jsonBody = await response.json();
+      rawBody = jsonBody?.error?.message || jsonBody?.message || JSON.stringify(jsonBody);
+    } catch {
+      rawBody = await response.text();
+    }
+  } else {
+    rawBody = await response.text();
+  }
+
+  const trimmedBody = rawBody.trim();
+  if (!trimmedBody) {
+    return response.statusText || `HTTP ${response.status}`;
+  }
+
+  return trimmedBody;
+};
+
+const buildApiErrorMessage = (response: Response, normalizedMessage: string): string =>
+  `API error (${response.status}): ${normalizedMessage}`;
+
 export interface OpenAIServiceConfig {
   apiKey: string;
   model: string;
@@ -106,9 +136,9 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
           throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
         }
-        const errorData = await response.json();
-        const message = errorData?.error?.message || JSON.stringify(errorData);
-        throw new Error(`API error (${response.status}): ${message}`);
+        const normalizedMessage = await safeReadErrorBody(response);
+        console.debug('[OpenAIChatService] API error body snippet:', normalizedMessage.slice(0, ERROR_BODY_SNIPPET_MAX_LENGTH));
+        throw new Error(buildApiErrorMessage(response, normalizedMessage));
       }
 
       const reader = response.body?.getReader();
@@ -182,9 +212,9 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
           if (response.status === 404 && config.baseUrl.includes('googleapis.com')) {
             throw new AppError("CONFIG_ERROR", "Configuration Error: It looks like you've set a Google API endpoint for the OpenAI provider. Please switch to the 'Google Gemini' provider in Settings to use Google models.");
           }
-          const errorData = await response.json();
-          const message = errorData?.error?.message || JSON.stringify(errorData);
-          throw new Error(`API error (${response.status}): ${message}`);
+          const normalizedMessage = await safeReadErrorBody(response);
+          console.debug('[OpenAIChatService] API error body snippet:', normalizedMessage.slice(0, ERROR_BODY_SNIPPET_MAX_LENGTH));
+          throw new Error(buildApiErrorMessage(response, normalizedMessage));
         }
 
         const data = await response.json();
