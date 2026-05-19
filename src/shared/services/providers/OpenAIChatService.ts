@@ -119,7 +119,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
 
       const processSSEEvent = (eventRaw: string): boolean => {
         const dataLines = eventRaw
-          .split('\n')
+          .split(/\r?\n/)
           .map(line => line.trimEnd())
           .filter(line => line.startsWith('data:'))
           .map(line => line.slice(5).trimStart());
@@ -160,7 +160,7 @@ export class OpenAIChatService implements IChatService<OpenAIServiceConfig> {
         }
 
         buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split('\n\n');
+        const events = buffer.split(/\r?\n\r?\n/);
         buffer = events.pop() ?? '';
 
         for (const eventRaw of events) {
