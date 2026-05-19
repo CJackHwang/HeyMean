@@ -20,24 +20,29 @@ export interface StreamChatConfig {
 }
 
 
+const REQUEST_TIMEOUT_REASON = 'REQUEST_TIMEOUT';
+
 const withTimeoutSignal = (signal: AbortSignal | undefined, timeoutMs: number): { signal: AbortSignal; cleanup: () => void } => {
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => timeoutController.abort(REQUEST_TIMEOUT_REASON), timeoutMs);
 
   const mergedController = new AbortController();
-  const abortMerged = () => {
-    if (!mergedController.signal.aborted) mergedController.abort();
+  const abortMerged = (reason?: unknown) => {
+    if (!mergedController.signal.aborted) mergedController.abort(reason);
   };
 
-  signal?.addEventListener('abort', abortMerged, { once: true });
-  timeoutController.signal.addEventListener('abort', abortMerged, { once: true });
+  const abortFromSourceSignal = () => abortMerged(signal?.reason);
+  const abortFromTimeoutSignal = () => abortMerged(timeoutController.signal.reason);
+
+  signal?.addEventListener('abort', abortFromSourceSignal, { once: true });
+  timeoutController.signal.addEventListener('abort', abortFromTimeoutSignal, { once: true });
 
   return {
     signal: mergedController.signal,
     cleanup: () => {
       clearTimeout(timeoutId);
-      signal?.removeEventListener('abort', abortMerged);
-      timeoutController.signal.removeEventListener('abort', abortMerged);
+      signal?.removeEventListener('abort', abortFromSourceSignal);
+      timeoutController.signal.removeEventListener('abort', abortFromTimeoutSignal);
     },
   };
 };
@@ -85,15 +90,22 @@ export const streamChatResponse = async (
       };
       const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, UNIFIED_REQUEST_POLICY.timeoutMs);
       try {
-        await service.stream(
-          chatHistory,
-          newMessage,
-          systemInstruction,
-          serviceConfig,
-          accumulatingOnChunk,
-          timedSignal,
-          onToolCall
-        );
+        try {
+          await service.stream(
+            chatHistory,
+            newMessage,
+            systemInstruction,
+            serviceConfig,
+            accumulatingOnChunk,
+            timedSignal,
+            onToolCall
+          );
+        } catch (error) {
+          if (timedSignal.aborted && timedSignal.reason === REQUEST_TIMEOUT_REASON) {
+            throw new AppError('TIMEOUT_ERROR', `Error: Request timed out after ${UNIFIED_REQUEST_POLICY.timeoutMs / 1000}s.`);
+          }
+          throw error;
+        }
       } finally {
         cleanup();
       }
@@ -110,15 +122,22 @@ export const streamChatResponse = async (
       };
       const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, UNIFIED_REQUEST_POLICY.timeoutMs);
       try {
-        await service.stream(
-          chatHistory,
-          newMessage,
-          systemInstruction,
-          serviceConfig,
-          accumulatingOnChunk,
-          timedSignal,
-          onToolCall
-        );
+        try {
+          await service.stream(
+            chatHistory,
+            newMessage,
+            systemInstruction,
+            serviceConfig,
+            accumulatingOnChunk,
+            timedSignal,
+            onToolCall
+          );
+        } catch (error) {
+          if (timedSignal.aborted && timedSignal.reason === REQUEST_TIMEOUT_REASON) {
+            throw new AppError('TIMEOUT_ERROR', `Error: Request timed out after ${UNIFIED_REQUEST_POLICY.timeoutMs / 1000}s.`);
+          }
+          throw error;
+        }
       } finally {
         cleanup();
       }
