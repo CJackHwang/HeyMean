@@ -4,6 +4,15 @@ import { getToolsForProvider, GeminiFunctionDeclaration, OpenAIFunctionDefinitio
 import { GeminiChatService, GeminiServiceConfig, OpenAIChatService, OpenAIServiceConfig } from './providers';
 import { normalizeOpenAIBaseUrl } from '@shared/lib/normalizeOpenAIBaseUrl';
 
+
+const getOpenAIErrorEndpoint = (openAiBaseUrl: string): string => {
+  try {
+    return normalizeOpenAIBaseUrl(openAiBaseUrl);
+  } catch {
+    return (openAiBaseUrl || '').trim() || 'invalid-openai-base-url';
+  }
+};
+
 const apiServices = {
   [ApiProvider.GEMINI]: new GeminiChatService(),
   [ApiProvider.OPENAI]: new OpenAIChatService(),
@@ -98,7 +107,7 @@ export const streamChatResponse = async (
       endpoint:
         selectedApiProvider === ApiProvider.GEMINI
           ? 'google-genai'
-          : normalizeOpenAIBaseUrl(openAiBaseUrl),
+          : getOpenAIErrorEndpoint(openAiBaseUrl),
     });
 
     const isRecoverable =

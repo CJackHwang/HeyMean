@@ -16,8 +16,8 @@ export const normalizeOpenAIBaseUrl = (baseUrl?: string): string => {
     throw new Error(INVALID_URL_MESSAGE);
   }
 
-  const path = parsedUrl.pathname.replace(/\/+$/, '');
-  parsedUrl.pathname = path.endsWith('/v1') ? path : `${path}/v1`;
+  const path = parsedUrl.pathname.replace(/\/+$/, '') || '/';
+  parsedUrl.pathname = path === '/' ? '/v1' : path;
 
   return parsedUrl.toString().replace(/\/+$/, '');
 };
